@@ -8,6 +8,7 @@ from application.agents.knowledge_manager.agent import KnowledgeManagerAgent
 from application.agents.medical_assistant.agent import MedicalAssistantAgent
 from application.agents.data_engineer.handlers.build_kg import BuildKGCommandHandler
 from application.agents.echo_agent import EchoAgent
+from application.agents.knowledge_manager.agent import KnowledgeManagerAgent
 from application.commands.base import CommandBus
 from application.commands.collaboration_commands import BuildKGCommand
 from application.commands.echo_command import EchoCommand, EchoCommandHandler
@@ -193,6 +194,7 @@ AGENT_REGISTRY: Dict[str, Callable[..., Agent]] = {
     "knowledge_manager": create_knowledge_manager_agent,
     "medical_assistant": create_medical_assistant_agent,
     "echo": create_echo_agent,
+    "knowledge_manager": create_knowledge_manager_agent,
 }
 
 

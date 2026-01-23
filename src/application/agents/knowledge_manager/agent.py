@@ -5,6 +5,8 @@ and conflict resolution that are beyond the scope of simple agent updates.
 """
 
 from typing import Dict, Any, List, Optional
+from datetime import datetime
+from enum import Enum
 from domain.agent import Agent
 from domain.communication import CommunicationChannel, Message
 from domain.command_bus import CommandBus
@@ -16,6 +18,68 @@ from application.event_bus import EventBus
 from .conflict_resolver import ConflictResolver
 from .validation_engine import ValidationEngine
 from .reasoning_engine import ReasoningEngine
+
+
+class KGUpdateType(str, Enum):
+    """Types of KG updates that can be escalated."""
+    COMPLEX_MERGE = "complex_merge"
+    CONFLICT_RESOLUTION = "conflict_resolution"
+    VALIDATION_FAILURE = "validation_failure"
+    REASONING_REQUIRED = "reasoning_required"
+    BATCH_UPDATE = "batch_update"
+    ONTOLOGY_UPDATE = "ontology_update"
+
+
+class KGUpdateResult:
+    """Result of a KG update operation."""
+    
+    def __init__(
+        self,
+        success: bool,
+        request_id: str,
+        nodes_created: int = 0,
+        edges_created: int = 0,
+        conflicts_resolved: int = 0,
+        validation_errors: List[str] = None,
+        reasoning_applied: List[str] = None,
+        rollback_performed: bool = False,
+        error_message: str = None,
+        timestamp: datetime = None
+    ):
+        self.success = success
+        self.request_id = request_id
+        self.nodes_created = nodes_created
+        self.edges_created = edges_created
+        self.conflicts_resolved = conflicts_resolved
+        self.validation_errors = validation_errors or []
+        self.reasoning_applied = reasoning_applied or []
+        self.rollback_performed = rollback_performed
+        self.error_message = error_message
+        self.timestamp = timestamp or datetime.utcnow()
+
+
+class KGUpdateRequest:
+    """Request for escalating a KG update to the knowledge manager."""
+    
+    def __init__(
+        self,
+        update_type: KGUpdateType,
+        source_agent: str,
+        domain: str,
+        entities: List[Dict[str, Any]],
+        relationships: List[Dict[str, Any]],
+        metadata: Dict[str, Any] = None,
+        priority: int = 1
+    ):
+        self.update_type = update_type
+        self.source_agent = source_agent
+        self.domain = domain
+        self.entities = entities
+        self.relationships = relationships
+        self.metadata = metadata or {}
+        self.priority = priority
+        self.request_id = f"{domain}_{update_type.value}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        self.timestamp = datetime.utcnow()
 
 
 class KnowledgeManagerAgent(Agent):
@@ -53,6 +117,159 @@ class KnowledgeManagerAgent(Agent):
         self.event_bus.subscribe("complex_relationship_operation", self.handle_complex_relationship)
         self.event_bus.subscribe("batch_operation", self.handle_batch_operation)
         self.event_bus.subscribe("conflict_resolution", self.handle_conflict_resolution)
+
+    async def escalate_update(self, request: KGUpdateRequest) -> KGUpdateResult:
+        """Handle escalated KG update requests."""
+        try:
+            # Log the request
+            self._audit_log.append({
+                "request_id": request.request_id,
+                "source_agent": request.source_agent,
+                "update_type": request.update_type.value,
+                "timestamp": request.timestamp,
+                "success": False,
+                "nodes_created": 0,
+                "edges_created": 0,
+                "conflicts_resolved": 0,
+                "validation_errors": [],
+                "rollback_performed": False
+            })
+            
+            # Validate the request
+            validation_errors = []
+            if not request.entities:
+                validation_errors.append("No entities provided")
+            if not request.domain:
+                validation_errors.append("No domain specified")
+            
+            if validation_errors:
+                self._audit_log[-1]["validation_errors"] = validation_errors
+                return KGUpdateResult(
+                    success=False,
+                    request_id=request.request_id,
+                    nodes_created=0,
+                    edges_created=0,
+                    conflicts_resolved=0,
+                    validation_errors=validation_errors,
+                    rollback_performed=False,
+                    error_message="Validation failed"
+                )
+            
+            # Process entities
+            nodes_created = 0
+            for entity in request.entities:
+                try:
+                    await self.backend.add_entity(
+                        entity.get("id", f"entity_{nodes_created}"),
+                        entity
+                    )
+                    nodes_created += 1
+                except Exception as e:
+                    # Rollback on failure
+                    await self._rollback_entities(request.entities[:nodes_created])
+                    self._audit_log[-1]["rollback_performed"] = True
+                    return KGUpdateResult(
+                        success=False,
+                        request_id=request.request_id,
+                        nodes_created=nodes_created,
+                        edges_created=0,
+                        conflicts_resolved=0,
+                        validation_errors=[],
+                        rollback_performed=True,
+                        error_message=f"Failed to create entity: {str(e)}"
+                    )
+            
+            # Process relationships
+            edges_created = 0
+            for relationship in request.relationships:
+                try:
+                    await self.backend.add_relationship(
+                        relationship.get("id", f"rel_{edges_created}"),
+                        relationship.get("source"),
+                        relationship.get("target"),
+                        relationship.get("type", "relates_to"),
+                        relationship
+                    )
+                    edges_created += 1
+                except Exception as e:
+                    # Rollback on failure
+                    await self._rollback_entities(request.entities)
+                    await self._rollback_relationships(request.relationships[:edges_created])
+                    self._audit_log[-1]["rollback_performed"] = True
+                    return KGUpdateResult(
+                        success=False,
+                        request_id=request.request_id,
+                        nodes_created=nodes_created,
+                        edges_created=edges_created,
+                        conflicts_resolved=0,
+                        validation_errors=[],
+                        rollback_performed=True,
+                        error_message=f"Failed to create relationship: {str(e)}"
+                    )
+            
+            # Update audit log
+            self._audit_log[-1].update({
+                "success": True,
+                "nodes_created": nodes_created,
+                "edges_created": edges_created,
+                "conflicts_resolved": 0
+            })
+            
+            return KGUpdateResult(
+                success=True,
+                request_id=request.request_id,
+                nodes_created=nodes_created,
+                edges_created=edges_created,
+                conflicts_resolved=0,
+                validation_errors=[],
+                rollback_performed=False,
+                error_message=None
+            )
+            
+        except Exception as e:
+            # Update audit log with error
+            if self._audit_log:
+                self._audit_log[-1].update({
+                    "success": False,
+                    "error_message": str(e)
+                })
+            
+            return KGUpdateResult(
+                success=False,
+                request_id=request.request_id,
+                nodes_created=0,
+                edges_created=0,
+                conflicts_resolved=0,
+                validation_errors=[],
+                rollback_performed=False,
+                error_message=str(e)
+            )
+    
+    async def _rollback_entities(self, entities: List[Dict[str, Any]]):
+        """Rollback entity creation."""
+        for entity in entities:
+            try:
+                entity_id = entity.get("id")
+                if entity_id:
+                    await self.backend.remove_entity(entity_id)
+            except Exception:
+                # Log rollback failure but continue
+                pass
+    
+    async def _rollback_relationships(self, relationships: List[Dict[str, Any]]):
+        """Rollback relationship creation."""
+        for relationship in relationships:
+            try:
+                rel_id = relationship.get("id")
+                if rel_id:
+                    await self.backend.remove_relationship(rel_id)
+            except Exception:
+                # Log rollback failure but continue
+                pass
+    
+    def get_audit_log(self):
+        """Get the audit log of operations."""
+        return self._audit_log
 
     async def register_self(self):
         """Register the agent as a knowledge management service."""

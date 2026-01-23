@@ -53,7 +53,7 @@ export-env {
       }
     }
 
-    let virtual_env = '/Users/pformoso/Documents/code/Notebooks/.venv'
+    let virtual_env = '/home/hamlet/code/a2a_nsl/.venv'
     let bin = 'bin'
 
     let is_windows = ($nu.os-info.family) == 'windows'
