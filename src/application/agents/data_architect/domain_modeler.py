@@ -375,37 +375,59 @@ class DomainModeler:
         return "\n".join(content_parts)
     
     def _create_episode_content(self, dda_document: DDADocument) -> str:
-        """Create structured episode content from DDA document for Graphiti processing."""
+        """Create structured episode content from DDA document for Graphiti processing.
+        
+        This content is optimized for Graphiti's LLM to extract the correct entities.
+        We emphasize DATA ENTITIES (Customer, Campaign, etc.) as the primary entities,
+        not stakeholders or people mentioned in the document.
+        """
         
         content_parts = []
         
-        # Domain information
-        content_parts.append(f"Domain: {dda_document.domain}")
+        # Start with a clear statement about what this domain contains
+        content_parts.append(f"DATA DOMAIN: {dda_document.domain}")
+        content_parts.append(f"\nThis domain defines {len(dda_document.entities)} core data entities and their relationships.")
         content_parts.append(f"Business Context: {dda_document.business_context}")
-        content_parts.append(f"Data Owner: {dda_document.data_owner}")
-        content_parts.append(f"Stakeholders: {', '.join(dda_document.stakeholders)}")
         content_parts.append(f"Effective Date: {dda_document.effective_date.strftime('%Y-%m-%d')}")
         
-        # Entities
-        content_parts.append("\nData Entities:")
-        for entity in dda_document.entities:
-            content_parts.append(f"\nEntity: {entity.name}")
-            content_parts.append(f"Description: {entity.description}")
-            content_parts.append(f"Attributes: {', '.join(entity.attributes)}")
-            if entity.primary_key:
-                content_parts.append(f"Primary Key: {entity.primary_key}")
-            if entity.foreign_keys:
-                content_parts.append(f"Foreign Keys: {', '.join(entity.foreign_keys)}")
-            content_parts.append(f"Business Rules: {', '.join(entity.business_rules)}")
+        # Emphasize the data entities as the main subject
+        content_parts.append(f"\n{'='*60}")
+        content_parts.append("CORE DATA ENTITIES (Primary Subject)")
+        content_parts.append(f"{'='*60}")
+        content_parts.append(f"\nThe {dda_document.domain} domain contains the following data entities:\n")
         
-        # Relationships
-        content_parts.append("\nRelationships:")
-        for relationship in dda_document.relationships:
-            content_parts.append(f"\nRelationship: {relationship.source_entity} -> {relationship.target_entity}")
-            content_parts.append(f"Type: {relationship.relationship_type}")
-            content_parts.append(f"Description: {relationship.description}")
-            if relationship.constraints:
-                content_parts.append(f"Constraints: {', '.join(relationship.constraints)}")
+        # Entities - with emphasis that these ARE the entities
+        for i, entity in enumerate(dda_document.entities, 1):
+            content_parts.append(f"\n{i}. DATA ENTITY: {entity.name}")
+            content_parts.append(f"   Entity Type: {entity.name}")
+            content_parts.append(f"   Purpose: {entity.description}")
+            content_parts.append(f"   Data Attributes: {', '.join(entity.attributes)}")
+            if entity.primary_key:
+                content_parts.append(f"   Unique Identifier: {entity.primary_key}")
+            if entity.foreign_keys:
+                content_parts.append(f"   References to other entities: {', '.join(entity.foreign_keys)}")
+            if entity.business_rules:
+                content_parts.append(f"   Constraints: {'; '.join(entity.business_rules)}")
+        
+        # Relationships between data entities
+        if dda_document.relationships:
+            content_parts.append(f"\n{'='*60}")
+            content_parts.append("RELATIONSHIPS BETWEEN DATA ENTITIES")
+            content_parts.append(f"{'='*60}\n")
+            
+            for i, relationship in enumerate(dda_document.relationships, 1):
+                content_parts.append(f"\n{i}. The {relationship.source_entity} entity {relationship.relationship_type} the {relationship.target_entity} entity")
+                content_parts.append(f"   Cardinality: {relationship.relationship_type}")
+                content_parts.append(f"   Description: {relationship.description}")
+                if relationship.constraints:
+                    content_parts.append(f"   Constraints: {', '.join(relationship.constraints)}")
+        
+        # Add metadata section (de-emphasized)
+        content_parts.append(f"\n{'='*60}")
+        content_parts.append("DOMAIN METADATA (Reference Information)")
+        content_parts.append(f"{'='*60}")
+        content_parts.append(f"\nData Owner: {dda_document.data_owner}")
+        content_parts.append(f"Stakeholder Teams: {', '.join(dda_document.stakeholders)}")
         
         # Data Quality Requirements
         if dda_document.data_quality_requirements:

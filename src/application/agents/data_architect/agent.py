@@ -4,7 +4,7 @@ from graphiti_core import Graphiti
 from langchain_core.documents import Document
 from typing import Optional, Dict, Any, List
 from domain.communication import CommunicationChannel
-from src.domain.command_bus import CommandBus
+from domain.command_bus import CommandBus
 from domain.event import KnowledgeEvent
 from domain.roles import Role
 from domain.kg_backends import KnowledgeGraphBackend

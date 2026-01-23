@@ -232,12 +232,33 @@ async def get_entity(
         
         entity_data = result["nodes"][entity_id]
         
+        # InMemoryGraphBackend stores properties directly, not nested under "properties"
+        # Extract properties and metadata
+        if isinstance(entity_data, dict):
+            # Check if it's structured with separate keys or just properties
+            if "properties" in entity_data:
+                properties = entity_data.get("properties", {})
+                labels = entity_data.get("labels", [])
+                created_at = entity_data.get("created_at")
+                updated_at = entity_data.get("updated_at")
+            else:
+                # entity_data IS the properties dict (InMemoryGraphBackend behavior)
+                properties = entity_data
+                labels = entity_data.get("labels", [])
+                created_at = entity_data.get("created_at")
+                updated_at = entity_data.get("updated_at")
+        else:
+            properties = {}
+            labels = []
+            created_at = None
+            updated_at = None
+        
         return EntityResponse(
             id=entity_id,
-            properties=entity_data.get("properties", {}),
-            labels=entity_data.get("labels", []),
-            created_at=entity_data.get("created_at"),
-            updated_at=entity_data.get("updated_at")
+            properties=properties,
+            labels=labels,
+            created_at=created_at,
+            updated_at=updated_at
         )
         
     except HTTPException:
@@ -330,17 +351,42 @@ async def list_entities(
 ):
     """List entities with pagination."""
     try:
-        # Query for entities with pagination
+        # Query for entities (InMemoryGraphBackend ignores query string)
         result = await kg_backend.query(f"MATCH (n) RETURN n LIMIT {limit} SKIP {offset}")
         
         entities = []
-        for entity_id, entity_data in result.get("nodes", {}).items():
+        nodes = result.get("nodes", {})
+        
+        # Apply pagination manually for InMemoryGraphBackend
+        node_items = list(nodes.items())
+        paginated_items = node_items[offset:offset + limit]
+        
+        for entity_id, entity_data in paginated_items:
+            # Handle both structured and flat property storage
+            if isinstance(entity_data, dict):
+                if "properties" in entity_data:
+                    properties = entity_data.get("properties", {})
+                    labels = entity_data.get("labels", [])
+                    created_at = entity_data.get("created_at")
+                    updated_at = entity_data.get("updated_at")
+                else:
+                    # entity_data IS the properties dict
+                    properties = entity_data
+                    labels = entity_data.get("labels", [])
+                    created_at = entity_data.get("created_at")
+                    updated_at = entity_data.get("updated_at")
+            else:
+                properties = {}
+                labels = []
+                created_at = None
+                updated_at = None
+            
             entities.append(EntityResponse(
                 id=entity_id,
-                properties=entity_data.get("properties", {}),
-                labels=entity_data.get("labels", []),
-                created_at=entity_data.get("created_at"),
-                updated_at=entity_data.get("updated_at")
+                properties=properties,
+                labels=labels,
+                created_at=created_at,
+                updated_at=updated_at
             ))
         
         return entities
@@ -435,16 +481,43 @@ async def list_relationships(
         result = await kg_backend.query(query)
         
         relationships = []
-        for edge_data in result.get("edges", {}).values():
-            relationships.append(RelationshipResponse(
-                source=edge_data.get("source", ""),
-                target=edge_data.get("target", ""),
-                type=edge_data.get("type", ""),
-                properties=edge_data.get("properties", {}),
-                created_at=edge_data.get("created_at")
-            ))
+        edges = result.get("edges", {})
         
-        return relationships
+        # InMemoryGraphBackend stores edges as {source_id: [(rel_type, target_id, properties), ...]}
+        for source_id, edge_list in edges.items():
+            if isinstance(edge_list, list):
+                # Handle list of tuples: (rel_type, target_id, properties)
+                for edge_tuple in edge_list:
+                    if len(edge_tuple) >= 3:
+                        edge_type, target_id, properties = edge_tuple[0], edge_tuple[1], edge_tuple[2]
+                        
+                        # Apply filters
+                        if source and source_id != source:
+                            continue
+                        if target and target_id != target:
+                            continue
+                        if rel_type and edge_type != rel_type:
+                            continue
+                        
+                        relationships.append(RelationshipResponse(
+                            source=source_id,
+                            target=target_id,
+                            type=edge_type,
+                            properties=properties if isinstance(properties, dict) else {},
+                            created_at=None
+                        ))
+            elif isinstance(edge_list, dict):
+                # Handle dict structure (if backend uses different format)
+                relationships.append(RelationshipResponse(
+                    source=edge_list.get("source", source_id),
+                    target=edge_list.get("target", ""),
+                    type=edge_list.get("type", ""),
+                    properties=edge_list.get("properties", {}),
+                    created_at=edge_list.get("created_at")
+                ))
+        
+        # Apply limit
+        return relationships[:limit]
         
     except Exception as e:
         logger.error(f"Failed to list relationships: {e}")

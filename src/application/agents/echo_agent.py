@@ -1,6 +1,6 @@
 from domain.agent import Agent
 from domain.communication import CommunicationChannel
-from src.domain.command_bus import CommandBus
+from domain.command_bus import CommandBus
 from typing import Optional
 
 

@@ -37,14 +37,16 @@ class KnowledgeManagerAgent(Agent):
         communication_channel: CommunicationChannel,
         backend: KnowledgeGraphBackend,
         event_bus: EventBus,
+        llm: Optional['Graphiti'] = None,
     ):
         super().__init__(agent_id, command_bus, communication_channel)
         self.backend = backend
         self.event_bus = event_bus
+        self.llm = llm
         self.knowledge_service = KnowledgeManagerService(backend)
         self.conflict_resolver = ConflictResolver(backend)
         self.validation_engine = ValidationEngine(backend)
-        self.reasoning_engine = ReasoningEngine(backend)
+        self.reasoning_engine = ReasoningEngine(backend, llm=llm)
         
         # Subscribe to complex operations
         self.event_bus.subscribe("complex_entity_operation", self.handle_complex_entity)

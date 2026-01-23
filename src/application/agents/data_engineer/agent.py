@@ -1,6 +1,6 @@
 from domain.agent import Agent
 from domain.communication import CommunicationChannel
-from src.domain.command_bus import CommandBus
+from domain.command_bus import CommandBus
 from graphiti_core import Graphiti
 from typing import Optional, Dict, Any, List
 from domain.event import KnowledgeEvent

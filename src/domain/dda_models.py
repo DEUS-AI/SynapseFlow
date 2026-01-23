@@ -11,6 +11,7 @@ class DataEntity(BaseModel):
     business_rules: List[str] = Field(default_factory=list, description="Business rules for the entity")
     primary_key: Optional[str] = Field(None, description="Primary key attribute")
     foreign_keys: List[str] = Field(default_factory=list, description="Foreign key attributes")
+    origin: Optional[str] = Field(None, description="Origin/source system for this entity")
 
 
 class Relationship(BaseModel):

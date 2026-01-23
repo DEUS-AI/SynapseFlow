@@ -56,10 +56,19 @@ class MarkdownDDAParser(DDAParser):
     
     def _extract_domain(self, content: str) -> str:
         """Extract domain from document information section."""
-        pattern = r'\*\*Domain\*\*:\s*(.+)'
-        match = re.search(pattern, content)
-        if match:
-            return match.group(1).strip()
+        # Try multiple patterns
+        patterns = [
+            r'\*\*Domain\*\*:\s*(.+)',
+            r'Domain:\s*(.+)',
+            r'# Domain:\s*(.+)',
+            r'#\s*Domain\s*\n(.+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+                
         raise ValueError("Domain not found in DDA document")
     
     def _extract_stakeholders(self, content: str) -> List[str]:
@@ -106,9 +115,11 @@ class MarkdownDDAParser(DDAParser):
         pattern = r'## Data Entities\s*\n(.*?)(?=\n## Relationships|\Z)'
         match = re.search(pattern, content, re.DOTALL)
         if not match:
+            print("DEBUG: No 'Data Entities' section found")
             return entities
         
         entities_section = match.group(1)
+        print(f"DEBUG: Entities section length: {len(entities_section)}")
         
         # Split by entity headers (### Entity Name)
         # First, remove the leading ### from the first entity

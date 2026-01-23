@@ -1,9 +1,12 @@
+
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from domain.dda_models import DDADocument
+from domain.communication import CommunicationChannel, Message
 from application.commands.modeling_command import ModelingCommand
+from application.commands.metadata_command import GenerateMetadataCommand
 from application.agents.data_architect.dda_parser import DDAParserFactory
-from application.agents.data_architect.domain_modeler import DomainModeler
+from infrastructure.architecture_graph_writer import ArchitectureGraphWriter
 import json
 import os
 from datetime import datetime
@@ -29,9 +32,17 @@ class ModelingResult(BaseModel):
 class ModelingWorkflow:
     """Orchestrates the complete modeling workflow with error recovery and backup."""
     
-    def __init__(self, parser_factory: DDAParserFactory, domain_modeler: DomainModeler):
+    def __init__(
+        self,
+        parser_factory: DDAParserFactory,
+        neo4j_uri: str,
+        neo4j_user: str,
+        neo4j_password: str
+    ):
         self.parser_factory = parser_factory
-        self.domain_modeler = domain_modeler
+        self.neo4j_uri = neo4j_uri
+        self.neo4j_user = neo4j_user
+        self.neo4j_password = neo4j_password
         self.backup_dir = "backups/modeling"
         self._ensure_backup_dir()
     
@@ -73,14 +84,34 @@ class ModelingWorkflow:
                 }
             workflow_state["steps_completed"].append("validate")
             
-            # 4. Create or update knowledge graph
-            if command.update_existing:
-                graph_document = await self.domain_modeler.update_domain_graph(dda_document)
-            else:
-                graph_document = await self.domain_modeler.create_domain_graph(dda_document)
-            workflow_state["steps_completed"].append("graph_creation")
+            # 4. Create architecture graph using direct writer
+            writer = ArchitectureGraphWriter(
+                uri=self.neo4j_uri,
+                user=self.neo4j_user,
+                password=self.neo4j_password
+            )
             
-            # 5. Generate output artifacts
+            try:
+                graph_document = writer.create_architecture_graph(dda_document)
+                workflow_state["steps_completed"].append("graph_creation")
+            finally:
+                writer.close()
+            
+            # 5. Hand off to Data Engineer for metadata generation (non-blocking)
+            handoff_result = await self._handoff_to_data_engineer(
+                command,
+                dda_document,
+                graph_document
+            )
+            workflow_state["handoff"] = handoff_result
+            # Handoff failure is not critical - workflow continues
+            if handoff_result.get("success"):
+                workflow_state["steps_completed"].append("handoff")
+            else:
+                # Log warning but don't fail the workflow
+                workflow_state["handoff_warning"] = handoff_result.get("error", "Handoff failed")
+            
+            # 6. Generate output artifacts
             artifacts = await self._generate_artifacts(dda_document, graph_document, command)
             workflow_state["steps_completed"].append("artifacts")
             
@@ -92,6 +123,7 @@ class ModelingWorkflow:
                 "graph_document": graph_document,
                 "artifacts": artifacts,
                 "warnings": validation_result["warnings"],
+                "handoff": handoff_result,
                 "workflow_state": workflow_state
             }
             
@@ -167,7 +199,97 @@ class ModelingWorkflow:
             }
         }
         
-        return artifacts 
+        return artifacts
+    
+    async def _handoff_to_data_engineer(
+        self,
+        command: ModelingCommand,
+        dda_document: DDADocument,
+        graph_document: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Hand off to Data Engineer agent for metadata generation.
+        
+        Args:
+            command: The modeling command that was executed
+            dda_document: The parsed DDA document
+            graph_document: The created architecture graph document
+        
+        Returns:
+            Dictionary with handoff result
+        """
+        try:
+            # Get architecture graph reference (group_id or episode_uuid)
+            architecture_graph_ref = graph_document.get("group_id") or graph_document.get("episode_uuid")
+            
+            if not architecture_graph_ref:
+                return {
+                    "success": False,
+                    "error": "Could not determine architecture graph reference"
+                }
+            
+            # Discover Data Engineer agent URL
+            data_engineer_url = await self._discover_data_engineer_agent()
+            
+            if not data_engineer_url:
+                return {
+                    "success": False,
+                    "error": "Could not discover Data Engineer agent"
+                }
+            
+            # Create GenerateMetadataCommand
+            metadata_command = GenerateMetadataCommand(
+                dda_path=command.dda_path,
+                domain=command.domain or dda_document.domain,
+                architecture_graph_ref=architecture_graph_ref,
+                validate_against_architecture=True
+            )
+            
+            # Send command via A2A HTTP endpoint
+            import httpx
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.post(
+                        f"{data_engineer_url}/v1/tasks/send",
+                        json={
+                            "tool_name": "GenerateMetadataCommand",
+                            "parameters": metadata_command.model_dump()
+                        },
+                        timeout=30.0
+                    )
+                    response.raise_for_status()
+                    
+                    return {
+                        "success": True,
+                        "data_engineer_url": data_engineer_url,
+                        "architecture_graph_ref": architecture_graph_ref,
+                        "response": response.json()
+                    }
+                except httpx.HTTPStatusError as e:
+                    return {
+                        "success": False,
+                        "error": f"HTTP error: {e.response.status_code} - {e.response.text}"
+                    }
+                except httpx.RequestError as e:
+                    return {
+                        "success": False,
+                        "error": f"Request error: {str(e)}"
+                    }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Handoff failed: {str(e)}"
+            }
+    
+    async def _discover_data_engineer_agent(self) -> Optional[str]:
+        """Discover Data Engineer agent URL.
+        
+        Returns:
+            URL of Data Engineer agent or None if not found
+        """
+        # Default URL for Data Engineer agent
+        # In a real implementation, this would query the knowledge graph or service registry
+        return "http://localhost:8002"
     
     async def _create_backup(self, domain: str) -> Dict[str, Any]:
         """Create a backup of the existing domain graph."""

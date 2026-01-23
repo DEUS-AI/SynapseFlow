@@ -1,7 +1,7 @@
 import asyncio
 from pydantic import BaseModel
 from .base import CommandHandler
-from src.domain.commands import Command
+from domain.commands import Command
 
 
 class ShellCommandResult(BaseModel):

@@ -24,6 +24,7 @@ class Neo4jBackend(KnowledgeGraphBackend):
             database: Neo4j database name (default: "neo4j")
         """
         self.uri = uri
+        
         self.username = username
         self.password = password
         self.database = database
@@ -44,18 +45,26 @@ class Neo4jBackend(KnowledgeGraphBackend):
             await self._driver.close()
             self._driver = None
 
-    async def add_entity(self, entity_id: str, properties: Dict[str, Any]) -> None:
+    async def add_entity(self, entity_id: str, properties: Dict[str, Any], labels: List[str] = None) -> None:
         """Add or update an entity in Neo4j.
         
         Args:
             entity_id: Unique identifier for the entity
             properties: Entity properties as key-value pairs
+            labels: Optional list of node labels (e.g., ["BusinessConcept", "Concept"])
         """
         driver = await self._get_driver()
         
-        # Create Cypher query to merge entity
-        query = """
-        MERGE (n:Entity {id: $entity_id})
+        # Build label string (e.g., ":Entity:BusinessConcept:Concept")
+        if labels:
+            label_str = ":Entity:" + ":".join(labels)
+        else:
+            label_str = ":Entity"
+        
+        # Create Cypher query to merge entity with dynamic labels
+        # We need to use APOC or a two-step query because labels can't be parameterized
+        query = f"""
+        MERGE (n{label_str} {{id: $entity_id}})
         SET n += $properties
         RETURN n
         """
@@ -72,6 +81,8 @@ class Neo4jBackend(KnowledgeGraphBackend):
     ) -> None:
         """Add a relationship between two entities.
         
+        Creates source/target nodes if they don't exist.
+        
         Args:
             source_id: Source entity ID
             relationship_type: Type of relationship
@@ -80,14 +91,17 @@ class Neo4jBackend(KnowledgeGraphBackend):
         """
         driver = await self._get_driver()
         
-        # Create Cypher query to create relationship
-        query = """
-        MATCH (source:Entity {id: $source_id})
-        MATCH (target:Entity {id: $target_id})
-        MERGE (source)-[r:`%s`]->(target)
+        # Sanitize relationship type (replace special chars)
+        safe_rel_type = relationship_type.replace(":", "_").replace(" ", "_").upper()
+        
+        # Use MERGE for nodes to ensure they exist, then create relationship
+        query = f"""
+        MERGE (source:Entity {{id: $source_id}})
+        MERGE (target:Entity {{id: $target_id}})
+        MERGE (source)-[r:`{safe_rel_type}`]->(target)
         SET r += $properties
         RETURN r
-        """ % relationship_type
+        """
         
         async with driver.session(database=self.database) as session:
             await session.run(query, 
@@ -261,6 +275,30 @@ class Neo4jBackend(KnowledgeGraphBackend):
                 "query": query,
                 "parameters": parameters
             }
+
+    async def query_raw(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Execute a Cypher query and return raw records.
+        
+        Use this for queries that return scalar values (e.g., n.id, n.name).
+        
+        Args:
+            query: Cypher query string
+            parameters: Query parameters
+            
+        Returns:
+            List of record dictionaries
+        """
+        driver = await self._get_driver()
+        parameters = parameters or {}
+        
+        records = []
+        async with driver.session(database=self.database) as session:
+            result = await session.run(query, **parameters)
+            
+            async for record in result:
+                records.append(dict(record))
+        
+        return records
 
     async def delete_entity(self, entity_id: str) -> bool:
         """Delete an entity and its relationships.

@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { AgentMonitor } from '../../components/admin/AgentMonitor';
+import { SystemStats } from '../../components/admin/SystemStats';
+---
+
+<BaseLayout title="Admin Dashboard">
+  <div class="min-h-screen bg-gray-50">
+    <header class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 py-6">
+        <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SystemStats client:load />
+        <AgentMonitor client:load />
+      </div>
+
+      <div class="mt-6">
+        <a
+          href="/admin/patients"
+          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          Manage Patients
+        </a>
+      </div>
+    </main>
+  </div>
+</BaseLayout>
