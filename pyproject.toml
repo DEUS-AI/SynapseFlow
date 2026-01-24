@@ -9,7 +9,7 @@
     dependencies = [
         "neo4j",
         "fastapi",
-        "uvicorn",
+        "uvicorn[standard]",
         "httpx",
         "pytest-httpx",
         "python-dotenv",

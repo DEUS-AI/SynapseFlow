@@ -11,6 +11,7 @@ import tempfile
 import os
 
 from .kg_router import router as kg_router
+from .document_router import router as document_router
 from .dependencies import get_chat_service, get_patient_memory, get_kg_backend
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(kg_router)
+app.include_router(document_router)
 
 
 # ========================================
@@ -94,6 +96,10 @@ async def chat_websocket_endpoint(
         chat_service = await get_chat_service()
         patient_memory = await get_patient_memory()
         logger.info(f"Dependencies initialized for {client_id}")
+
+        # Ensure patient exists in the system (creates if not found)
+        await patient_memory.get_or_create_patient(patient_id)
+        logger.info(f"Patient verified/created: {patient_id}")
     except Exception as e:
         logger.error(f"Failed to initialize dependencies for {client_id}: {e}", exc_info=True)
         await websocket.send_json({"type": "error", "message": f"Service initialization failed: {str(e)}"})
@@ -493,35 +499,132 @@ async def upload_dda(
         try:
             # Process DDA using markdown parser
             from infrastructure.parsers.markdown_parser import MarkdownDDAParser
-            parser = MarkdownDDAParser(kg_backend)
+            parser = MarkdownDDAParser()
 
-            result = await parser.parse_file(tmp_path)
+            result = await parser.parse(tmp_path)
 
-            # Extract statistics
-            entities_count = len(result.get("entities", []))
-            relationships_count = len(result.get("relationships", []))
+            # Store parsed DDA in Neo4j
+            # 1. Create or merge Catalog node from domain
+            catalog_query = """
+            MERGE (c:Catalog {name: $domain})
+            SET c.data_owner = $data_owner,
+                c.business_context = $business_context,
+                c.updated_at = datetime()
+            RETURN elementId(c) as catalog_id
+            """
+            catalog_result = await kg_backend.query_raw(catalog_query, {
+                "domain": result.domain,
+                "data_owner": result.data_owner,
+                "business_context": result.business_context
+            })
 
-            # Extract unique catalogs, schemas, tables
-            catalogs = set()
-            schemas = set()
-            tables = set()
+            # 2. Create default Schema under Catalog
+            schema_query = """
+            MATCH (c:Catalog {name: $domain})
+            MERGE (s:Schema {name: $schema_name})
+            MERGE (c)-[:CONTAINS_SCHEMA]->(s)
+            SET s.updated_at = datetime()
+            RETURN elementId(s) as schema_id
+            """
+            schema_name = f"{result.domain}_schema"
+            await kg_backend.query_raw(schema_query, {
+                "domain": result.domain,
+                "schema_name": schema_name
+            })
 
-            for entity in result.get("entities", []):
-                if entity.get("type") == "Catalog":
-                    catalogs.add(entity.get("name"))
-                elif entity.get("type") == "Schema":
-                    schemas.add(entity.get("name"))
-                elif entity.get("type") == "Table":
-                    tables.add(entity.get("name"))
+            # 3. Create Table nodes from entities with their columns
+            tables_created = 0
+            columns_created = 0
+            for entity in result.entities:
+                # Create Table node
+                table_query = """
+                MATCH (s:Schema {name: $schema_name})
+                MERGE (t:Table {name: $table_name})
+                MERGE (s)-[:CONTAINS_TABLE]->(t)
+                SET t.description = $description,
+                    t.primary_key = $primary_key,
+                    t.business_rules = $business_rules,
+                    t.updated_at = datetime()
+                RETURN elementId(t) as table_id
+                """
+                await kg_backend.query_raw(table_query, {
+                    "schema_name": schema_name,
+                    "table_name": entity.name,
+                    "description": entity.description,
+                    "primary_key": entity.primary_key,
+                    "business_rules": entity.business_rules
+                })
+                tables_created += 1
+
+                # Create Column nodes from attributes
+                for attr in entity.attributes:
+                    # Parse attribute (format might be "column_name (type)" or just "column_name")
+                    attr_name = attr.split('(')[0].strip() if '(' in attr else attr.strip()
+                    attr_type = "VARCHAR"  # Default type
+                    if '(' in attr and ')' in attr:
+                        type_part = attr.split('(')[1].split(')')[0].strip()
+                        if type_part not in ['Primary Key', 'Foreign Key']:
+                            attr_type = type_part
+
+                    is_primary = 'Primary Key' in attr
+                    is_foreign = 'Foreign Key' in attr
+
+                    column_query = """
+                    MATCH (t:Table {name: $table_name})
+                    MERGE (col:Column {name: $column_name, table: $table_name})
+                    MERGE (t)-[:HAS_COLUMN]->(col)
+                    SET col.data_type = $data_type,
+                        col.is_primary_key = $is_primary,
+                        col.is_foreign_key = $is_foreign,
+                        col.updated_at = datetime()
+                    """
+                    await kg_backend.query_raw(column_query, {
+                        "table_name": entity.name,
+                        "column_name": attr_name,
+                        "data_type": attr_type,
+                        "is_primary": is_primary,
+                        "is_foreign": is_foreign
+                    })
+                    columns_created += 1
+
+            # 4. Create relationships between tables
+            relationships_created = 0
+            for rel in result.relationships:
+                rel_query = """
+                MATCH (source:Table {name: $source_name})
+                MATCH (target:Table {name: $target_name})
+                MERGE (source)-[r:RELATES_TO {type: $rel_type}]->(target)
+                SET r.description = $description,
+                    r.cardinality = $rel_type,
+                    r.updated_at = datetime()
+                """
+                await kg_backend.query_raw(rel_query, {
+                    "source_name": rel.source_entity,
+                    "target_name": rel.target_entity,
+                    "rel_type": rel.relationship_type,
+                    "description": rel.description
+                })
+                relationships_created += 1
+
+            # Collect entity names for response
+            entity_names = [entity.name for entity in result.entities]
+            relationship_info = [
+                f"{rel.source_entity} -> {rel.target_entity} ({rel.relationship_type})"
+                for rel in result.relationships
+            ]
 
             return {
                 "success": True,
-                "message": "DDA processed successfully",
-                "entities_count": entities_count,
-                "relationships_count": relationships_count,
-                "catalogs": list(catalogs),
-                "schemas": list(schemas),
-                "tables": list(tables)
+                "message": "DDA processed and stored successfully",
+                "domain": result.domain,
+                "data_owner": result.data_owner,
+                "catalog_created": result.domain,
+                "schema_created": schema_name,
+                "tables_created": tables_created,
+                "columns_created": columns_created,
+                "relationships_created": relationships_created,
+                "entities": entity_names,
+                "relationships": relationship_info
             }
 
         finally:
