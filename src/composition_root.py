@@ -1,14 +1,16 @@
 
 # src/composition_root.py
 
-from typing import Dict, Callable, Tuple, Optional
+from typing import Dict, Callable, Tuple, Optional, TYPE_CHECKING
 from application.agents.data_architect.agent import DataArchitectAgent
 from application.agents.data_engineer.agent import DataEngineerAgent
 from application.agents.knowledge_manager.agent import KnowledgeManagerAgent
-from application.agents.medical_assistant.agent import MedicalAssistantAgent
 from application.agents.data_engineer.handlers.build_kg import BuildKGCommandHandler
 from application.agents.echo_agent import EchoAgent
-from application.agents.knowledge_manager.agent import KnowledgeManagerAgent
+
+# Lazy import for MedicalAssistantAgent to avoid loading mem0 for agents that don't need it
+if TYPE_CHECKING:
+    from application.agents.medical_assistant.agent import MedicalAssistantAgent
 from application.commands.base import CommandBus
 from application.commands.collaboration_commands import BuildKGCommand
 from application.commands.echo_command import EchoCommand, EchoCommandHandler
@@ -131,8 +133,12 @@ def create_medical_assistant_agent(
     communication_channel: CommunicationChannel,
     patient_memory_service,  # PatientMemoryService
     url: Optional[str] = None,
-) -> MedicalAssistantAgent:
-    """Creates a MedicalAssistantAgent for patient memory operations."""
+):
+    """Creates a MedicalAssistantAgent for patient memory operations.
+
+    Note: Import is done lazily to avoid loading mem0 for agents that don't need it.
+    """
+    from application.agents.medical_assistant.agent import MedicalAssistantAgent
     return MedicalAssistantAgent(
         agent_id=agent_id,
         command_bus=command_bus,
