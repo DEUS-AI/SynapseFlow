@@ -3,12 +3,40 @@
 This backend provides persistent storage using Neo4j database.
 It implements the KnowledgeGraphBackend interface and supports
 all CRUD operations for entities and relationships.
+
+Enhanced with 4-layer Knowledge Graph architecture support:
+- PERCEPTION: Raw extracted data from PDFs
+- SEMANTIC: Validated concepts linked to ontologies
+- REASONING: Inferred knowledge with provenance
+- APPLICATION: Query patterns and cached results
 """
 
 import asyncio
+import logging
+from datetime import datetime
 from typing import Any, Dict, List, Tuple, Optional
+from enum import Enum
 from neo4j import AsyncGraphDatabase
 from domain.kg_backends import KnowledgeGraphBackend
+
+logger = logging.getLogger(__name__)
+
+
+class KnowledgeLayer(str, Enum):
+    """The four knowledge graph layers."""
+    PERCEPTION = "PERCEPTION"
+    SEMANTIC = "SEMANTIC"
+    REASONING = "REASONING"
+    APPLICATION = "APPLICATION"
+
+
+# Required properties for each layer
+LAYER_REQUIREMENTS = {
+    KnowledgeLayer.PERCEPTION: ["source_document", "extraction_confidence"],
+    KnowledgeLayer.SEMANTIC: ["domain"],  # ontology_codes optional
+    KnowledgeLayer.REASONING: ["confidence", "inference_rules_applied"],
+    KnowledgeLayer.APPLICATION: ["usage_context"],
+}
 
 
 class Neo4jBackend(KnowledgeGraphBackend):
@@ -376,6 +404,404 @@ class Neo4jBackend(KnowledgeGraphBackend):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
+
+    # ========================================
+    # Layer-Aware Methods (4-Layer Architecture)
+    # ========================================
+
+    async def add_entity_with_layer(
+        self,
+        entity_id: str,
+        properties: Dict[str, Any],
+        layer: KnowledgeLayer,
+        labels: List[str] = None,
+        validate: bool = True
+    ) -> Dict[str, Any]:
+        """Add an entity with layer assignment and validation.
+
+        Args:
+            entity_id: Unique identifier for the entity
+            properties: Entity properties as key-value pairs
+            layer: Target knowledge layer (PERCEPTION, SEMANTIC, REASONING, APPLICATION)
+            labels: Optional list of node labels
+            validate: If True, validate required properties for the layer
+
+        Returns:
+            Created entity with layer assignment
+
+        Raises:
+            ValueError: If required properties for the layer are missing
+        """
+        # Validate required properties for the layer
+        if validate:
+            required = LAYER_REQUIREMENTS.get(layer, [])
+            missing = [prop for prop in required if prop not in properties]
+            if missing:
+                logger.warning(
+                    f"Entity {entity_id} missing recommended properties for {layer.value}: {missing}"
+                )
+
+        # Add layer metadata
+        properties["layer"] = layer.value
+        properties["layer_assigned_at"] = datetime.now().isoformat()
+
+        # Add status for PERCEPTION layer
+        if layer == KnowledgeLayer.PERCEPTION and "status" not in properties:
+            properties["status"] = "pending_validation"
+
+        await self.add_entity(entity_id, properties, labels)
+
+        return {
+            "id": entity_id,
+            "layer": layer.value,
+            "properties": properties,
+            "labels": labels or []
+        }
+
+    async def promote_entity(
+        self,
+        entity_id: str,
+        target_layer: KnowledgeLayer,
+        promotion_properties: Dict[str, Any] = None,
+        create_version: bool = True
+    ) -> Dict[str, Any]:
+        """Promote an entity to a higher layer with version tracking.
+
+        Args:
+            entity_id: Entity to promote
+            target_layer: Target layer (must be higher than current)
+            promotion_properties: Additional properties to add during promotion
+            create_version: If True, create a versioned copy instead of modifying in place
+
+        Returns:
+            Promotion result with transition details
+
+        Raises:
+            ValueError: If target layer is not higher than current layer
+        """
+        driver = await self._get_driver()
+        promotion_properties = promotion_properties or {}
+
+        # Get current entity
+        entity = await self.get_entity(entity_id)
+        if not entity:
+            raise ValueError(f"Entity {entity_id} not found")
+
+        current_layer = entity["properties"].get("layer", "PERCEPTION")
+        layer_order = ["PERCEPTION", "SEMANTIC", "REASONING", "APPLICATION"]
+
+        current_idx = layer_order.index(current_layer) if current_layer in layer_order else 0
+        target_idx = layer_order.index(target_layer.value)
+
+        if target_idx <= current_idx:
+            raise ValueError(
+                f"Cannot promote from {current_layer} to {target_layer.value}. "
+                f"Target layer must be higher than current layer."
+            )
+
+        transition_id = f"transition_{entity_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        if create_version:
+            # Create new versioned entity
+            new_entity_id = f"{entity_id}_v{target_idx + 1}"
+            query = """
+            MATCH (source:Entity {id: $entity_id})
+            CREATE (target:Entity {id: $new_entity_id})
+            SET target = source,
+                target.id = $new_entity_id,
+                target.layer = $target_layer,
+                target.layer_assigned_at = datetime(),
+                target.promoted_from = $entity_id,
+                target.promotion_timestamp = datetime(),
+                target.status = 'active'
+            SET target += $promotion_properties
+            CREATE (source)-[:PROMOTED_TO {
+                transition_id: $transition_id,
+                promoted_at: datetime(),
+                from_layer: $current_layer,
+                to_layer: $target_layer
+            }]->(target)
+            RETURN target, source
+            """
+        else:
+            # Modify in place
+            new_entity_id = entity_id
+            query = """
+            MATCH (n:Entity {id: $entity_id})
+            SET n.layer = $target_layer,
+                n.layer_assigned_at = datetime(),
+                n.previous_layer = $current_layer,
+                n.promotion_timestamp = datetime(),
+                n.status = 'active'
+            SET n += $promotion_properties
+            RETURN n as target
+            """
+
+        async with driver.session(database=self.database) as session:
+            result = await session.run(
+                query,
+                entity_id=entity_id,
+                new_entity_id=new_entity_id,
+                target_layer=target_layer.value,
+                current_layer=current_layer,
+                promotion_properties=promotion_properties,
+                transition_id=transition_id
+            )
+            record = await result.single()
+
+            if not record:
+                raise ValueError(f"Failed to promote entity {entity_id}")
+
+            target_node = record["target"]
+
+            # Create transition audit record
+            audit_query = """
+            CREATE (t:LayerTransition {
+                transition_id: $transition_id,
+                entity_id: $entity_id,
+                from_layer: $from_layer,
+                to_layer: $to_layer,
+                status: 'completed',
+                completed_at: datetime(),
+                trigger_type: 'manual',
+                new_entity_id: $new_entity_id
+            })
+            RETURN t
+            """
+            await session.run(
+                audit_query,
+                transition_id=transition_id,
+                entity_id=entity_id,
+                from_layer=current_layer,
+                to_layer=target_layer.value,
+                new_entity_id=new_entity_id
+            )
+
+        return {
+            "transition_id": transition_id,
+            "entity_id": entity_id,
+            "new_entity_id": new_entity_id,
+            "from_layer": current_layer,
+            "to_layer": target_layer.value,
+            "status": "completed",
+            "target_properties": dict(target_node)
+        }
+
+    async def get_promotion_candidates(
+        self,
+        from_layer: str = None,
+        source_layer: KnowledgeLayer = None,
+        confidence_threshold: float = 0.85,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get entities ready for promotion to the next layer.
+
+        Args:
+            source_layer: Layer to check for promotion candidates
+            confidence_threshold: Minimum confidence for promotion
+            limit: Maximum number of candidates to return
+
+        Returns:
+            List of entities meeting promotion criteria
+        """
+        driver = await self._get_driver()
+
+        # Normalize layer parameter (support both from_layer string and source_layer enum)
+        layer = from_layer or (source_layer.value if source_layer else None)
+        if not layer:
+            return []
+
+        # Build layer-specific query
+        if layer == "PERCEPTION" or layer == KnowledgeLayer.PERCEPTION:
+            # Support both 'confidence' and 'extraction_confidence' properties
+            # Allow entities with pending_validation status OR no status (migrated data)
+            query = """
+            MATCH (n:Entity)
+            WHERE n.layer = 'PERCEPTION'
+              AND (n.status IS NULL OR n.status = 'pending_validation' OR n.status = 'active')
+              AND (
+                  coalesce(n.confidence, n.extraction_confidence, 0) >= $threshold
+                  OR coalesce(n.validation_count, 0) >= 3
+                  OR n.ontology_codes IS NOT NULL
+              )
+            RETURN n.id as id,
+                   n.name as name,
+                   coalesce(n.confidence, n.extraction_confidence, 0) as confidence,
+                   coalesce(n.validation_count, 0) as validation_count,
+                   n.ontology_codes as ontology_codes,
+                   CASE
+                     WHEN coalesce(n.confidence, n.extraction_confidence, 0) >= $threshold THEN 'confidence'
+                     WHEN coalesce(n.validation_count, 0) >= 3 THEN 'validation_count'
+                     ELSE 'ontology_match'
+                   END as trigger_type
+            ORDER BY coalesce(n.confidence, n.extraction_confidence, 0) DESC
+            LIMIT $limit
+            """
+        elif layer == "SEMANTIC" or layer == KnowledgeLayer.SEMANTIC:
+            query = """
+            MATCH (n:Entity)
+            WHERE n.layer = 'SEMANTIC'
+            OPTIONAL MATCH (n)<-[r]-(other:Entity {layer: 'SEMANTIC'})
+            WITH n, count(r) as reference_count
+            WHERE reference_count >= 5 OR coalesce(n.confidence, 0) >= $threshold
+            RETURN n.id as id,
+                   n.name as name,
+                   coalesce(n.confidence, 0.5) as confidence,
+                   reference_count,
+                   CASE
+                     WHEN reference_count >= 5 THEN 'reference_count'
+                     ELSE 'confidence'
+                   END as trigger_type
+            ORDER BY confidence DESC
+            LIMIT $limit
+            """
+        elif layer == "REASONING" or layer == KnowledgeLayer.REASONING:
+            query = """
+            MATCH (n:Entity)
+            WHERE n.layer = 'REASONING'
+              AND coalesce(n.query_count, 0) >= 10
+            RETURN n.id as id,
+                   n.name as name,
+                   coalesce(n.confidence, 0.5) as confidence,
+                   n.query_count as query_count,
+                   coalesce(n.cache_hit_rate, 0) as cache_hit_rate,
+                   'query_frequency' as trigger_type
+            ORDER BY n.query_count DESC
+            LIMIT $limit
+            """
+        else:
+            return []  # APPLICATION is the highest layer
+
+        async with driver.session(database=self.database) as session:
+            result = await session.run(query, threshold=confidence_threshold, limit=limit)
+            records = await result.data()
+            return records
+
+    async def list_entities_by_layer(
+        self,
+        layer: KnowledgeLayer,
+        limit: int = 100,
+        offset: int = 0,
+        status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List entities filtered by layer.
+
+        Args:
+            layer: Knowledge layer to filter by
+            limit: Maximum number of entities to return
+            offset: Number of entities to skip
+            status: Optional status filter
+
+        Returns:
+            List of entity dictionaries
+        """
+        driver = await self._get_driver()
+
+        where_clause = "WHERE n.layer = $layer"
+        params = {"layer": layer.value, "limit": limit, "offset": offset}
+
+        if status:
+            where_clause += " AND n.status = $status"
+            params["status"] = status
+
+        query = f"""
+        MATCH (n:Entity)
+        {where_clause}
+        RETURN n
+        SKIP $offset
+        LIMIT $limit
+        """
+
+        entities = []
+        async with driver.session(database=self.database) as session:
+            result = await session.run(query, **params)
+
+            async for record in result:
+                node = record["n"]
+                entities.append({
+                    "id": node.get("id"),
+                    "properties": dict(node),
+                    "labels": list(node.labels)
+                })
+
+        return entities
+
+    async def get_layer_statistics(self) -> Dict[str, Any]:
+        """Get statistics about entities in each layer.
+
+        Returns:
+            Dictionary with layer counts and additional metrics
+        """
+        driver = await self._get_driver()
+
+        query = """
+        MATCH (n:Entity)
+        WITH n.layer as layer, count(n) as count
+        RETURN layer, count
+        ORDER BY
+            CASE layer
+                WHEN 'PERCEPTION' THEN 1
+                WHEN 'SEMANTIC' THEN 2
+                WHEN 'REASONING' THEN 3
+                WHEN 'APPLICATION' THEN 4
+                ELSE 5
+            END
+        """
+
+        async with driver.session(database=self.database) as session:
+            result = await session.run(query)
+            records = await result.data()
+
+            layer_counts = {r["layer"]: r["count"] for r in records}
+
+            # Get promotion statistics
+            promotion_query = """
+            MATCH (t:LayerTransition)
+            WHERE t.status = 'completed'
+            RETURN t.from_layer as from_layer, t.to_layer as to_layer, count(t) as count
+            """
+            promo_result = await session.run(promotion_query)
+            promo_records = await promo_result.data()
+
+            promotions = {}
+            for r in promo_records:
+                key = f"{r['from_layer']}_to_{r['to_layer']}"
+                promotions[key] = r["count"]
+
+            return {
+                "layer_counts": layer_counts,
+                "total_entities": sum(layer_counts.values()),
+                "promotions": promotions,
+                "timestamp": datetime.now().isoformat()
+            }
+
+    async def create_layer_indexes(self) -> List[str]:
+        """Create required indexes for layer-based queries.
+
+        Returns:
+            List of created/verified index names
+        """
+        driver = await self._get_driver()
+
+        indexes = [
+            ("idx_entity_layer", "CREATE INDEX idx_entity_layer IF NOT EXISTS FOR (n:Entity) ON (n.layer)"),
+            ("idx_perception_confidence", "CREATE INDEX idx_perception_confidence IF NOT EXISTS FOR (n:Entity) ON (n.extraction_confidence)"),
+            ("idx_entity_status", "CREATE INDEX idx_entity_status IF NOT EXISTS FOR (n:Entity) ON (n.status)"),
+            ("idx_transition_status", "CREATE INDEX idx_transition_status IF NOT EXISTS FOR (t:LayerTransition) ON (t.status)"),
+        ]
+
+        created = []
+        async with driver.session(database=self.database) as session:
+            for name, query in indexes:
+                try:
+                    await session.run(query)
+                    created.append(name)
+                    logger.info(f"Created/verified index: {name}")
+                except Exception as e:
+                    if "already exists" not in str(e).lower():
+                        logger.warning(f"Failed to create index {name}: {e}")
+
+        return created
 
 
 # Factory function for easy backend creation

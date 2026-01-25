@@ -11,7 +11,7 @@ It supports:
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from enum import Enum
 import math
@@ -344,4 +344,335 @@ def neural_confidence(score: float, generated_by: str = "neural_model") -> Confi
         generated_by=generated_by,
         uncertainty_type=UncertaintyType.ALEATORIC,
         reasoning="Neural model prediction"
+    )
+
+
+class KnowledgeLayer(str, Enum):
+    """Knowledge graph layers in the DIKW hierarchy."""
+    PERCEPTION = "PERCEPTION"
+    SEMANTIC = "SEMANTIC"
+    REASONING = "REASONING"
+    APPLICATION = "APPLICATION"
+
+
+class CrossLayerConfidencePropagation:
+    """
+    Propagates confidence across knowledge graph layers.
+
+    Implements layer-aware confidence aggregation following the 4-layer
+    architecture: PERCEPTION → SEMANTIC → REASONING → APPLICATION.
+
+    Higher layers are considered more trustworthy as they represent
+    validated, enriched, and frequently-used knowledge.
+    """
+
+    # Default layer weights (higher = more trusted)
+    LAYER_WEIGHTS: Dict[KnowledgeLayer, float] = {
+        KnowledgeLayer.APPLICATION: 1.0,   # Most trusted (validated by usage)
+        KnowledgeLayer.REASONING: 0.9,      # Inferred with rules
+        KnowledgeLayer.SEMANTIC: 0.8,       # Validated against ontologies
+        KnowledgeLayer.PERCEPTION: 0.6,     # Raw extraction, needs validation
+    }
+
+    # Decay factors when crossing layer boundaries
+    CROSS_LAYER_DECAY: Dict[Tuple[KnowledgeLayer, KnowledgeLayer], float] = {
+        # Downward traversal (using lower-layer data) - higher decay
+        (KnowledgeLayer.APPLICATION, KnowledgeLayer.REASONING): 0.95,
+        (KnowledgeLayer.REASONING, KnowledgeLayer.SEMANTIC): 0.90,
+        (KnowledgeLayer.SEMANTIC, KnowledgeLayer.PERCEPTION): 0.85,
+        # Upward traversal (promoting data) - lower decay
+        (KnowledgeLayer.PERCEPTION, KnowledgeLayer.SEMANTIC): 0.98,
+        (KnowledgeLayer.SEMANTIC, KnowledgeLayer.REASONING): 0.95,
+        (KnowledgeLayer.REASONING, KnowledgeLayer.APPLICATION): 0.92,
+    }
+
+    def __init__(
+        self,
+        layer_weights: Optional[Dict[KnowledgeLayer, float]] = None,
+        min_confidence: float = 0.1,
+        conflict_threshold: float = 0.3
+    ):
+        """
+        Initialize cross-layer confidence propagation.
+
+        Args:
+            layer_weights: Custom layer weights (higher = more trusted)
+            min_confidence: Minimum confidence to maintain
+            conflict_threshold: Gap above which conflicts are flagged
+        """
+        self.layer_weights = layer_weights or self.LAYER_WEIGHTS.copy()
+        self.min_confidence = min_confidence
+        self.conflict_threshold = conflict_threshold
+
+    def get_layer_weight(self, layer: KnowledgeLayer) -> float:
+        """Get trust weight for a layer."""
+        return self.layer_weights.get(layer, 0.5)
+
+    def adjust_for_layer(
+        self,
+        confidence: Confidence,
+        layer: KnowledgeLayer
+    ) -> Confidence:
+        """
+        Adjust confidence based on its source layer.
+
+        Args:
+            confidence: Original confidence
+            layer: Layer the confidence comes from
+
+        Returns:
+            Adjusted confidence
+        """
+        layer_weight = self.get_layer_weight(layer)
+        adjusted_score = confidence.score * layer_weight
+
+        return Confidence(
+            score=max(adjusted_score, self.min_confidence),
+            source=confidence.source,
+            uncertainty_type=confidence.uncertainty_type,
+            generated_by=f"{confidence.generated_by}_layer_adjusted",
+            evidence=confidence.evidence + [f"Layer: {layer.value}", f"Weight: {layer_weight}"],
+            reasoning=f"Adjusted for {layer.value} layer (weight={layer_weight})",
+            properties={**confidence.properties, "source_layer": layer.value}
+        )
+
+    def propagate_cross_layer(
+        self,
+        confidences: Dict[KnowledgeLayer, Confidence],
+        strategy: AggregationStrategy = AggregationStrategy.WEIGHTED_AVERAGE
+    ) -> Confidence:
+        """
+        Aggregate confidence scores from multiple layers.
+
+        Args:
+            confidences: Map of layer to confidence score
+            strategy: Aggregation strategy
+
+        Returns:
+            Aggregated confidence
+        """
+        if not confidences:
+            raise ValueError("No confidences to aggregate")
+
+        # Adjust each confidence for its layer
+        adjusted_confidences = []
+        weights = []
+
+        for layer, conf in confidences.items():
+            adjusted = self.adjust_for_layer(conf, layer)
+            adjusted_confidences.append(adjusted)
+            weights.append(self.get_layer_weight(layer))
+
+        # Combine using specified strategy
+        combination = ConfidenceCombination.combine(
+            scores=adjusted_confidences,
+            strategy=strategy,
+            weights=weights if strategy == AggregationStrategy.WEIGHTED_AVERAGE else None
+        )
+
+        # Create result confidence
+        evidence = [
+            f"{layer.value}: {conf.score:.3f} (adjusted: {conf.score * self.get_layer_weight(layer):.3f})"
+            for layer, conf in confidences.items()
+        ]
+
+        return Confidence(
+            score=combination.combined_score,
+            source=ConfidenceSource.HYBRID,
+            uncertainty_type=UncertaintyType.MIXED,
+            generated_by="cross_layer_propagation",
+            evidence=evidence,
+            reasoning=f"Cross-layer aggregation using {strategy.value}",
+            properties={
+                "layers_involved": [l.value for l in confidences.keys()],
+                "strategy": strategy.value,
+                "individual_scores": {l.value: c.score for l, c in confidences.items()}
+            }
+        )
+
+    def resolve_conflict(
+        self,
+        layer1: KnowledgeLayer,
+        confidence1: Confidence,
+        layer2: KnowledgeLayer,
+        confidence2: Confidence
+    ) -> Tuple[Confidence, str]:
+        """
+        Resolve conflicting confidence scores from different layers.
+
+        Resolution rules:
+        1. Higher layer wins (APPLICATION > REASONING > SEMANTIC > PERCEPTION)
+        2. Unless confidence gap > threshold, then prefer higher confidence
+        3. Flag for human review if unclear
+
+        Args:
+            layer1: First layer
+            confidence1: First confidence
+            layer2: Second layer
+            confidence2: Second confidence
+
+        Returns:
+            Tuple of (resolved confidence, resolution reason)
+        """
+        weight1 = self.get_layer_weight(layer1)
+        weight2 = self.get_layer_weight(layer2)
+
+        adjusted1 = confidence1.score * weight1
+        adjusted2 = confidence2.score * weight2
+
+        gap = abs(adjusted1 - adjusted2)
+
+        # If one layer is clearly higher
+        if weight1 > weight2:
+            higher_layer, higher_conf = layer1, confidence1
+            lower_layer, lower_conf = layer2, confidence2
+        else:
+            higher_layer, higher_conf = layer2, confidence2
+            lower_layer, lower_conf = layer1, confidence1
+
+        # Check if confidence gap overrides layer priority
+        if gap > self.conflict_threshold:
+            # Go with higher confidence, regardless of layer
+            if adjusted1 > adjusted2:
+                winner = confidence1
+                reason = (
+                    f"Chose {layer1.value} due to confidence gap ({adjusted1:.3f} vs {adjusted2:.3f})"
+                )
+            else:
+                winner = confidence2
+                reason = (
+                    f"Chose {layer2.value} due to confidence gap ({adjusted2:.3f} vs {adjusted1:.3f})"
+                )
+        else:
+            # Higher layer wins
+            winner = higher_conf
+            reason = (
+                f"Higher layer {higher_layer.value} preferred "
+                f"(gap {gap:.3f} < threshold {self.conflict_threshold})"
+            )
+
+        # Create resolved confidence with conflict metadata
+        resolved = Confidence(
+            score=winner.score,
+            source=winner.source,
+            uncertainty_type=winner.uncertainty_type,
+            generated_by="conflict_resolution",
+            evidence=winner.evidence + [
+                f"Conflict: {layer1.value}={confidence1.score:.3f} vs {layer2.value}={confidence2.score:.3f}",
+                f"Resolution: {reason}"
+            ],
+            reasoning=reason,
+            properties={
+                "conflict_resolved": True,
+                "layers_involved": [layer1.value, layer2.value],
+                "original_scores": {
+                    layer1.value: confidence1.score,
+                    layer2.value: confidence2.score
+                }
+            }
+        )
+
+        return resolved, reason
+
+    def propagate_through_layers(
+        self,
+        initial_confidence: Confidence,
+        from_layer: KnowledgeLayer,
+        to_layer: KnowledgeLayer
+    ) -> Confidence:
+        """
+        Propagate confidence when traversing between layers.
+
+        Args:
+            initial_confidence: Starting confidence
+            from_layer: Source layer
+            to_layer: Target layer
+
+        Returns:
+            Propagated confidence
+        """
+        # Get decay factor for this traversal
+        decay = self.CROSS_LAYER_DECAY.get(
+            (from_layer, to_layer),
+            0.95  # Default decay
+        )
+
+        # Apply decay
+        propagated_score = initial_confidence.score * decay
+
+        return Confidence(
+            score=max(propagated_score, self.min_confidence),
+            source=initial_confidence.source,
+            uncertainty_type=initial_confidence.uncertainty_type,
+            generated_by=f"{initial_confidence.generated_by}_cross_layer",
+            evidence=initial_confidence.evidence + [
+                f"Traversed: {from_layer.value} → {to_layer.value}",
+                f"Decay: {decay}"
+            ],
+            reasoning=f"Cross-layer propagation from {from_layer.value} to {to_layer.value}",
+            properties={
+                **initial_confidence.properties,
+                "from_layer": from_layer.value,
+                "to_layer": to_layer.value,
+                "decay_applied": decay
+            }
+        )
+
+    def needs_human_review(
+        self,
+        confidences: Dict[KnowledgeLayer, Confidence]
+    ) -> Tuple[bool, str]:
+        """
+        Determine if confidence conflicts need human review.
+
+        Args:
+            confidences: Map of layer to confidence
+
+        Returns:
+            Tuple of (needs_review, reason)
+        """
+        if len(confidences) < 2:
+            return False, "Single source, no conflict"
+
+        # Check for significant disagreements
+        scores = [(l, c.score) for l, c in confidences.items()]
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+        highest = scores[0]
+        lowest = scores[-1]
+
+        gap = highest[1] - lowest[1]
+
+        if gap > 0.5:
+            return True, (
+                f"Large confidence gap: {highest[0].value}={highest[1]:.2f} "
+                f"vs {lowest[0].value}={lowest[1]:.2f}"
+            )
+
+        # Check if higher layer has lower confidence (suspicious)
+        layer_order = [KnowledgeLayer.PERCEPTION, KnowledgeLayer.SEMANTIC,
+                       KnowledgeLayer.REASONING, KnowledgeLayer.APPLICATION]
+
+        for i, layer1 in enumerate(layer_order[:-1]):
+            for layer2 in layer_order[i+1:]:
+                if layer1 in confidences and layer2 in confidences:
+                    # Higher layer should generally have higher or equal confidence
+                    if confidences[layer1].score > confidences[layer2].score + 0.2:
+                        return True, (
+                            f"Lower layer {layer1.value} has higher confidence than "
+                            f"higher layer {layer2.value}"
+                        )
+
+        return False, "No significant conflicts detected"
+
+
+# Convenience factory for cross-layer propagation
+def create_cross_layer_propagator(
+    min_confidence: float = 0.1,
+    conflict_threshold: float = 0.3
+) -> CrossLayerConfidencePropagation:
+    """Create a cross-layer confidence propagator with custom settings."""
+    return CrossLayerConfidencePropagation(
+        min_confidence=min_confidence,
+        conflict_threshold=conflict_threshold
     )

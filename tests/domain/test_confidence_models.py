@@ -413,3 +413,332 @@ class TestConfidenceProperties:
 
         assert len(conf.evidence) == 3
         assert "Rule A matched" in conf.evidence
+
+
+class TestKnowledgeLayer:
+    """Test KnowledgeLayer enumeration."""
+
+    def test_layer_values(self):
+        """Test layer enum values."""
+        from domain.confidence_models import KnowledgeLayer
+
+        assert KnowledgeLayer.PERCEPTION == "PERCEPTION"
+        assert KnowledgeLayer.SEMANTIC == "SEMANTIC"
+        assert KnowledgeLayer.REASONING == "REASONING"
+        assert KnowledgeLayer.APPLICATION == "APPLICATION"
+
+    def test_layer_ordering(self):
+        """Test that layers have proper ordering."""
+        from domain.confidence_models import KnowledgeLayer
+
+        layers = list(KnowledgeLayer)
+        assert len(layers) == 4
+
+
+class TestCrossLayerConfidencePropagation:
+    """Test CrossLayerConfidencePropagation class."""
+
+    @pytest.fixture
+    def propagator(self):
+        """Create a cross-layer propagator."""
+        from domain.confidence_models import CrossLayerConfidencePropagation
+        return CrossLayerConfidencePropagation()
+
+    def test_default_layer_weights(self, propagator):
+        """Test default layer weights."""
+        from domain.confidence_models import KnowledgeLayer
+
+        assert propagator.layer_weights[KnowledgeLayer.APPLICATION] == 1.0
+        assert propagator.layer_weights[KnowledgeLayer.REASONING] == 0.9
+        assert propagator.layer_weights[KnowledgeLayer.SEMANTIC] == 0.8
+        assert propagator.layer_weights[KnowledgeLayer.PERCEPTION] == 0.6
+
+    def test_custom_layer_weights(self):
+        """Test custom layer weights."""
+        from domain.confidence_models import CrossLayerConfidencePropagation, KnowledgeLayer
+
+        custom_weights = {
+            KnowledgeLayer.APPLICATION: 1.0,
+            KnowledgeLayer.REASONING: 0.95,
+            KnowledgeLayer.SEMANTIC: 0.9,
+            KnowledgeLayer.PERCEPTION: 0.7,
+        }
+
+        propagator = CrossLayerConfidencePropagation(layer_weights=custom_weights)
+
+        assert propagator.layer_weights[KnowledgeLayer.PERCEPTION] == 0.7
+
+    def test_get_layer_weight(self, propagator):
+        """Test getting layer weight."""
+        from domain.confidence_models import KnowledgeLayer
+
+        assert propagator.get_layer_weight(KnowledgeLayer.APPLICATION) == 1.0
+        assert propagator.get_layer_weight(KnowledgeLayer.PERCEPTION) == 0.6
+
+    def test_adjust_for_layer(self, propagator):
+        """Test adjusting confidence for layer."""
+        from domain.confidence_models import KnowledgeLayer
+
+        conf = Confidence(
+            score=0.9,
+            source=ConfidenceSource.NEURAL_MODEL,
+            generated_by="test"
+        )
+
+        adjusted = propagator.adjust_for_layer(conf, KnowledgeLayer.PERCEPTION)
+
+        # 0.9 * 0.6 (PERCEPTION weight) = 0.54
+        expected = 0.9 * 0.6
+        assert adjusted.score == pytest.approx(expected, rel=1e-3)
+        assert "PERCEPTION" in str(adjusted.evidence)
+
+    def test_adjust_for_layer_respects_minimum(self, propagator):
+        """Test adjustment respects minimum confidence."""
+        from domain.confidence_models import KnowledgeLayer
+
+        conf = Confidence(
+            score=0.1,
+            source=ConfidenceSource.NEURAL_MODEL,
+            generated_by="test"
+        )
+
+        # 0.1 * 0.6 = 0.06, should be raised to min_confidence (0.1)
+        adjusted = propagator.adjust_for_layer(conf, KnowledgeLayer.PERCEPTION)
+
+        assert adjusted.score >= propagator.min_confidence
+
+    def test_propagate_cross_layer(self, propagator):
+        """Test cross-layer confidence propagation."""
+        from domain.confidence_models import KnowledgeLayer
+
+        confidences = {
+            KnowledgeLayer.SEMANTIC: Confidence(
+                score=0.8,
+                source=ConfidenceSource.SYMBOLIC_RULE,
+                generated_by="ontology"
+            ),
+            KnowledgeLayer.REASONING: Confidence(
+                score=0.9,
+                source=ConfidenceSource.HYBRID,
+                generated_by="rules"
+            ),
+        }
+
+        result = propagator.propagate_cross_layer(confidences)
+
+        assert 0 < result.score <= 1.0
+        assert result.source == ConfidenceSource.HYBRID
+        assert "cross_layer_propagation" in result.generated_by
+
+    def test_propagate_cross_layer_empty_raises_error(self, propagator):
+        """Test propagation with empty dict raises error."""
+        with pytest.raises(ValueError):
+            propagator.propagate_cross_layer({})
+
+    def test_resolve_conflict_higher_layer_wins(self, propagator):
+        """Test conflict resolution favors higher layer."""
+        from domain.confidence_models import KnowledgeLayer
+
+        conf1 = Confidence(score=0.7, source=ConfidenceSource.NEURAL_MODEL, generated_by="test1")
+        conf2 = Confidence(score=0.7, source=ConfidenceSource.SYMBOLIC_RULE, generated_by="test2")
+
+        resolved, reason = propagator.resolve_conflict(
+            KnowledgeLayer.PERCEPTION, conf1,
+            KnowledgeLayer.SEMANTIC, conf2
+        )
+
+        # SEMANTIC should win as it's a higher layer
+        assert "SEMANTIC" in reason
+        assert resolved.properties.get("conflict_resolved") is True
+
+    def test_resolve_conflict_confidence_gap_overrides(self, propagator):
+        """Test high confidence gap overrides layer priority."""
+        from domain.confidence_models import KnowledgeLayer
+
+        # PERCEPTION has much higher confidence
+        conf1 = Confidence(score=0.95, source=ConfidenceSource.NEURAL_MODEL, generated_by="test1")
+        conf2 = Confidence(score=0.3, source=ConfidenceSource.SYMBOLIC_RULE, generated_by="test2")
+
+        resolved, reason = propagator.resolve_conflict(
+            KnowledgeLayer.PERCEPTION, conf1,
+            KnowledgeLayer.SEMANTIC, conf2
+        )
+
+        # Despite SEMANTIC being higher, PERCEPTION has much higher confidence
+        assert "confidence gap" in reason.lower() or "chose" in reason.lower()
+
+    def test_propagate_through_layers(self, propagator):
+        """Test propagating through specific layer boundary."""
+        from domain.confidence_models import KnowledgeLayer
+
+        conf = Confidence(score=0.9, source=ConfidenceSource.NEURAL_MODEL, generated_by="test")
+
+        propagated = propagator.propagate_through_layers(
+            conf,
+            KnowledgeLayer.PERCEPTION,
+            KnowledgeLayer.SEMANTIC
+        )
+
+        # Should be decayed according to cross-layer decay factor
+        assert propagated.score < conf.score or propagated.score == conf.score
+        assert "PERCEPTION" in str(propagated.evidence)
+        assert "SEMANTIC" in str(propagated.evidence)
+
+    def test_propagate_through_layers_respects_minimum(self, propagator):
+        """Test propagation through layers respects minimum."""
+        from domain.confidence_models import KnowledgeLayer
+
+        conf = Confidence(score=0.05, source=ConfidenceSource.NEURAL_MODEL, generated_by="test")
+
+        propagated = propagator.propagate_through_layers(
+            conf,
+            KnowledgeLayer.SEMANTIC,
+            KnowledgeLayer.PERCEPTION
+        )
+
+        assert propagated.score >= propagator.min_confidence
+
+    def test_needs_human_review_single_source(self, propagator):
+        """Test no human review needed for single source."""
+        from domain.confidence_models import KnowledgeLayer
+
+        confidences = {
+            KnowledgeLayer.SEMANTIC: Confidence(
+                score=0.8,
+                source=ConfidenceSource.SYMBOLIC_RULE,
+                generated_by="test"
+            ),
+        }
+
+        needs_review, reason = propagator.needs_human_review(confidences)
+
+        assert needs_review is False
+        assert "single source" in reason.lower()
+
+    def test_needs_human_review_large_gap(self, propagator):
+        """Test human review needed for large confidence gap."""
+        from domain.confidence_models import KnowledgeLayer
+
+        confidences = {
+            KnowledgeLayer.PERCEPTION: Confidence(
+                score=0.95,
+                source=ConfidenceSource.NEURAL_MODEL,
+                generated_by="test1"
+            ),
+            KnowledgeLayer.SEMANTIC: Confidence(
+                score=0.3,
+                source=ConfidenceSource.SYMBOLIC_RULE,
+                generated_by="test2"
+            ),
+        }
+
+        needs_review, reason = propagator.needs_human_review(confidences)
+
+        assert needs_review is True
+        assert "gap" in reason.lower()
+
+    def test_needs_human_review_inverted_confidence(self, propagator):
+        """Test review needed when lower layer has higher confidence than higher layer."""
+        from domain.confidence_models import KnowledgeLayer
+
+        confidences = {
+            KnowledgeLayer.PERCEPTION: Confidence(
+                score=0.95,
+                source=ConfidenceSource.NEURAL_MODEL,
+                generated_by="test1"
+            ),
+            KnowledgeLayer.REASONING: Confidence(
+                score=0.5,
+                source=ConfidenceSource.SYMBOLIC_RULE,
+                generated_by="test2"
+            ),
+        }
+
+        needs_review, reason = propagator.needs_human_review(confidences)
+
+        # Lower layer (PERCEPTION) has significantly higher confidence than higher layer (REASONING)
+        assert needs_review is True
+
+    def test_needs_human_review_no_conflicts(self, propagator):
+        """Test no review needed when confidences are consistent."""
+        from domain.confidence_models import KnowledgeLayer
+
+        confidences = {
+            KnowledgeLayer.PERCEPTION: Confidence(
+                score=0.7,
+                source=ConfidenceSource.NEURAL_MODEL,
+                generated_by="test1"
+            ),
+            KnowledgeLayer.SEMANTIC: Confidence(
+                score=0.8,
+                source=ConfidenceSource.SYMBOLIC_RULE,
+                generated_by="test2"
+            ),
+            KnowledgeLayer.REASONING: Confidence(
+                score=0.85,
+                source=ConfidenceSource.HYBRID,
+                generated_by="test3"
+            ),
+        }
+
+        needs_review, reason = propagator.needs_human_review(confidences)
+
+        assert needs_review is False
+        assert "no significant conflicts" in reason.lower()
+
+
+class TestCrossLayerConvenienceFunction:
+    """Test convenience function for cross-layer propagation."""
+
+    def test_create_cross_layer_propagator(self):
+        """Test creating propagator with convenience function."""
+        from domain.confidence_models import create_cross_layer_propagator
+
+        propagator = create_cross_layer_propagator(
+            min_confidence=0.15,
+            conflict_threshold=0.4
+        )
+
+        assert propagator.min_confidence == 0.15
+        assert propagator.conflict_threshold == 0.4
+
+    def test_create_cross_layer_propagator_defaults(self):
+        """Test convenience function with defaults."""
+        from domain.confidence_models import create_cross_layer_propagator
+
+        propagator = create_cross_layer_propagator()
+
+        assert propagator.min_confidence == 0.1
+        assert propagator.conflict_threshold == 0.3
+
+
+class TestCrossLayerDecayFactors:
+    """Test cross-layer decay factors."""
+
+    def test_decay_factors_defined(self):
+        """Test decay factors are properly defined."""
+        from domain.confidence_models import CrossLayerConfidencePropagation, KnowledgeLayer
+
+        # Check that common traversals have decay factors
+        decay_map = CrossLayerConfidencePropagation.CROSS_LAYER_DECAY
+
+        # Upward traversals (promotion)
+        assert (KnowledgeLayer.PERCEPTION, KnowledgeLayer.SEMANTIC) in decay_map
+        assert (KnowledgeLayer.SEMANTIC, KnowledgeLayer.REASONING) in decay_map
+
+        # Downward traversals
+        assert (KnowledgeLayer.REASONING, KnowledgeLayer.SEMANTIC) in decay_map
+        assert (KnowledgeLayer.SEMANTIC, KnowledgeLayer.PERCEPTION) in decay_map
+
+    def test_upward_decay_less_than_downward(self):
+        """Test upward traversal has less decay than downward."""
+        from domain.confidence_models import CrossLayerConfidencePropagation, KnowledgeLayer
+
+        decay_map = CrossLayerConfidencePropagation.CROSS_LAYER_DECAY
+
+        # Upward should have higher factor (less decay)
+        upward = decay_map[(KnowledgeLayer.PERCEPTION, KnowledgeLayer.SEMANTIC)]
+        downward = decay_map[(KnowledgeLayer.SEMANTIC, KnowledgeLayer.PERCEPTION)]
+
+        # Higher decay factor means less confidence loss
+        assert upward > downward

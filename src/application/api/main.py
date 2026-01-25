@@ -6,13 +6,23 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 import logging
-from typing import Dict, Set, List
+from typing import Dict, Set, List, Any, Optional
 import tempfile
 import os
 
+from pydantic import BaseModel, Field
+from typing import Optional as OptionalType
+from enum import Enum as PyEnum
+
 from .kg_router import router as kg_router
 from .document_router import router as document_router
-from .dependencies import get_chat_service, get_patient_memory, get_kg_backend
+from .dependencies import (
+    get_chat_service,
+    get_patient_memory,
+    get_kg_backend,
+    get_event_bus,
+    initialize_layer_services,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +44,24 @@ app.add_middleware(
 # Include routers
 app.include_router(kg_router)
 app.include_router(document_router)
+
+
+# ========================================
+# Startup Events
+# ========================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on application startup."""
+    logger.info("🚀 Starting Medical Knowledge Graph API...")
+
+    # Initialize layer transition services (automatic promotion pipeline)
+    try:
+        await initialize_layer_services()
+        logger.info("✅ Layer services initialized successfully")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize layer services: {e}")
+        # Don't fail startup - allow API to run without auto-promotion
 
 
 # ========================================
@@ -204,7 +232,7 @@ async def get_graph_data(
             RETURN
                 collect(DISTINCT {{
                     id: elementId(n),
-                    label: coalesce(n.name, n.label, elementId(n)),
+                    label: coalesce(n.name, elementId(n)),
                     type: head(labels(n)),
                     layer: n.layer,
                     properties: properties(n)
@@ -227,13 +255,13 @@ async def get_graph_data(
             RETURN
                 collect(DISTINCT {{
                     id: elementId(n),
-                    label: coalesce(n.name, n.label, elementId(n)),
+                    label: coalesce(n.name, elementId(n)),
                     type: head(labels(n)),
                     layer: coalesce(n.layer, 'perception'),
                     properties: properties(n)
                 }}) + collect(DISTINCT {{
                     id: elementId(m),
-                    label: coalesce(m.name, m.label, elementId(m)),
+                    label: coalesce(m.name, elementId(m)),
                     type: head(labels(m)),
                     layer: coalesce(m.layer, 'perception'),
                     properties: properties(m)
@@ -287,12 +315,12 @@ async def get_node_details(
             n,
             collect(DISTINCT {
                 type: type(r_out),
-                target: coalesce(target.name, target.label, elementId(target)),
+                target: coalesce(target.name, elementId(target)),
                 targetId: elementId(target)
             }) as outgoing,
             collect(DISTINCT {
                 type: type(r_in),
-                source: coalesce(source.name, source.label, elementId(source)),
+                source: coalesce(source.name, elementId(source)),
                 sourceId: elementId(source)
             }) as incoming
         """
@@ -406,6 +434,100 @@ async def get_agent_status():
     ]
 
 
+@app.get("/api/admin/promotion-scanner")
+async def get_promotion_scanner_status():
+    """Get promotion scanner status and statistics."""
+    try:
+        from .dependencies import get_promotion_scanner
+        scanner = await get_promotion_scanner()
+        return {
+            "status": "running" if scanner._running else "stopped",
+            "statistics": scanner.get_statistics()
+        }
+    except Exception as e:
+        logger.error(f"Error getting scanner status: {e}")
+        return {
+            "status": "not_initialized",
+            "error": str(e),
+            "hint": "Set ENABLE_PROMOTION_SCANNER=true in .env and restart"
+        }
+
+
+@app.post("/api/admin/promotion-scanner/scan")
+async def trigger_promotion_scan():
+    """Manually trigger a promotion scan."""
+    try:
+        from .dependencies import get_promotion_scanner
+        scanner = await get_promotion_scanner()
+        results = await scanner.run_once()
+        return {
+            "success": True,
+            "results": results
+        }
+    except Exception as e:
+        logger.error(f"Error running promotion scan: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/layer-stats")
+async def get_layer_statistics(kg_backend = Depends(get_kg_backend)):
+    """Get entity counts per layer for the 4-layer architecture."""
+    try:
+        query = """
+        MATCH (n)
+        WHERE n.layer IS NOT NULL
+        RETURN n.layer as layer, count(n) as count
+        ORDER BY
+            CASE n.layer
+                WHEN 'PERCEPTION' THEN 1
+                WHEN 'SEMANTIC' THEN 2
+                WHEN 'REASONING' THEN 3
+                WHEN 'APPLICATION' THEN 4
+                ELSE 5
+            END
+        """
+        result = await kg_backend.query_raw(query, {})
+
+        layer_counts = {
+            "PERCEPTION": 0,
+            "SEMANTIC": 0,
+            "REASONING": 0,
+            "APPLICATION": 0,
+        }
+
+        for record in result or []:
+            layer = record.get("layer")
+            count = record.get("count", 0)
+            if layer in layer_counts:
+                layer_counts[layer] = count
+
+        # Also count nodes without layer property
+        unassigned_query = """
+        MATCH (n)
+        WHERE n.layer IS NULL
+        RETURN count(n) as count
+        """
+        unassigned_result = await kg_backend.query_raw(unassigned_query, {})
+        unassigned_count = 0
+        if unassigned_result:
+            unassigned_count = unassigned_result[0].get("count", 0)
+
+        return {
+            "layers": layer_counts,
+            "total": sum(layer_counts.values()),
+            "unassigned": unassigned_count,
+            "dikw_mapping": {
+                "DATA": layer_counts["PERCEPTION"],
+                "INFORMATION": layer_counts["SEMANTIC"],
+                "KNOWLEDGE": layer_counts["REASONING"],
+                "WISDOM": layer_counts["APPLICATION"]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting layer stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/admin/patients")
 async def list_patients(kg_backend = Depends(get_kg_backend)):
     """List all patients for admin dashboard."""
@@ -479,9 +601,15 @@ async def admin_monitor_websocket(websocket: WebSocket):
 @app.post("/api/dda/upload")
 async def upload_dda(
     file: UploadFile = File(...),
-    kg_backend = Depends(get_kg_backend)
+    kg_backend = Depends(get_kg_backend),
+    use_agent: bool = True
 ):
-    """Upload and process DDA specification file."""
+    """
+    Upload and process DDA specification file.
+
+    When use_agent=True (default), the Data Architect Agent processes the DDA,
+    which publishes events for downstream processing and layer promotion.
+    """
     try:
         # Validate file type
         if not file.filename.endswith(('.md', '.markdown')):
@@ -497,19 +625,53 @@ async def upload_dda(
             tmp_path = tmp.name
 
         try:
-            # Process DDA using markdown parser
+            # Try to use Data Architect Agent if available and requested
+            if use_agent:
+                try:
+                    from application.api.dependencies import get_data_architect_agent
+                    agent = await get_data_architect_agent()
+                    result = await agent.process_dda(tmp_path)
+
+                    if result["success"]:
+                        return {
+                            "success": True,
+                            "message": "DDA processed by Data Architect Agent in PERCEPTION layer",
+                            "domain": result["domain"],
+                            "entities_created": len(result["entities_created"]),
+                            "relationships_created": len(result["relationships_created"]),
+                            "events_published": result["events_published"],
+                            "layer": "PERCEPTION",
+                            "status": "pending_validation",
+                            "agent": "data_architect",
+                            "next_step": "Entities will be promoted to SEMANTIC layer after Knowledge Manager validation"
+                        }
+                    else:
+                        logger.warning(f"Agent processing failed, falling back to direct: {result['errors']}")
+                        # Fall through to direct processing
+                except Exception as agent_error:
+                    logger.warning(f"Agent unavailable, falling back to direct processing: {agent_error}")
+                    # Fall through to direct processing
+
+            # Direct processing (fallback or when use_agent=False)
             from infrastructure.parsers.markdown_parser import MarkdownDDAParser
             parser = MarkdownDDAParser()
 
             result = await parser.parse(tmp_path)
 
             # Store parsed DDA in Neo4j
+            # All DDA entities start in PERCEPTION layer with pending_validation status
+            # They will be promoted to SEMANTIC after Knowledge Manager validation
+
             # 1. Create or merge Catalog node from domain
             catalog_query = """
             MERGE (c:Catalog {name: $domain})
             SET c.data_owner = $data_owner,
                 c.business_context = $business_context,
-                c.updated_at = datetime()
+                c.layer = 'PERCEPTION',
+                c.status = 'pending_validation',
+                c.source_type = 'dda',
+                c.updated_at = datetime(),
+                c.created_at = COALESCE(c.created_at, datetime())
             RETURN elementId(c) as catalog_id
             """
             catalog_result = await kg_backend.query_raw(catalog_query, {
@@ -523,7 +685,11 @@ async def upload_dda(
             MATCH (c:Catalog {name: $domain})
             MERGE (s:Schema {name: $schema_name})
             MERGE (c)-[:CONTAINS_SCHEMA]->(s)
-            SET s.updated_at = datetime()
+            SET s.layer = 'PERCEPTION',
+                s.status = 'pending_validation',
+                s.source_type = 'dda',
+                s.updated_at = datetime(),
+                s.created_at = COALESCE(s.created_at, datetime())
             RETURN elementId(s) as schema_id
             """
             schema_name = f"{result.domain}_schema"
@@ -544,7 +710,12 @@ async def upload_dda(
                 SET t.description = $description,
                     t.primary_key = $primary_key,
                     t.business_rules = $business_rules,
-                    t.updated_at = datetime()
+                    t.layer = 'PERCEPTION',
+                    t.status = 'pending_validation',
+                    t.source_type = 'dda',
+                    t.confidence = 0.7,
+                    t.updated_at = datetime(),
+                    t.created_at = COALESCE(t.created_at, datetime())
                 RETURN elementId(t) as table_id
                 """
                 await kg_backend.query_raw(table_query, {
@@ -576,7 +747,12 @@ async def upload_dda(
                     SET col.data_type = $data_type,
                         col.is_primary_key = $is_primary,
                         col.is_foreign_key = $is_foreign,
-                        col.updated_at = datetime()
+                        col.layer = 'PERCEPTION',
+                        col.status = 'pending_validation',
+                        col.source_type = 'dda',
+                        col.confidence = 0.7,
+                        col.updated_at = datetime(),
+                        col.created_at = COALESCE(col.created_at, datetime())
                     """
                     await kg_backend.query_raw(column_query, {
                         "table_name": entity.name,
@@ -596,7 +772,12 @@ async def upload_dda(
                 MERGE (source)-[r:RELATES_TO {type: $rel_type}]->(target)
                 SET r.description = $description,
                     r.cardinality = $rel_type,
-                    r.updated_at = datetime()
+                    r.layer = 'PERCEPTION',
+                    r.status = 'pending_validation',
+                    r.source_type = 'dda',
+                    r.confidence = 0.7,
+                    r.updated_at = datetime(),
+                    r.created_at = COALESCE(r.created_at, datetime())
                 """
                 await kg_backend.query_raw(rel_query, {
                     "source_name": rel.source_entity,
@@ -615,7 +796,7 @@ async def upload_dda(
 
             return {
                 "success": True,
-                "message": "DDA processed and stored successfully",
+                "message": "DDA processed and stored in PERCEPTION layer (pending validation)",
                 "domain": result.domain,
                 "data_owner": result.data_owner,
                 "catalog_created": result.domain,
@@ -624,7 +805,10 @@ async def upload_dda(
                 "columns_created": columns_created,
                 "relationships_created": relationships_created,
                 "entities": entity_names,
-                "relationships": relationship_info
+                "relationships": relationship_info,
+                "layer": "PERCEPTION",
+                "status": "pending_validation",
+                "next_step": "Entities will be promoted to SEMANTIC layer after Knowledge Manager validation"
             }
 
         finally:
@@ -693,15 +877,15 @@ async def get_tables(schema_id: str, kg_backend = Depends(get_kg_backend)):
         RETURN
             elementId(t) as id,
             t.name as name,
-            t.description as description,
-            t.row_count as row_count,
-            collect({
+            coalesce(t.description, '') as description,
+            coalesce(t.row_count, 0) as row_count,
+            collect(CASE WHEN col IS NOT NULL THEN {
                 id: elementId(col),
                 name: col.name,
-                data_type: col.data_type,
-                nullable: col.nullable,
-                description: col.description
-            }) as columns
+                data_type: coalesce(col.data_type, 'unknown'),
+                nullable: coalesce(col.nullable, true),
+                description: coalesce(col.description, '')
+            } END) as columns
         ORDER BY t.name
         """
         result = await kg_backend.query_raw(query, {"schema_id": schema_id})
@@ -734,7 +918,7 @@ async def get_all_catalog_items(kg_backend = Depends(get_kg_backend)):
             elementId(catalog) as id,
             catalog.name as name,
             'catalog' as type,
-            catalog.description as description,
+            coalesce(catalog.description, '') as description,
             null as data_type,
             [] as path
 
@@ -746,7 +930,7 @@ async def get_all_catalog_items(kg_backend = Depends(get_kg_backend)):
             elementId(schema) as id,
             schema.name as name,
             'schema' as type,
-            schema.description as description,
+            coalesce(schema.description, '') as description,
             null as data_type,
             [catalog.name] as path
 
@@ -758,7 +942,7 @@ async def get_all_catalog_items(kg_backend = Depends(get_kg_backend)):
             elementId(table) as id,
             table.name as name,
             'table' as type,
-            table.description as description,
+            coalesce(table.description, '') as description,
             null as data_type,
             [catalog.name, schema.name] as path
 
@@ -770,8 +954,8 @@ async def get_all_catalog_items(kg_backend = Depends(get_kg_backend)):
             elementId(column) as id,
             column.name as name,
             'column' as type,
-            column.description as description,
-            column.data_type as data_type,
+            coalesce(column.description, '') as description,
+            coalesce(column.data_type, 'unknown') as data_type,
             [catalog.name, schema.name, table.name] as path
 
         ORDER BY type, name
@@ -809,3 +993,677 @@ async def root():
     if frontend_dist.exists() and (frontend_dist / "index.html").exists():
         return FileResponse(frontend_dist / "index.html")
     return {"message": "Medical Knowledge Graph API. Visit /docs for API documentation."}
+
+
+# ========================================
+# Feedback Collection Endpoints (RLHF)
+# ========================================
+
+# Response tracker for simple thumbs feedback
+# Stores response metadata so thumbs up/down can look up entities
+_response_tracker: Dict[str, Dict[str, Any]] = {}
+
+
+def track_response(
+    response_id: str,
+    query_text: str,
+    response_text: str,
+    entities_involved: List[str],
+    layers_traversed: List[str],
+    patient_id: str = "anonymous",
+    session_id: str = "default",
+    confidence: float = 0.0,
+) -> None:
+    """
+    Track a response for later feedback attribution.
+
+    Call this when generating a response to enable simple thumbs feedback.
+    """
+    from datetime import datetime
+
+    _response_tracker[response_id] = {
+        "response_id": response_id,
+        "query_text": query_text,
+        "response_text": response_text,
+        "entities_involved": entities_involved,
+        "layers_traversed": layers_traversed,
+        "patient_id": patient_id,
+        "session_id": session_id,
+        "confidence": confidence,
+        "created_at": datetime.now().isoformat(),
+    }
+
+    # Keep only last 1000 responses to prevent memory bloat
+    if len(_response_tracker) > 1000:
+        oldest_keys = sorted(
+            _response_tracker.keys(),
+            key=lambda k: _response_tracker[k].get("created_at", "")
+        )[:100]
+        for key in oldest_keys:
+            del _response_tracker[key]
+
+
+def get_tracked_response(response_id: str) -> Optional[Dict[str, Any]]:
+    """Get tracked response data for feedback submission."""
+    return _response_tracker.get(response_id)
+
+
+# Pydantic models for simple thumbs feedback
+class ThumbsFeedbackRequest(BaseModel):
+    """Simple thumbs up/down feedback request."""
+    response_id: str = Field(..., description="ID of the response being rated")
+    thumbs_up: bool = Field(..., description="True for thumbs up, False for thumbs down")
+    correction_text: Optional[str] = Field(None, description="Optional correction if thumbs down")
+
+
+# Pydantic models for feedback
+class FeedbackTypeEnum(str, PyEnum):
+    """Types of user feedback."""
+    HELPFUL = "helpful"
+    UNHELPFUL = "unhelpful"
+    INCORRECT = "incorrect"
+    PARTIALLY_CORRECT = "partially_correct"
+    MISSING_INFO = "missing_info"
+
+
+class FeedbackSeverityEnum(str, PyEnum):
+    """Severity of feedback issues."""
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class FeedbackRequest(BaseModel):
+    """Request model for submitting feedback."""
+    response_id: str = Field(..., description="ID of the response being rated")
+    patient_id: str = Field(..., description="Patient identifier")
+    session_id: str = Field(..., description="Session identifier")
+    query_text: str = Field(..., description="Original query text")
+    response_text: str = Field(..., description="Response that was given")
+    rating: int = Field(..., ge=1, le=5, description="Rating from 1-5")
+    feedback_type: FeedbackTypeEnum = Field(..., description="Type of feedback")
+    severity: OptionalType[FeedbackSeverityEnum] = Field(None, description="Severity level")
+    correction_text: OptionalType[str] = Field(None, description="User's correction")
+    entities_involved: OptionalType[List[str]] = Field(default=[], description="Entity IDs involved")
+    layers_traversed: OptionalType[List[str]] = Field(default=[], description="Layers traversed")
+
+
+class FeedbackResponse(BaseModel):
+    """Response model for feedback submission."""
+    feedback_id: str
+    message: str
+    confidence_adjusted: bool = False
+
+
+# Global feedback service instance
+_feedback_service_instance = None
+
+
+async def get_feedback_service():
+    """Get or create feedback service instance."""
+    global _feedback_service_instance
+    if _feedback_service_instance is None:
+        from application.services.feedback_tracer import FeedbackTracerService
+        backend = await get_kg_backend()
+        event_bus = await get_event_bus()
+        _feedback_service_instance = FeedbackTracerService(
+            backend=backend,
+            event_bus=event_bus
+        )
+    return _feedback_service_instance
+
+
+@app.post("/api/feedback", response_model=FeedbackResponse)
+async def submit_feedback(request: FeedbackRequest):
+    """
+    Submit user feedback for a response.
+
+    This endpoint collects feedback for RLHF training data:
+    - Rating (1-5)
+    - Feedback type (helpful, incorrect, etc.)
+    - Optional user correction
+    - Entity and layer attribution
+
+    Feedback is propagated to entity confidence scores.
+    """
+    try:
+        from application.services.feedback_tracer import FeedbackType, FeedbackSeverity
+
+        feedback_service = await get_feedback_service()
+
+        # Convert enums
+        feedback_type = FeedbackType(request.feedback_type.value)
+        severity = FeedbackSeverity(request.severity.value) if request.severity else None
+
+        feedback = await feedback_service.submit_feedback(
+            response_id=request.response_id,
+            patient_id=request.patient_id,
+            session_id=request.session_id,
+            query_text=request.query_text,
+            response_text=request.response_text,
+            rating=request.rating,
+            feedback_type=feedback_type,
+            severity=severity,
+            correction_text=request.correction_text,
+            entities_involved=request.entities_involved or [],
+            layers_traversed=request.layers_traversed or [],
+        )
+
+        return FeedbackResponse(
+            feedback_id=feedback.feedback_id,
+            message="Feedback submitted successfully",
+            confidence_adjusted=len(request.entities_involved or []) > 0
+        )
+
+    except Exception as e:
+        logger.error(f"Error submitting feedback: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/feedback/thumbs", response_model=FeedbackResponse)
+async def submit_thumbs_feedback(request: ThumbsFeedbackRequest):
+    """
+    Submit simple thumbs up/down feedback.
+
+    This is the simplified feedback endpoint for low-confidence responses.
+    It uses the tracked response metadata to attribute feedback to entities.
+
+    - Thumbs up (rating 5): Boosts entity confidence
+    - Thumbs down (rating 1): Decreases entity confidence, may trigger demotion
+    """
+    try:
+        from application.services.feedback_tracer import FeedbackType
+
+        # Look up tracked response
+        response_data = get_tracked_response(request.response_id)
+
+        if not response_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Response {request.response_id} not found. "
+                "Ensure the response was tracked during generation."
+            )
+
+        feedback_service = await get_feedback_service()
+
+        # Map thumbs to rating and feedback type
+        rating = 5 if request.thumbs_up else 1
+        feedback_type = FeedbackType.HELPFUL if request.thumbs_up else FeedbackType.UNHELPFUL
+
+        feedback = await feedback_service.submit_feedback(
+            response_id=request.response_id,
+            patient_id=response_data.get("patient_id", "anonymous"),
+            session_id=response_data.get("session_id", "default"),
+            query_text=response_data.get("query_text", ""),
+            response_text=response_data.get("response_text", ""),
+            rating=rating,
+            feedback_type=feedback_type,
+            correction_text=request.correction_text,
+            entities_involved=response_data.get("entities_involved", []),
+            layers_traversed=response_data.get("layers_traversed", []),
+            metadata={
+                "original_confidence": response_data.get("confidence", 0),
+                "feedback_method": "thumbs",
+            }
+        )
+
+        # Check for demotion on negative feedback
+        entities_demoted = []
+        if not request.thumbs_up and response_data.get("entities_involved"):
+            entities_demoted = await feedback_service.check_demotion(
+                response_data.get("entities_involved", [])
+            )
+
+        return FeedbackResponse(
+            feedback_id=feedback.feedback_id,
+            message=f"{'Thumbs up' if request.thumbs_up else 'Thumbs down'} recorded. "
+                   f"{len(entities_demoted)} entities demoted." if entities_demoted else "",
+            confidence_adjusted=len(response_data.get("entities_involved", [])) > 0
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting thumbs feedback: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/feedback/stats")
+async def get_feedback_statistics():
+    """
+    Get aggregated feedback statistics.
+
+    Returns:
+    - Total feedbacks
+    - Average rating
+    - Rating distribution
+    - Feedback type distribution
+    - Layer performance metrics
+    """
+    try:
+        feedback_service = await get_feedback_service()
+        stats = await feedback_service.get_feedback_statistics()
+
+        return {
+            "total_feedbacks": stats.total_feedbacks,
+            "average_rating": stats.average_rating,
+            "rating_distribution": stats.rating_distribution,
+            "feedback_type_distribution": stats.feedback_type_distribution,
+            "layer_performance": stats.layer_performance,
+            "recent_trends": stats.recent_trends,
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting feedback stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/feedback/preference-pairs")
+async def get_preference_pairs(
+    min_rating_gap: int = 2,
+    limit: int = 100
+):
+    """
+    Get preference pairs for RLHF training.
+
+    Preference pairs are created when users provide corrections.
+    The original response is 'rejected' and the correction is 'chosen'.
+
+    Args:
+        min_rating_gap: Minimum rating gap between chosen/rejected (default 2)
+        limit: Maximum pairs to return (default 100)
+
+    Returns:
+        List of preference pairs in DPO format
+    """
+    try:
+        feedback_service = await get_feedback_service()
+        pairs = await feedback_service.get_preference_pairs(
+            min_rating_gap=min_rating_gap,
+            limit=limit
+        )
+
+        return {
+            "pairs": pairs,
+            "total_count": len(pairs),
+            "format": "dpo_preference_pairs"
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting preference pairs: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/feedback/corrections")
+async def get_correction_examples(
+    feedback_type: OptionalType[str] = None,
+    limit: int = 100
+):
+    """
+    Get user correction examples for supervised fine-tuning.
+
+    Args:
+        feedback_type: Optional filter by feedback type
+        limit: Maximum examples to return
+
+    Returns:
+        List of correction examples
+    """
+    try:
+        from application.services.feedback_tracer import FeedbackType
+
+        feedback_service = await get_feedback_service()
+
+        ft = FeedbackType(feedback_type) if feedback_type else None
+        corrections = await feedback_service.get_correction_examples(
+            feedback_type=ft,
+            limit=limit
+        )
+
+        return {
+            "corrections": corrections,
+            "total_count": len(corrections),
+            "format": "supervised_fine_tuning"
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting corrections: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/feedback/export")
+async def export_training_data():
+    """
+    Export all training data for RLHF.
+
+    Returns comprehensive training data including:
+    - Preference pairs for DPO
+    - Correction examples for SFT
+    - Feedback statistics
+    """
+    try:
+        feedback_service = await get_feedback_service()
+        export_data = await feedback_service.export_training_data()
+
+        return export_data
+
+    except Exception as e:
+        logger.error(f"Error exporting training data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# Layer Statistics Endpoint
+# ========================================
+
+@app.get("/api/graph/layer-stats")
+async def get_layer_statistics(kg_backend = Depends(get_kg_backend)):
+    """
+    Get knowledge graph layer statistics.
+
+    Returns counts and metrics for each layer:
+    - PERCEPTION: Raw extracted data
+    - SEMANTIC: Validated concepts
+    - REASONING: Inferred knowledge
+    - APPLICATION: Query patterns
+    """
+    try:
+        query = """
+        MATCH (n)
+        WHERE n.layer IS NOT NULL
+        RETURN n.layer as layer, count(n) as count
+        ORDER BY layer
+        """
+        result = await kg_backend.query_raw(query, {})
+
+        layer_counts = {
+            "PERCEPTION": 0,
+            "SEMANTIC": 0,
+            "REASONING": 0,
+            "APPLICATION": 0,
+        }
+
+        for record in result or []:
+            layer = record.get("layer")
+            if layer in layer_counts:
+                layer_counts[layer] = record.get("count", 0)
+
+        # Get total nodes without layer property
+        unassigned_query = """
+        MATCH (n) WHERE n.layer IS NULL
+        RETURN count(n) as count
+        """
+        unassigned_result = await kg_backend.query_raw(unassigned_query, {})
+        unassigned_count = 0
+        if unassigned_result:
+            unassigned_count = unassigned_result[0].get("count", 0)
+
+        total = sum(layer_counts.values()) + unassigned_count
+
+        return {
+            "layers": layer_counts,
+            "unassigned": unassigned_count,
+            "total_nodes": total,
+            "layer_percentages": {
+                layer: (count / total * 100) if total > 0 else 0
+                for layer, count in layer_counts.items()
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting layer stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# Promotion Management Endpoints
+# ========================================
+
+@app.get("/api/promotion/status")
+async def get_promotion_status():
+    """
+    Get the status of the automatic promotion service.
+
+    Returns statistics about promotions attempted, completed, and rejected,
+    as well as the current configuration.
+    """
+    from .dependencies import get_layer_transition_service
+
+    try:
+        service = await get_layer_transition_service()
+        return {
+            "status": "active" if service.enable_auto_promotion else "disabled",
+            "statistics": service.get_statistics(),
+        }
+    except Exception as e:
+        logger.error(f"Error getting promotion status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/promotion/scan")
+async def trigger_promotion_scan():
+    """
+    Manually trigger a promotion scan.
+
+    Scans PERCEPTION and SEMANTIC layers for entities that meet
+    promotion criteria and promotes them.
+    """
+    from .dependencies import get_layer_transition_service
+
+    try:
+        service = await get_layer_transition_service()
+        result = await service.run_promotion_scan()
+
+        return {
+            "success": True,
+            "scan_results": result,
+        }
+    except Exception as e:
+        logger.error(f"Error running promotion scan: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/promotion/candidates/{layer}")
+async def get_promotion_candidates(layer: str):
+    """
+    Get entities that are candidates for promotion from a specific layer.
+
+    Args:
+        layer: The source layer (PERCEPTION or SEMANTIC)
+    """
+    from .dependencies import get_layer_transition_service
+
+    layer_upper = layer.upper()
+    if layer_upper not in ["PERCEPTION", "SEMANTIC"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Layer must be PERCEPTION or SEMANTIC"
+        )
+
+    try:
+        service = await get_layer_transition_service()
+        candidates = await service.scan_for_promotion_candidates(layer_upper)
+
+        return {
+            "layer": layer_upper,
+            "candidate_count": len(candidates),
+            "candidate_ids": candidates[:100],  # Limit response size
+        }
+    except Exception as e:
+        logger.error(f"Error getting promotion candidates: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# Neurosymbolic Query Endpoints
+# ========================================
+
+class QueryRequest(BaseModel):
+    """Request model for neurosymbolic queries."""
+    question: str = Field(..., description="Natural language question")
+    patient_id: Optional[str] = Field(None, description="Patient ID for context")
+    session_id: Optional[str] = Field(None, description="Session ID for tracking")
+    trace_layers: bool = Field(False, description="Include layer trace in response")
+    force_strategy: Optional[str] = Field(None, description="Override strategy")
+
+
+# Global neurosymbolic query service instance
+_neurosymbolic_service_instance = None
+
+
+async def get_neurosymbolic_service():
+    """Get or create neurosymbolic query service instance."""
+    global _neurosymbolic_service_instance
+
+    if _neurosymbolic_service_instance is None:
+        from application.services.neurosymbolic_query_service import NeurosymbolicQueryService
+
+        backend = await get_kg_backend()
+
+        _neurosymbolic_service_instance = NeurosymbolicQueryService(
+            backend=backend,
+            enable_caching=True,
+        )
+        logger.info("NeurosymbolicQueryService initialized")
+
+    return _neurosymbolic_service_instance
+
+
+@app.post("/api/query")
+async def execute_neurosymbolic_query(request: QueryRequest):
+    """
+    Execute a neurosymbolic query across knowledge graph layers.
+
+    This endpoint:
+    1. Detects query type (drug interaction, symptoms, etc.)
+    2. Selects appropriate strategy (symbolic-only, neural-first, etc.)
+    3. Traverses layers: APPLICATION → REASONING → SEMANTIC → PERCEPTION
+    4. Tracks response for feedback attribution
+
+    Returns a response_id that can be used for thumbs up/down feedback.
+    """
+    import uuid
+
+    try:
+        service = await get_neurosymbolic_service()
+
+        # Parse optional strategy override
+        force_strategy = None
+        if request.force_strategy:
+            from application.services.neurosymbolic_query_service import QueryStrategy
+            try:
+                force_strategy = QueryStrategy(request.force_strategy)
+            except ValueError:
+                pass
+
+        # Execute query
+        result, trace = await service.execute_query(
+            query_text=request.question,
+            patient_context={"patient_id": request.patient_id} if request.patient_id else None,
+            force_strategy=force_strategy,
+            trace_execution=request.trace_layers,
+        )
+
+        # Generate response ID for feedback tracking
+        response_id = str(uuid.uuid4())
+
+        # Build response text from result
+        response_text = _build_response_text(result)
+
+        # Track response for feedback attribution
+        track_response(
+            response_id=response_id,
+            query_text=request.question,
+            response_text=response_text,
+            entities_involved=result.get("entity_ids", []),
+            layers_traversed=result.get("layers_traversed", []),
+            patient_id=request.patient_id or "anonymous",
+            session_id=request.session_id or "default",
+            confidence=result.get("confidence", 0.0),
+        )
+
+        # Build API response
+        response = {
+            "response_id": response_id,
+            "query_id": result.get("query_id"),
+            "answer": response_text,
+            "confidence": result.get("confidence", 0.0),
+            "strategy": result.get("strategy"),
+            "layers_traversed": result.get("layers_traversed", []),
+            "entity_count": len(result.get("entities", [])),
+            "execution_time_ms": result.get("execution_time_ms", 0),
+        }
+
+        # Include detailed trace if requested
+        if request.trace_layers and trace:
+            response["trace"] = {
+                "layer_results": [
+                    {
+                        "layer": lr.layer.value,
+                        "entity_count": len(lr.entities),
+                        "confidence": lr.confidence.score,
+                        "query_time_ms": lr.query_time_ms,
+                    }
+                    for lr in trace.layer_results
+                ],
+                "conflicts_detected": trace.conflicts_detected,
+            }
+
+        # Include entities if present
+        if result.get("entities"):
+            response["entities"] = result["entities"][:20]  # Limit for response size
+
+        # Include warnings/inferences
+        if result.get("warnings"):
+            response["warnings"] = result["warnings"]
+        if result.get("inferences"):
+            response["inferences"] = result["inferences"]
+
+        # Flag low confidence for UI to show feedback prompt
+        response["request_feedback"] = result.get("confidence", 0) < 0.7
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error executing neurosymbolic query: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _build_response_text(result: Dict[str, Any]) -> str:
+    """Build human-readable response text from query result."""
+    parts = []
+
+    # Add main answer based on entities
+    entities = result.get("entities", [])
+    if entities:
+        entity_names = [e.get("name", "Unknown") for e in entities[:5]]
+        parts.append(f"Found: {', '.join(entity_names)}")
+
+    # Add warnings
+    for warning in result.get("warnings", []):
+        parts.append(f"Warning: {warning}")
+
+    # Add inferences
+    for inference in result.get("inferences", []):
+        if isinstance(inference, dict):
+            parts.append(f"Inference: {inference.get('description', str(inference))}")
+        else:
+            parts.append(f"Inference: {inference}")
+
+    # Add disclaimer if present
+    if result.get("disclaimer"):
+        parts.append(result["disclaimer"])
+
+    return "\n".join(parts) if parts else "No results found."
+
+
+@app.get("/api/query/stats")
+async def get_query_statistics():
+    """Get neurosymbolic query statistics."""
+    try:
+        service = await get_neurosymbolic_service()
+        return service.stats
+    except Exception as e:
+        logger.error(f"Error getting query stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
