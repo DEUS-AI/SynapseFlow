@@ -262,8 +262,8 @@ class AutomaticLayerTransitionService:
         """
         props = entity_data.get("properties", entity_data)
 
-        # Check confidence
-        confidence = props.get("confidence", 0)
+        # Check confidence (PERCEPTION entities use extraction_confidence)
+        confidence = props.get("confidence", 0) or props.get("extraction_confidence", 0)
         if confidence >= self.thresholds.perception_confidence_threshold:
             logger.info(f"Entity meets confidence threshold: {confidence:.2f}")
             return True
