@@ -31,8 +31,10 @@ class KnowledgeLayer(str, Enum):
 
 
 # Required properties for each layer
+# Note: These are soft requirements - entities can exist without them but
+# may be flagged for validation. 'confidence' is the standard property name.
 LAYER_REQUIREMENTS = {
-    KnowledgeLayer.PERCEPTION: ["source_document", "extraction_confidence"],
+    KnowledgeLayer.PERCEPTION: ["source_type"],  # source_document optional
     KnowledgeLayer.SEMANTIC: ["domain"],  # ontology_codes optional
     KnowledgeLayer.REASONING: ["confidence", "inference_rules_applied"],
     KnowledgeLayer.APPLICATION: ["usage_context"],
@@ -613,28 +615,28 @@ class Neo4jBackend(KnowledgeGraphBackend):
 
         # Build layer-specific query
         if layer == "PERCEPTION" or layer == KnowledgeLayer.PERCEPTION:
-            # Support both 'confidence' and 'extraction_confidence' properties
+            # Check for entities with high confidence, validation count, or ontology match
             # Allow entities with pending_validation status OR no status (migrated data)
             query = """
             MATCH (n:Entity)
             WHERE n.layer = 'PERCEPTION'
               AND (n.status IS NULL OR n.status = 'pending_validation' OR n.status = 'active')
               AND (
-                  coalesce(n.confidence, n.extraction_confidence, 0) >= $threshold
+                  coalesce(n.confidence, 0) >= $threshold
                   OR coalesce(n.validation_count, 0) >= 3
                   OR n.ontology_codes IS NOT NULL
               )
             RETURN n.id as id,
                    n.name as name,
-                   coalesce(n.confidence, n.extraction_confidence, 0) as confidence,
+                   coalesce(n.confidence, 0) as confidence,
                    coalesce(n.validation_count, 0) as validation_count,
                    n.ontology_codes as ontology_codes,
                    CASE
-                     WHEN coalesce(n.confidence, n.extraction_confidence, 0) >= $threshold THEN 'confidence'
+                     WHEN coalesce(n.confidence, 0) >= $threshold THEN 'confidence'
                      WHEN coalesce(n.validation_count, 0) >= 3 THEN 'validation_count'
                      ELSE 'ontology_match'
                    END as trigger_type
-            ORDER BY coalesce(n.confidence, n.extraction_confidence, 0) DESC
+            ORDER BY coalesce(n.confidence, 0) DESC
             LIMIT $limit
             """
         elif layer == "SEMANTIC" or layer == KnowledgeLayer.SEMANTIC:
@@ -785,7 +787,7 @@ class Neo4jBackend(KnowledgeGraphBackend):
 
         indexes = [
             ("idx_entity_layer", "CREATE INDEX idx_entity_layer IF NOT EXISTS FOR (n:Entity) ON (n.layer)"),
-            ("idx_perception_confidence", "CREATE INDEX idx_perception_confidence IF NOT EXISTS FOR (n:Entity) ON (n.extraction_confidence)"),
+            ("idx_entity_confidence", "CREATE INDEX idx_entity_confidence IF NOT EXISTS FOR (n:Entity) ON (n.confidence)"),
             ("idx_entity_status", "CREATE INDEX idx_entity_status IF NOT EXISTS FOR (n:Entity) ON (n.status)"),
             ("idx_transition_status", "CREATE INDEX idx_transition_status IF NOT EXISTS FOR (t:LayerTransition) ON (t.status)"),
         ]

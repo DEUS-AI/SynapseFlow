@@ -256,14 +256,14 @@ class AutomaticLayerTransitionService:
         Check if a PERCEPTION entity should be promoted to SEMANTIC.
 
         Criteria (any of):
-        - extraction_confidence >= threshold
+        - confidence >= threshold
         - validation_count >= threshold
         - Has ontology match (SNOMED-CT, ICD-10, UMLS)
         """
         props = entity_data.get("properties", entity_data)
 
         # Check confidence
-        confidence = props.get("extraction_confidence", props.get("confidence", 0))
+        confidence = props.get("confidence", 0)
         if confidence >= self.thresholds.perception_confidence_threshold:
             logger.info(f"Entity meets confidence threshold: {confidence:.2f}")
             return True
@@ -489,7 +489,7 @@ class AutomaticLayerTransitionService:
             props.setdefault("description", entity_name or "Auto-promoted entity")
 
         elif target_layer == Layer.REASONING:
-            props.setdefault("confidence", props.get("extraction_confidence", 0.85))
+            props.setdefault("confidence", props.get("confidence", 0.85))
             props.setdefault("reasoning", "Auto-promoted based on validation criteria")
             props.setdefault("inference_rules_applied", [])
 

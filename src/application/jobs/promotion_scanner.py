@@ -138,10 +138,23 @@ class PromotionScannerJob:
         results["duration_ms"] = duration_ms
         results["completed_at"] = end_time.isoformat()
 
-        logger.info(
-            f"Scan {results['scan_id']} completed: "
-            f"{results['promotions']} promotions in {duration_ms:.0f}ms"
-        )
+        total_candidates = results.get("perception_candidates", 0) + results.get("semantic_candidates", 0)
+        if results["promotions"] == 0:
+            if total_candidates == 0:
+                logger.info(
+                    f"Scan {results['scan_id']} completed in {duration_ms:.0f}ms: "
+                    f"No promotion candidates found (entities need higher confidence, validation, or ontology match)"
+                )
+            else:
+                logger.info(
+                    f"Scan {results['scan_id']} completed in {duration_ms:.0f}ms: "
+                    f"Found {total_candidates} candidates but 0 promotions (may already be promoted or failed criteria)"
+                )
+        else:
+            logger.info(
+                f"Scan {results['scan_id']} completed: "
+                f"{results['promotions']} promotions from {total_candidates} candidates in {duration_ms:.0f}ms"
+            )
 
         return results
 
@@ -161,6 +174,14 @@ class PromotionScannerJob:
             # Use transition service to scan and promote
             candidates = await self.transition_service.scan_for_promotion_candidates(layer)
             result["candidates"] = len(candidates)
+
+            if len(candidates) == 0:
+                logger.debug(
+                    f"No promotion candidates found in {layer} layer. "
+                    f"Entities need confidence >= threshold, validation_count >= 3, or ontology_codes to qualify."
+                )
+            else:
+                logger.info(f"Found {len(candidates)} promotion candidates in {layer} layer")
 
             for entity_id in candidates:
                 entity_data = await self.transition_service._get_entity_data(entity_id)

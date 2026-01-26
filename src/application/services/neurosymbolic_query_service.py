@@ -656,7 +656,7 @@ class NeurosymbolicQueryService:
 
             # Check if any validation entity contradicts
             for entity in validation_entities:
-                entity_conf = entity.get("confidence", entity.get("extraction_confidence", 0.5))
+                entity_conf = entity.get("confidence", 0.5)
 
                 if abs(inf_conf - entity_conf) > 0.3:
                     conflicts.append({
