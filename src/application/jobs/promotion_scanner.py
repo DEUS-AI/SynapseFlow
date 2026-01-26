@@ -183,9 +183,16 @@ class PromotionScannerJob:
             else:
                 logger.info(f"Found {len(candidates)} promotion candidates in {layer} layer")
 
-            for entity_id in candidates:
-                entity_data = await self.transition_service._get_entity_data(entity_id)
-                if entity_data:
+            for candidate in candidates:
+                # Handle both dict candidates (from Neo4j) and string IDs
+                if isinstance(candidate, dict):
+                    entity_id = candidate.get("id") or candidate.get("name")
+                    entity_data = candidate  # Use candidate data directly
+                else:
+                    entity_id = candidate
+                    entity_data = await self.transition_service._get_entity_data(entity_id)
+
+                if entity_id and entity_data:
                     from_layer = layer
                     to_layer = "SEMANTIC" if layer == "PERCEPTION" else "REASONING"
 

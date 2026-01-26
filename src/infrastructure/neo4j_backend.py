@@ -140,31 +140,37 @@ class Neo4jBackend(KnowledgeGraphBackend):
                             properties=properties)
 
     async def get_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
-        """Get entity by ID.
-        
+        """Get entity by ID or name.
+
+        Searches across all node types, matching by either id or name property.
+        This allows finding DDA entities (Table, Column, etc.) which use name as identifier.
+
         Args:
-            entity_id: Entity identifier
-            
+            entity_id: Entity identifier (can be id or name)
+
         Returns:
             Entity properties or None if not found
         """
         driver = await self._get_driver()
-        
+
+        # Search by both id and name to support different entity types
         query = """
-        MATCH (n:Entity {id: $entity_id})
-        RETURN n
+        MATCH (n)
+        WHERE n.id = $entity_id OR n.name = $entity_id
+        RETURN n, labels(n) as labels
+        LIMIT 1
         """
-        
+
         async with driver.session(database=self.database) as session:
             result = await session.run(query, entity_id=entity_id)
             record = await result.single()
-            
+
             if record:
                 node = record["n"]
                 return {
-                    "id": node["id"],
+                    "id": node.get("id") or node.get("name"),
                     "properties": dict(node),
-                    "labels": list(node.labels)
+                    "labels": record["labels"]
                 }
             return None
 
@@ -506,8 +512,10 @@ class Neo4jBackend(KnowledgeGraphBackend):
         if create_version:
             # Create new versioned entity
             new_entity_id = f"{entity_id}_v{target_idx + 1}"
+            # Match by id or name to support all entity types (Entity, Table, Column, etc.)
             query = """
-            MATCH (source:Entity {id: $entity_id})
+            MATCH (source)
+            WHERE source.id = $entity_id OR source.name = $entity_id
             CREATE (target:Entity {id: $new_entity_id})
             SET target = source,
                 target.id = $new_entity_id,
@@ -526,10 +534,11 @@ class Neo4jBackend(KnowledgeGraphBackend):
             RETURN target, source
             """
         else:
-            # Modify in place
+            # Modify in place - search by id or name to support all entity types
             new_entity_id = entity_id
             query = """
-            MATCH (n:Entity {id: $entity_id})
+            MATCH (n)
+            WHERE n.id = $entity_id OR n.name = $entity_id
             SET n.layer = $target_layer,
                 n.layer_assigned_at = datetime(),
                 n.previous_layer = $current_layer,
@@ -614,20 +623,24 @@ class Neo4jBackend(KnowledgeGraphBackend):
             return []
 
         # Build layer-specific query
+        # Note: Match any node with the layer property, not just :Entity label
+        # This allows promotion of DDA entities (Table, Column, etc.) and other node types
         if layer == "PERCEPTION" or layer == KnowledgeLayer.PERCEPTION:
             # Check for entities with high confidence, validation count, or ontology match
             # Allow entities with pending_validation status OR no status (migrated data)
             query = """
-            MATCH (n:Entity)
+            MATCH (n)
             WHERE n.layer = 'PERCEPTION'
+              AND n.name IS NOT NULL
               AND (n.status IS NULL OR n.status = 'pending_validation' OR n.status = 'active')
               AND (
                   coalesce(n.confidence, 0) >= $threshold
                   OR coalesce(n.validation_count, 0) >= 3
                   OR n.ontology_codes IS NOT NULL
               )
-            RETURN n.id as id,
+            RETURN coalesce(n.id, n.name) as id,
                    n.name as name,
+                   labels(n) as labels,
                    coalesce(n.confidence, 0) as confidence,
                    coalesce(n.validation_count, 0) as validation_count,
                    n.ontology_codes as ontology_codes,
@@ -641,13 +654,15 @@ class Neo4jBackend(KnowledgeGraphBackend):
             """
         elif layer == "SEMANTIC" or layer == KnowledgeLayer.SEMANTIC:
             query = """
-            MATCH (n:Entity)
+            MATCH (n)
             WHERE n.layer = 'SEMANTIC'
-            OPTIONAL MATCH (n)<-[r]-(other:Entity {layer: 'SEMANTIC'})
+              AND n.name IS NOT NULL
+            OPTIONAL MATCH (n)<-[r]-(other {layer: 'SEMANTIC'})
             WITH n, count(r) as reference_count
             WHERE reference_count >= 5 OR coalesce(n.confidence, 0) >= $threshold
-            RETURN n.id as id,
+            RETURN coalesce(n.id, n.name) as id,
                    n.name as name,
+                   labels(n) as labels,
                    coalesce(n.confidence, 0.5) as confidence,
                    reference_count,
                    CASE
@@ -659,11 +674,13 @@ class Neo4jBackend(KnowledgeGraphBackend):
             """
         elif layer == "REASONING" or layer == KnowledgeLayer.REASONING:
             query = """
-            MATCH (n:Entity)
+            MATCH (n)
             WHERE n.layer = 'REASONING'
+              AND n.name IS NOT NULL
               AND coalesce(n.query_count, 0) >= 10
-            RETURN n.id as id,
+            RETURN coalesce(n.id, n.name) as id,
                    n.name as name,
+                   labels(n) as labels,
                    coalesce(n.confidence, 0.5) as confidence,
                    n.query_count as query_count,
                    coalesce(n.cache_hit_rate, 0) as cache_hit_rate,
