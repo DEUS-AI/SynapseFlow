@@ -1441,7 +1441,7 @@ async def export_training_data(
             formatted_sft = formatter.format_sft([
                 {
                     "instruction": e.instruction,
-                    "input": e.input_text,
+                    "input": e.input,
                     "output": e.output,
                     "rating": e.rating,
                     "source": e.source,
@@ -1458,7 +1458,7 @@ async def export_training_data(
             formatted_alpaca = formatter.format_alpaca([
                 {
                     "instruction": e.instruction,
-                    "input": e.input_text,
+                    "input": e.input,
                     "output": e.output,
                     "rating": e.rating,
                     "source": e.source,
@@ -1475,7 +1475,7 @@ async def export_training_data(
             formatted_sharegpt = formatter.format_sharegpt([
                 {
                     "instruction": e.instruction,
-                    "input": e.input_text,
+                    "input": e.input,
                     "output": e.output,
                     "rating": e.rating,
                     "source": e.source,
@@ -1493,7 +1493,7 @@ async def export_training_data(
             formatted_sft = formatter.format_openai([
                 {
                     "instruction": e.instruction,
-                    "input": e.input_text,
+                    "input": e.input,
                     "output": e.output,
                 }
                 for e in result.sft_examples
@@ -1526,8 +1526,8 @@ async def export_training_data(
 
         # Add extraction metadata
         output["extraction_metadata"] = {
-            "total_preference_pairs": result.total_preference_pairs,
-            "total_sft_examples": result.total_sft_examples,
+            "total_preference_pairs": len(result.preference_pairs),
+            "total_sft_examples": len(result.sft_examples),
             "layer_filter": layer,
             "min_rating_gap": min_rating_gap,
             "min_rating_for_sft": min_rating_for_sft,
@@ -1537,9 +1537,9 @@ async def export_training_data(
         if result.layer_analysis:
             output["layer_analysis"] = {
                 layer_name: {
-                    "preference_pairs": la.preference_pair_count,
-                    "sft_examples": la.sft_example_count,
-                    "avg_confidence": la.avg_confidence,
+                    "total_queries": la.total_queries,
+                    "average_rating": la.average_rating,
+                    "negative_rate": la.negative_rate,
                 }
                 for layer_name, la in result.layer_analysis.items()
             }
