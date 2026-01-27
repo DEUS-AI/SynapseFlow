@@ -222,11 +222,15 @@ async def get_graph_data(
 ):
     """Get knowledge graph data for visualization."""
     try:
+        # Normalize layer to lowercase for consistent matching
+        if layer:
+            layer = layer.lower()
+
         # Build Cypher query based on filters
         if layer:
             query = f"""
             MATCH (n)
-            WHERE n.layer = $layer
+            WHERE toLower(n.layer) = $layer
             WITH n LIMIT $limit
             OPTIONAL MATCH (n)-[r]->(m)
             RETURN
@@ -1332,24 +1336,530 @@ async def get_correction_examples(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/feedback/export")
-async def export_training_data():
-    """
-    Export all training data for RLHF.
+class ExportFormatEnum(str, PyEnum):
+    """Supported export formats for RLHF training data."""
+    DPO = "dpo"
+    SFT = "sft"
+    ALPACA = "alpaca"
+    SHAREGPT = "sharegpt"
+    OPENAI = "openai"
+    RAW = "raw"
 
-    Returns comprehensive training data including:
-    - Preference pairs for DPO
-    - Correction examples for SFT
-    - Feedback statistics
+
+@app.get("/api/feedback/export")
+async def export_training_data(
+    format: ExportFormatEnum = ExportFormatEnum.RAW,
+    layer: Optional[str] = None,
+    min_rating_gap: float = 2.0,
+    min_rating_for_sft: float = 4.0,
+    include_metadata: bool = False,
+    split_dataset: bool = False,
+):
+    """
+    Export training data for RLHF in various formats.
+
+    Args:
+        format: Output format (dpo, sft, alpaca, sharegpt, openai, raw)
+        layer: Filter by knowledge graph layer (PERCEPTION, SEMANTIC, REASONING, APPLICATION)
+        min_rating_gap: Minimum rating gap for preference pairs (default 2.0)
+        min_rating_for_sft: Minimum rating for SFT examples (default 4.0)
+        include_metadata: Include source metadata in output
+        split_dataset: Split into train/validation/test sets
+
+    Returns:
+        Formatted training data based on the selected format:
+        - dpo: Direct Preference Optimization format
+        - sft: Supervised Fine-Tuning format
+        - alpaca: Alpaca instruction tuning format
+        - sharegpt: ShareGPT conversation format
+        - openai: OpenAI fine-tuning format
+        - raw: Raw extracted data with both preference pairs and SFT examples
     """
     try:
-        feedback_service = await get_feedback_service()
-        export_data = await feedback_service.export_training_data()
+        # Validate layer if provided
+        valid_layers = ["PERCEPTION", "SEMANTIC", "REASONING", "APPLICATION"]
+        if layer and layer.upper() not in valid_layers:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid layer. Must be one of: {', '.join(valid_layers)}"
+            )
 
-        return export_data
+        # Use raw format for backward compatibility
+        if format == ExportFormatEnum.RAW:
+            feedback_service = await get_feedback_service()
+            export_data = await feedback_service.export_training_data()
+            return export_data
 
+        # Use RLHFDataExtractor for formatted output
+        from application.services.rlhf_data_extractor import RLHFDataExtractor
+        from application.formatters.training_data_formatter import (
+            TrainingDataFormatter,
+            FormatterConfig,
+            OutputFormat,
+        )
+
+        backend = await get_kg_backend()
+        extractor = RLHFDataExtractor(
+            backend=backend,
+            min_rating_gap=min_rating_gap,
+            min_rating_for_sft=min_rating_for_sft,
+        )
+
+        # Extract data
+        result = await extractor.extract_all(
+            layer_filter=layer.upper() if layer else None,
+        )
+
+        # Configure formatter
+        config = FormatterConfig(
+            include_metadata=include_metadata,
+        )
+        formatter = TrainingDataFormatter(config)
+
+        # Format based on requested type
+        output = {}
+
+        if format == ExportFormatEnum.DPO:
+            formatted_pairs = formatter.format_dpo([
+                {
+                    "prompt": p.prompt,
+                    "chosen": p.chosen,
+                    "rejected": p.rejected,
+                    "rating_gap": p.rating_gap,
+                    "source": p.source,
+                    "layers_involved": p.layers_involved,
+                }
+                for p in result.preference_pairs
+            ])
+            output = {
+                "format": "dpo",
+                "data": formatted_pairs,
+                "count": len(formatted_pairs),
+            }
+
+        elif format == ExportFormatEnum.SFT:
+            formatted_sft = formatter.format_sft([
+                {
+                    "instruction": e.instruction,
+                    "input": e.input_text,
+                    "output": e.output,
+                    "rating": e.rating,
+                    "source": e.source,
+                }
+                for e in result.sft_examples
+            ])
+            output = {
+                "format": "sft",
+                "data": formatted_sft,
+                "count": len(formatted_sft),
+            }
+
+        elif format == ExportFormatEnum.ALPACA:
+            formatted_alpaca = formatter.format_alpaca([
+                {
+                    "instruction": e.instruction,
+                    "input": e.input_text,
+                    "output": e.output,
+                    "rating": e.rating,
+                    "source": e.source,
+                }
+                for e in result.sft_examples
+            ])
+            output = {
+                "format": "alpaca",
+                "data": formatted_alpaca,
+                "count": len(formatted_alpaca),
+            }
+
+        elif format == ExportFormatEnum.SHAREGPT:
+            formatted_sharegpt = formatter.format_sharegpt([
+                {
+                    "instruction": e.instruction,
+                    "input": e.input_text,
+                    "output": e.output,
+                    "rating": e.rating,
+                    "source": e.source,
+                }
+                for e in result.sft_examples
+            ])
+            output = {
+                "format": "sharegpt",
+                "data": formatted_sharegpt,
+                "count": len(formatted_sharegpt),
+            }
+
+        elif format == ExportFormatEnum.OPENAI:
+            # OpenAI format for both SFT and DPO
+            formatted_sft = formatter.format_openai([
+                {
+                    "instruction": e.instruction,
+                    "input": e.input_text,
+                    "output": e.output,
+                }
+                for e in result.sft_examples
+            ])
+            formatted_dpo = formatter.format_dpo_openai([
+                {
+                    "prompt": p.prompt,
+                    "chosen": p.chosen,
+                    "rejected": p.rejected,
+                }
+                for p in result.preference_pairs
+            ])
+            output = {
+                "format": "openai",
+                "sft_data": formatted_sft,
+                "dpo_data": formatted_dpo,
+                "sft_count": len(formatted_sft),
+                "dpo_count": len(formatted_dpo),
+            }
+
+        # Split dataset if requested
+        if split_dataset and output.get("data"):
+            splits = formatter.split_dataset(output["data"])
+            output["splits"] = {
+                "train": len(splits["train"]),
+                "validation": len(splits["validation"]),
+                "test": len(splits["test"]),
+            }
+            output["data"] = splits
+
+        # Add extraction metadata
+        output["extraction_metadata"] = {
+            "total_preference_pairs": result.total_preference_pairs,
+            "total_sft_examples": result.total_sft_examples,
+            "layer_filter": layer,
+            "min_rating_gap": min_rating_gap,
+            "min_rating_for_sft": min_rating_for_sft,
+        }
+
+        # Add layer analysis if available
+        if result.layer_analysis:
+            output["layer_analysis"] = {
+                layer_name: {
+                    "preference_pairs": la.preference_pair_count,
+                    "sft_examples": la.sft_example_count,
+                    "avg_confidence": la.avg_confidence,
+                }
+                for layer_name, la in result.layer_analysis.items()
+            }
+
+        return output
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error exporting training data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# Chat Session Management Endpoints
+# ========================================
+
+# Global chat history service instance
+_chat_history_service_instance = None
+
+
+async def get_chat_history_service():
+    """Get or create chat history service instance."""
+    global _chat_history_service_instance
+
+    if _chat_history_service_instance is None:
+        from application.services.chat_history_service import ChatHistoryService
+        from application.services.conversational_intent_service import ConversationalIntentService
+
+        # Get dependencies
+        patient_memory = await get_patient_memory()
+        intent_service = ConversationalIntentService(
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        )
+
+        _chat_history_service_instance = ChatHistoryService(
+            patient_memory_service=patient_memory,
+            intent_service=intent_service,
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        )
+
+        logger.info("ChatHistoryService initialized")
+
+    return _chat_history_service_instance
+
+
+class SessionListRequest(BaseModel):
+    """Request model for listing sessions."""
+    patient_id: str
+    limit: int = 20
+    offset: int = 0
+    status: Optional[str] = None  # "active", "ended", "archived"
+
+
+class CreateSessionRequest(BaseModel):
+    """Request model for creating a session."""
+    patient_id: str
+    title: Optional[str] = None
+    device: str = "web"
+
+
+@app.get("/api/chat/sessions")
+async def list_sessions(
+    patient_id: str,
+    limit: int = 20,
+    offset: int = 0,
+    status: Optional[str] = None
+):
+    """
+    List all chat sessions for a patient.
+
+    Returns sessions grouped by time periods (today, yesterday, this week, etc.)
+    with metadata including message count, last activity, and topics.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        session_list = await history_service.list_sessions(
+            patient_id=patient_id,
+            limit=limit,
+            offset=offset,
+            status=status
+        )
+
+        return session_list.to_dict()
+
+    except Exception as e:
+        logger.error(f"Error listing sessions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/sessions/latest")
+async def get_latest_session(patient_id: str):
+    """
+    Get most recent active session for a patient.
+
+    Used for auto-resume functionality.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        session = await history_service.get_latest_session(patient_id)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="No active sessions found")
+
+        return session.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting latest session: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/sessions/{session_id}")
+async def get_session_metadata(session_id: str):
+    """Get metadata for a specific session."""
+    try:
+        history_service = await get_chat_history_service()
+
+        session = await history_service.get_session_metadata(session_id)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return session.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting session metadata: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/sessions/{session_id}/messages")
+async def get_session_messages(
+    session_id: str,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get messages for a session with pagination.
+
+    Returns messages ordered by timestamp (oldest first for display).
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        messages = await history_service.get_session_messages(
+            session_id=session_id,
+            limit=limit,
+            offset=offset
+        )
+
+        return {
+            "session_id": session_id,
+            "messages": [msg.to_dict() for msg in messages],
+            "count": len(messages),
+            "has_more": len(messages) == limit
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting session messages: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/sessions/start")
+async def start_session(request: CreateSessionRequest):
+    """
+    Create a new chat session.
+
+    Title will be auto-generated after 2-3 messages if not provided.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        session_id = await history_service.create_session(
+            patient_id=request.patient_id,
+            title=request.title,
+            device=request.device
+        )
+
+        return {
+            "session_id": session_id,
+            "patient_id": request.patient_id,
+            "title": request.title or "New Conversation",
+            "status": "active"
+        }
+
+    except Exception as e:
+        logger.error(f"Error creating session: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/chat/sessions/{session_id}/end")
+async def end_session(session_id: str):
+    """Mark a session as ended."""
+    try:
+        history_service = await get_chat_history_service()
+
+        success = await history_service.end_session(session_id)
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to end session")
+
+        return {"session_id": session_id, "status": "ended"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error ending session: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/chat/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """
+    Delete a session and all messages (GDPR compliance).
+
+    Permanently removes session data. Cannot be undone.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        success = await history_service.delete_session(session_id)
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete session")
+
+        return {"session_id": session_id, "status": "deleted"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting session: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/sessions/{session_id}/summary")
+async def get_session_summary(session_id: str):
+    """
+    Get AI-generated summary of a session.
+
+    Includes key topics, main symptoms, recommendations, and sentiment.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        summary = await history_service.get_session_summary(session_id)
+
+        if not summary:
+            raise HTTPException(status_code=404, detail="Could not generate summary")
+
+        return summary.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating session summary: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/sessions/{session_id}/auto-title")
+async def auto_generate_session_title(session_id: str):
+    """
+    Auto-generate session title from first 2-3 messages.
+
+    Uses Phase 6 intent classification for fast, consistent titles.
+    Called automatically after 3 messages in a session.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        title = await history_service.auto_generate_title(session_id)
+
+        if not title:
+            raise HTTPException(status_code=404, detail="Could not generate title")
+
+        return {
+            "session_id": session_id,
+            "title": title,
+            "status": "generated"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error auto-generating title: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/sessions/search")
+async def search_sessions(
+    patient_id: str,
+    query: str,
+    limit: int = 20
+):
+    """
+    Search sessions by content or title.
+
+    Uses full-text search on message content.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        sessions = await history_service.search_sessions(
+            patient_id=patient_id,
+            query=query,
+            limit=limit
+        )
+
+        return {
+            "query": query,
+            "sessions": [s.to_dict() for s in sessions],
+            "count": len(sessions)
+        }
+
+    except Exception as e:
+        logger.error(f"Error searching sessions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1666,4 +2176,357 @@ async def get_query_statistics():
         return service.stats
     except Exception as e:
         logger.error(f"Error getting query stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# Agent Discovery Endpoints
+# ========================================
+
+# Global discovery service instance
+_discovery_service_instance = None
+
+
+async def get_discovery_service():
+    """Get or create agent discovery service instance."""
+    global _discovery_service_instance
+
+    if _discovery_service_instance is None:
+        from application.services.agent_discovery import AgentDiscoveryService
+
+        backend = await get_kg_backend()
+        _discovery_service_instance = AgentDiscoveryService(backend=backend)
+        await _discovery_service_instance.initialize()
+        logger.info("AgentDiscoveryService initialized")
+
+    return _discovery_service_instance
+
+
+class AgentRegistrationRequest(BaseModel):
+    """Request model for agent registration."""
+    agent_id: str = Field(..., description="Unique agent identifier")
+    name: str = Field(..., description="Human-readable agent name")
+    description: str = Field(..., description="Agent description")
+    version: str = Field(default="1.0.0", description="Agent version")
+    url: str = Field(..., description="Agent HTTP endpoint URL")
+    capabilities: List[str] = Field(..., description="List of capabilities")
+    tier: Optional[str] = Field(default="optional", description="Service tier (core/optional)")
+    health_check_url: Optional[str] = Field(None, description="Health check endpoint")
+
+
+@app.get("/api/agents")
+async def list_agents(
+    status: Optional[str] = None,
+    tier: Optional[str] = None,
+):
+    """
+    List all registered agents.
+
+    Args:
+        status: Filter by status (active, inactive, degraded)
+        tier: Filter by tier (core, optional)
+
+    Returns:
+        List of registered agents with their metadata
+    """
+    try:
+        from application.services.agent_discovery import AgentStatus, AgentTier
+
+        discovery = await get_discovery_service()
+
+        status_filter = AgentStatus(status) if status else None
+        tier_filter = AgentTier(tier) if tier else None
+
+        agents = await discovery.list_all_agents(
+            status_filter=status_filter,
+            tier_filter=tier_filter,
+        )
+
+        return {
+            "agents": [
+                {
+                    "agent_id": a.agent_id,
+                    "name": a.name,
+                    "description": a.description,
+                    "version": a.version,
+                    "url": a.url,
+                    "capabilities": a.capabilities,
+                    "status": a.status.value,
+                    "tier": a.tier.value,
+                    "last_heartbeat": a.last_heartbeat.isoformat() if a.last_heartbeat else None,
+                }
+                for a in agents
+            ],
+            "total_count": len(agents),
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error listing agents: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/agents/discover/{capability}")
+async def discover_agent_by_capability(
+    capability: str,
+    limit: int = 10,
+    include_inactive: bool = False,
+):
+    """
+    Discover agents by capability.
+
+    Searches the Knowledge Graph for agents that provide the specified capability.
+
+    Args:
+        capability: The capability to search for
+        limit: Maximum number of agents to return
+        include_inactive: Whether to include inactive agents
+
+    Returns:
+        List of matching agents sorted by last heartbeat
+    """
+    try:
+        from application.services.agent_discovery import AgentStatus
+
+        discovery = await get_discovery_service()
+
+        status_filter = None if include_inactive else AgentStatus.ACTIVE
+
+        result = await discovery.discover_by_capability(
+            capability=capability,
+            status_filter=status_filter,
+            limit=limit,
+        )
+
+        return {
+            "capability": capability,
+            "agents": [
+                {
+                    "agent_id": a.agent_id,
+                    "name": a.name,
+                    "url": a.url,
+                    "capabilities": a.capabilities,
+                    "status": a.status.value,
+                    "last_heartbeat": a.last_heartbeat.isoformat() if a.last_heartbeat else None,
+                }
+                for a in result.agents
+            ],
+            "total_found": result.total_found,
+            "active_count": result.active_count,
+        }
+
+    except Exception as e:
+        logger.error(f"Error discovering agents: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/agents/{agent_id}")
+async def get_agent_details(agent_id: str):
+    """
+    Get detailed information about a specific agent.
+
+    Args:
+        agent_id: The agent's unique identifier
+
+    Returns:
+        Full agent metadata
+    """
+    try:
+        discovery = await get_discovery_service()
+        agent = await discovery.get_agent_by_id(agent_id)
+
+        if not agent:
+            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+
+        return {
+            "agent_id": agent.agent_id,
+            "name": agent.name,
+            "description": agent.description,
+            "version": agent.version,
+            "url": agent.url,
+            "capabilities": agent.capabilities,
+            "status": agent.status.value,
+            "tier": agent.tier.value,
+            "health_check_url": agent.health_check_url,
+            "heartbeat_interval_seconds": agent.heartbeat_interval_seconds,
+            "registered_at": agent.registered_at.isoformat() if agent.registered_at else None,
+            "updated_at": agent.updated_at.isoformat() if agent.updated_at else None,
+            "last_heartbeat": agent.last_heartbeat.isoformat() if agent.last_heartbeat else None,
+            "metadata": agent.metadata,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting agent details: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/agents/register")
+async def register_agent(request: AgentRegistrationRequest):
+    """
+    Register an agent in the Knowledge Graph.
+
+    Creates or updates an AgentService node with the agent's metadata.
+    Agents should call this endpoint on startup.
+
+    Returns:
+        Registration confirmation
+    """
+    try:
+        from application.services.agent_discovery import (
+            AgentServiceInfo,
+            AgentStatus,
+            AgentTier,
+        )
+
+        discovery = await get_discovery_service()
+
+        agent_info = AgentServiceInfo(
+            agent_id=request.agent_id,
+            name=request.name,
+            description=request.description,
+            version=request.version,
+            url=request.url,
+            capabilities=request.capabilities,
+            status=AgentStatus.ACTIVE,
+            tier=AgentTier(request.tier) if request.tier else AgentTier.OPTIONAL,
+            health_check_url=request.health_check_url,
+        )
+
+        success = await discovery.register_agent(agent_info)
+
+        if success:
+            return {
+                "success": True,
+                "message": f"Agent {request.agent_id} registered successfully",
+                "agent_id": request.agent_id,
+                "capabilities": request.capabilities,
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to register agent")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error registering agent: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/agents/{agent_id}/heartbeat")
+async def agent_heartbeat(agent_id: str):
+    """
+    Update agent heartbeat.
+
+    Agents should call this periodically to indicate they are alive.
+
+    Args:
+        agent_id: The agent's unique identifier
+
+    Returns:
+        Heartbeat confirmation
+    """
+    try:
+        discovery = await get_discovery_service()
+        success = await discovery.update_heartbeat(agent_id)
+
+        if success:
+            return {
+                "success": True,
+                "agent_id": agent_id,
+                "message": "Heartbeat recorded",
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Agent {agent_id} not found"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating heartbeat: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/agents/{agent_id}")
+async def deregister_agent(agent_id: str):
+    """
+    Deregister an agent from the Knowledge Graph.
+
+    Removes the AgentService node. Use with caution.
+
+    Args:
+        agent_id: The agent's unique identifier
+
+    Returns:
+        Deregistration confirmation
+    """
+    try:
+        discovery = await get_discovery_service()
+        success = await discovery.deregister_agent(agent_id)
+
+        if success:
+            return {
+                "success": True,
+                "message": f"Agent {agent_id} deregistered",
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Agent {agent_id} not found"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deregistering agent: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/agents/capabilities/summary")
+async def get_capabilities_summary():
+    """
+    Get a summary of all capabilities and which agents provide them.
+
+    Returns:
+        Map of capability -> list of agent IDs
+    """
+    try:
+        discovery = await get_discovery_service()
+        summary = await discovery.get_capabilities_summary()
+
+        return {
+            "capabilities": summary,
+            "total_capabilities": len(summary),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting capabilities summary: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/agents/scan-stale")
+async def scan_stale_agents():
+    """
+    Scan for stale agents and mark them as degraded.
+
+    Agents without a recent heartbeat will be marked as degraded.
+
+    Returns:
+        List of agent IDs that were marked as degraded
+    """
+    try:
+        discovery = await get_discovery_service()
+        stale_ids = await discovery.scan_stale_agents()
+
+        return {
+            "success": True,
+            "stale_agents": stale_ids,
+            "count": len(stale_ids),
+        }
+
+    except Exception as e:
+        logger.error(f"Error scanning stale agents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

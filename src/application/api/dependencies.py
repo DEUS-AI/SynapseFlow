@@ -15,6 +15,7 @@ _graphiti_instance: Graphiti | None = None
 _kg_backend_instance: KnowledgeGraphBackend | None = None
 _event_bus_instance: EventBus | None = None
 _patient_memory_instance = None
+_mem0_instance = None  # NEW: Mem0 instance for conversational layer
 _chat_service_instance = None
 
 # Layer transition services
@@ -50,26 +51,33 @@ async def get_event_bus() -> EventBus:
 
 async def get_patient_memory():
     """Dependency to get Patient Memory Service."""
-    global _patient_memory_instance
+    global _patient_memory_instance, _mem0_instance
     if _patient_memory_instance is None:
-        _patient_memory_instance = await bootstrap_patient_memory()
+        _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
     return _patient_memory_instance
 
 async def get_chat_service():
     """Dependency to get Intelligent Chat Service."""
-    global _chat_service_instance, _patient_memory_instance
+    global _chat_service_instance, _patient_memory_instance, _mem0_instance
 
     if _chat_service_instance is None:
         from application.services.intelligent_chat_service import IntelligentChatService
 
         # Ensure patient memory is initialized
         if _patient_memory_instance is None:
-            _patient_memory_instance = await bootstrap_patient_memory()
+            _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
+
+        # Enable conversational layer if environment variable is set (default: True)
+        enable_conversational = os.getenv("ENABLE_CONVERSATIONAL_LAYER", "true").lower() == "true"
 
         _chat_service_instance = IntelligentChatService(
             openai_api_key=os.getenv("OPENAI_API_KEY"),
-            patient_memory_service=_patient_memory_instance
+            patient_memory_service=_patient_memory_instance,
+            mem0=_mem0_instance,  # NEW: Pass mem0 for conversational layer
+            enable_conversational_layer=enable_conversational  # NEW: Enable conversational layer
         )
+
+        print(f"✅ IntelligentChatService initialized (conversational_layer={enable_conversational})")
 
     return _chat_service_instance
 

@@ -639,6 +639,468 @@ class PatientMemoryService:
         return audit_id
 
     # ========================================
+    # Conversational Memory Helpers (Phase 6)
+    # ========================================
+
+    async def get_recent_topics(
+        self,
+        patient_id: str,
+        limit: int = 5
+    ) -> List[str]:
+        """
+        Get recent conversation topics from Mem0.
+
+        Args:
+            patient_id: Patient identifier
+            limit: Maximum number of topics to return
+
+        Returns:
+            List of recent topics
+        """
+        logger.debug(f"Retrieving recent topics for patient: {patient_id}")
+
+        try:
+            # Get recent memories from Mem0
+            memories = self.mem0.get_all(
+                user_id=patient_id,
+                limit=limit * 2  # Get more to filter
+            )
+
+            if not memories or "results" not in memories:
+                return []
+
+            # Extract topics from memories
+            topics = []
+            for memory in memories["results"][:limit]:
+                memory_text = memory.get("memory", "")
+                # Extract meaningful keywords
+                extracted = self._extract_keywords(memory_text)
+                topics.extend(extracted)
+
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_topics = []
+            for topic in topics:
+                if topic not in seen:
+                    seen.add(topic)
+                    unique_topics.append(topic)
+
+            return unique_topics[:limit]
+
+        except Exception as e:
+            logger.error(f"Error retrieving recent topics: {e}", exc_info=True)
+            return []
+
+    async def get_last_session_summary(
+        self,
+        patient_id: str
+    ) -> Optional[str]:
+        """
+        Get summary of last conversation session.
+
+        Args:
+            patient_id: Patient identifier
+
+        Returns:
+            Last session summary or None
+        """
+        logger.debug(f"Retrieving last session summary for patient: {patient_id}")
+
+        try:
+            # Get most recent memories from Mem0
+            memories = self.mem0.get_all(
+                user_id=patient_id,
+                limit=5
+            )
+
+            if not memories or "results" not in memories:
+                return None
+
+            # Combine recent memories into summary
+            recent_memories = [m.get("memory", "") for m in memories["results"][:3]]
+            summary = " ".join(recent_memories) if recent_memories else None
+
+            return summary
+
+        except Exception as e:
+            logger.error(f"Error retrieving last session summary: {e}", exc_info=True)
+            return None
+
+    def _extract_keywords(self, text: str) -> List[str]:
+        """
+        Extract medical keywords from text.
+
+        Args:
+            text: Text to extract keywords from
+
+        Returns:
+            List of extracted keywords
+        """
+        # Medical keywords to look for
+        medical_keywords = [
+            "pain", "knee", "back", "head", "headache", "fever", "cough",
+            "medication", "treatment", "diagnosis", "ibuprofen", "aspirin",
+            "therapy", "physical therapy", "exercise", "diet", "allergy",
+            "symptom", "condition", "prescription"
+        ]
+
+        text_lower = text.lower()
+        found_keywords = []
+
+        for keyword in medical_keywords:
+            if keyword in text_lower:
+                found_keywords.append(keyword)
+
+        # Extract "X pain" patterns
+        import re
+        pain_patterns = re.findall(r"(\w+)\s+pain", text_lower)
+        found_keywords.extend([f"{part} pain" for part in pain_patterns])
+
+        return found_keywords
+
+    # ========================================
+    # Session Management (Chat History)
+    # ========================================
+
+    async def get_sessions_by_patient(
+        self,
+        patient_id: str,
+        limit: int = 20,
+        offset: int = 0,
+        status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve sessions for a patient with pagination.
+
+        Args:
+            patient_id: Patient identifier
+            limit: Maximum sessions to return
+            offset: Pagination offset
+            status: Filter by status (active, ended, archived)
+
+        Returns:
+            List of session dictionaries
+        """
+        logger.debug(f"Retrieving sessions for patient {patient_id}")
+
+        query = """
+        MATCH (p:Patient {id: $patient_id})-[:HAS_SESSION]->(s:ConversationSession)
+        WHERE $status IS NULL OR s.status = $status
+        OPTIONAL MATCH (s)-[:HAS_MESSAGE]->(m:Message)
+        WITH s, count(m) as message_count, max(m.timestamp) as last_message_time
+        RETURN s, message_count, last_message_time
+        ORDER BY COALESCE(last_message_time, s.started_at) DESC
+        SKIP $offset
+        LIMIT $limit
+        """
+
+        result = await self.neo4j.query_raw(query, {
+            "patient_id": patient_id,
+            "status": status,
+            "offset": offset,
+            "limit": limit
+        })
+
+        sessions = []
+        for record in result:
+            session_node = record["s"]
+            session_data = dict(session_node)
+
+            # Add session_id from node ID
+            if "id" in session_data:
+                session_data["session_id"] = session_data["id"]
+
+            session_data["message_count"] = record["message_count"]
+
+            if record["last_message_time"]:
+                session_data["last_activity"] = record["last_message_time"]
+
+            sessions.append(session_data)
+
+        logger.debug(f"Retrieved {len(sessions)} sessions for patient {patient_id}")
+        return sessions
+
+    async def get_session_by_id(
+        self,
+        session_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get session metadata by ID.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            Session dictionary or None
+        """
+        query = """
+        MATCH (s:ConversationSession {id: $session_id})
+        OPTIONAL MATCH (s)-[:HAS_MESSAGE]->(m:Message)
+        WITH s, count(m) as message_count, max(m.timestamp) as last_message_time
+        RETURN s, message_count, last_message_time
+        """
+
+        result = await self.neo4j.query_raw(query, {"session_id": session_id})
+
+        if not result:
+            return None
+
+        record = result[0]
+        session_data = dict(record["s"])
+        session_data["message_count"] = record["message_count"]
+
+        if record["last_message_time"]:
+            session_data["last_activity"] = record["last_message_time"]
+
+        return session_data
+
+    async def get_messages_by_session(
+        self,
+        session_id: str,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        Get messages for a session with pagination.
+
+        Args:
+            session_id: Session identifier
+            limit: Maximum messages to return
+            offset: Pagination offset
+
+        Returns:
+            List of message dictionaries
+        """
+        query = """
+        MATCH (s:ConversationSession {id: $session_id})-[:HAS_MESSAGE]->(m:Message)
+        RETURN m
+        ORDER BY m.timestamp ASC
+        SKIP $offset
+        LIMIT $limit
+        """
+
+        result = await self.neo4j.query_raw(query, {
+            "session_id": session_id,
+            "offset": offset,
+            "limit": limit
+        })
+
+        messages = []
+        for record in result:
+            message_node = record["m"]
+            message_data = dict(message_node)
+
+            # Add id from node ID if not present
+            if "id" not in message_data and hasattr(message_node, "id"):
+                message_data["id"] = message_node.id
+            elif "id" not in message_data:
+                message_data["id"] = message_data.get("message_id", f"msg-{len(messages)}")
+
+            # Add session_id (from parameter since messages belong to this session)
+            message_data["session_id"] = session_id
+
+            messages.append(message_data)
+
+        return messages
+
+    async def create_session(
+        self,
+        session_id: str,
+        patient_id: str,
+        title: str = "New Conversation",
+        device_type: str = "web"
+    ) -> bool:
+        """
+        Create a new conversation session.
+
+        Args:
+            session_id: Session identifier
+            patient_id: Patient identifier
+            title: Session title
+            device_type: Device type (web, mobile)
+
+        Returns:
+            True if successful
+        """
+        logger.info(f"Creating session {session_id} for patient {patient_id}")
+
+        try:
+            # Ensure patient exists first
+            await self.get_or_create_patient(patient_id)
+
+            # Create session node
+            await self.neo4j.add_entity(
+                session_id,
+                {
+                    "patient_id": patient_id,
+                    "title": title,
+                    "started_at": datetime.now().isoformat(),
+                    "status": "active",
+                    "device_type": device_type
+                },
+                labels=["ConversationSession"]
+            )
+
+            # Link to patient
+            await self.neo4j.add_relationship(
+                patient_id,
+                "HAS_SESSION",
+                session_id,
+                {}
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error creating session: {e}", exc_info=True)
+            return False
+
+    async def update_session_status(
+        self,
+        session_id: str,
+        status: str,
+        ended_at: Optional[datetime] = None
+    ) -> bool:
+        """
+        Update session status.
+
+        Args:
+            session_id: Session identifier
+            status: New status (active, ended, archived)
+            ended_at: Optional end timestamp
+
+        Returns:
+            True if successful
+        """
+        logger.info(f"Updating session {session_id} status to {status}")
+
+        try:
+            properties = {"status": status}
+
+            if ended_at:
+                properties["ended_at"] = ended_at.isoformat()
+
+            await self.neo4j.update_entity_properties(
+                session_id,
+                properties
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating session status: {e}", exc_info=True)
+            return False
+
+    async def update_session_title(
+        self,
+        session_id: str,
+        title: str
+    ) -> bool:
+        """
+        Update session title.
+
+        Args:
+            session_id: Session identifier
+            title: New title
+
+        Returns:
+            True if successful
+        """
+        logger.info(f"Updating session {session_id} title to '{title}'")
+
+        try:
+            await self.neo4j.update_entity_properties(
+                session_id,
+                {"title": title}
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating session title: {e}", exc_info=True)
+            return False
+
+    async def delete_session(
+        self,
+        session_id: str
+    ) -> bool:
+        """
+        Delete session and all messages (GDPR compliance).
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            True if successful
+        """
+        logger.warning(f"Deleting session {session_id} (GDPR)")
+
+        try:
+            # Delete all messages first
+            query = """
+            MATCH (s:ConversationSession {id: $session_id})-[:HAS_MESSAGE]->(m:Message)
+            DETACH DELETE m
+            """
+            await self.neo4j.query_raw(query, {"session_id": session_id})
+
+            # Delete session
+            query = """
+            MATCH (s:ConversationSession {id: $session_id})
+            DETACH DELETE s
+            """
+            await self.neo4j.query_raw(query, {"session_id": session_id})
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error deleting session: {e}", exc_info=True)
+            return False
+
+    async def search_sessions(
+        self,
+        patient_id: str,
+        query: str,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Search sessions by content or title.
+
+        Args:
+            patient_id: Patient identifier
+            query: Search query
+            limit: Maximum results
+
+        Returns:
+            List of matching sessions
+        """
+        logger.debug(f"Searching sessions for patient {patient_id}: '{query}'")
+
+        cypher_query = """
+        MATCH (p:Patient {id: $patient_id})-[:HAS_SESSION]->(s:ConversationSession)
+        -[:HAS_MESSAGE]->(m:Message)
+        WHERE m.content CONTAINS $query OR s.title CONTAINS $query
+        WITH DISTINCT s, count(m) as match_count
+        OPTIONAL MATCH (s)-[:HAS_MESSAGE]->(all_m:Message)
+        RETURN s, count(all_m) as message_count
+        ORDER BY match_count DESC
+        LIMIT $limit
+        """
+
+        result = await self.neo4j.query_raw(cypher_query, {
+            "patient_id": patient_id,
+            "query": query,
+            "limit": limit
+        })
+
+        sessions = []
+        for record in result:
+            session_data = dict(record["s"])
+            session_data["message_count"] = record["message_count"]
+            sessions.append(session_data)
+
+        return sessions
+
+    # ========================================
     # Helper Methods
     # ========================================
 

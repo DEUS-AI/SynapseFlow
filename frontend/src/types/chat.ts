@@ -1,4 +1,5 @@
 export interface ChatMessage {
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
@@ -6,6 +7,15 @@ export interface ChatMessage {
   sources?: Source[];
   reasoning_trail?: string[];
   related_concepts?: string[];
+  query?: string;  // The original user query (for assistant messages)
+  feedback?: MessageFeedback;
+}
+
+export interface MessageFeedback {
+  rating?: number;
+  thumbs?: 'up' | 'down';
+  correctionText?: string;
+  submittedAt?: Date;
 }
 
 export interface Source {

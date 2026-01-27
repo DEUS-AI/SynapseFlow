@@ -35,11 +35,20 @@ from openai import AsyncOpenAI
 from application.services.cross_graph_query_builder import CrossGraphQueryBuilder
 from application.services.rag_service import RAGService
 from application.services.document_service import DocumentService
+from application.services.neurosymbolic_query_service import NeurosymbolicQueryService
 from application.agents.knowledge_manager.reasoning_engine import ReasoningEngine
 from application.agents.knowledge_manager.validation_engine import ValidationEngine
 from infrastructure.neo4j_backend import Neo4jBackend
 from domain.event import KnowledgeEvent
 from domain.roles import Role
+from domain.confidence_models import CrossLayerConfidencePropagation
+
+# Conversational layer imports (Phase 6)
+from application.services.conversational_intent_service import ConversationalIntentService
+from application.services.memory_context_builder import MemoryContextBuilder
+from application.services.response_modulator import ResponseModulator
+from domain.conversation_models import IntentType
+from config.persona_config import get_persona
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +151,9 @@ Answer:"""
         self,
         openai_api_key: Optional[str] = None,
         model: str = "gpt-4o-mini",
-        patient_memory_service=None  # NEW: Optional patient memory service
+        patient_memory_service=None,  # NEW: Optional patient memory service
+        mem0=None,  # NEW: Mem0 instance for memory context
+        enable_conversational_layer: bool = True  # NEW: Enable conversational personality layer
     ):
         """Initialize the chat service."""
         # Initialize OpenAI client
@@ -178,6 +189,33 @@ Answer:"""
         self.reasoning_engine = ReasoningEngine(backend=neo4j_backend)
         self.validation_engine = ValidationEngine(backend=neo4j_backend)
 
+        # Initialize neurosymbolic query service for layer-aware queries
+        self.neurosymbolic_service = NeurosymbolicQueryService(
+            backend=neo4j_backend,
+            reasoning_engine=self.reasoning_engine,
+            confidence_propagator=CrossLayerConfidencePropagation()
+        )
+
+        # Initialize conversational layer (Phase 6)
+        self.enable_conversational = enable_conversational_layer
+        if self.enable_conversational and patient_memory_service and mem0:
+            self.intent_service = ConversationalIntentService(openai_api_key=api_key)
+            self.memory_builder = MemoryContextBuilder(
+                patient_memory_service=patient_memory_service,
+                mem0=mem0
+            )
+            self.response_modulator = ResponseModulator(
+                llm_client=self.openai_client,
+                persona=get_persona(),
+                openai_api_key=api_key
+            )
+            logger.info("Conversational personality layer enabled")
+        else:
+            self.intent_service = None
+            self.memory_builder = None
+            self.response_modulator = None
+            logger.info("Conversational personality layer disabled")
+
         logger.info(f"IntelligentChatService initialized with model={model}, patient_memory={patient_memory_service is not None}")
 
     async def query(
@@ -205,6 +243,51 @@ Answer:"""
             conversation_history = []
 
         logger.info(f"Processing question: {question} (patient_id={patient_id}, session_id={session_id})")
+
+        # === PHASE 6: CONVERSATIONAL LAYER ===
+        # Step 0: Intent classification and memory context building
+        intent = None
+        memory_context = None
+
+        if self.enable_conversational and patient_id and self.intent_service and self.memory_builder:
+            try:
+                # Build memory context
+                memory_context = await self.memory_builder.build_context(
+                    patient_id=patient_id,
+                    session_id=session_id
+                )
+                logger.debug(f"Memory context built: {len(memory_context.recent_topics)} topics, "
+                            f"returning_user={memory_context.is_returning_user()}")
+
+                # Classify intent
+                intent = await self.intent_service.classify(question, memory_context)
+                logger.info(f"Intent classified: {intent.intent_type.value} (confidence: {intent.confidence:.2f})")
+
+                # Handle non-medical intents directly
+                if intent.intent_type in [IntentType.GREETING, IntentType.GREETING_RETURN,
+                                         IntentType.ACKNOWLEDGMENT, IntentType.FAREWELL]:
+                    # Generate personalized response without knowledge graph query
+                    response_text = await self.response_modulator.generate_response(
+                        user_message=question,
+                        intent=intent,
+                        memory_context=memory_context
+                    )
+
+                    query_time = (datetime.now() - start_time).total_seconds()
+                    return ChatResponse(
+                        answer=response_text,
+                        confidence=0.95,  # High confidence for simple greetings
+                        sources=[],
+                        related_concepts=[],
+                        reasoning_trail=[f"Intent: {intent.intent_type.value}"],
+                        query_time_seconds=query_time
+                    )
+
+            except Exception as e:
+                logger.error(f"Conversational layer error: {e}", exc_info=True)
+                # Continue with normal flow if conversational layer fails
+                intent = None
+                memory_context = None
 
         # Step 1.5: Retrieve patient context (if patient_id provided)
         patient_context = None
@@ -275,6 +358,22 @@ Answer:"""
             answer, reasoning_result, validation_result
         )
 
+        # === PHASE 6: Response Modulation ===
+        # Wrap medical response with persona if conversational layer enabled
+        if (self.enable_conversational and intent and memory_context and
+            self.response_modulator and intent.requires_medical_knowledge):
+            try:
+                logger.debug("Wrapping medical response with persona")
+                answer = await self.response_modulator.generate_response(
+                    user_message=question,
+                    intent=intent,
+                    memory_context=memory_context,
+                    medical_response=answer
+                )
+            except Exception as e:
+                logger.error(f"Response modulation failed: {e}", exc_info=True)
+                # Continue with original answer if modulation fails
+
         end_time = datetime.now()
         query_time = (end_time - start_time).total_seconds()
 
@@ -296,6 +395,9 @@ Answer:"""
                         session_id=session_id
                     )
                 )
+
+                # Extract and store medical facts from user message
+                await self._extract_and_store_medical_facts(question, patient_id)
 
                 # Store assistant message
                 await self.patient_memory.store_message(
@@ -354,6 +456,91 @@ Entities (medical terms, disease names, drug names, data concepts):"""
         except Exception as e:
             logger.warning(f"Entity extraction failed: {e}")
             return []
+
+    async def _extract_and_store_medical_facts(
+        self,
+        message: str,
+        patient_id: str
+    ) -> None:
+        """
+        Extract medical facts (diagnoses, medications, allergies) from user message
+        and store them in the patient memory.
+
+        This enables the system to remember patient-specific medical information
+        across sessions.
+        """
+        if not self.patient_memory:
+            return
+
+        prompt = """Analyze this patient message and extract any medical facts they mention about themselves.
+
+Return a JSON object with these arrays (empty if none found):
+- diagnoses: [{condition: "disease name", details: "any additional info like when diagnosed"}]
+- medications: [{name: "drug name", dosage: "if mentioned", frequency: "if mentioned"}]
+- allergies: [{substance: "allergen", reaction: "if mentioned", severity: "mild/moderate/severe if mentioned"}]
+
+Only extract facts the patient explicitly states about THEMSELVES (not general questions).
+Be precise - "I have Crohn's disease" is a diagnosis, "what is Crohn's disease" is NOT.
+
+Patient message: """ + message
+
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a medical entity extractor. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1  # Low temperature for accurate extraction
+            )
+
+            import json
+            result = json.loads(response.choices[0].message.content)
+
+            # Store extracted diagnoses
+            for dx in result.get("diagnoses", []):
+                if dx.get("condition"):
+                    try:
+                        await self.patient_memory.add_diagnosis(
+                            patient_id=patient_id,
+                            condition=dx["condition"],
+                            metadata={"details": dx.get("details", "")}
+                        )
+                        logger.info(f"Extracted and stored diagnosis: {dx['condition']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store diagnosis {dx['condition']}: {e}")
+
+            # Store extracted medications
+            for med in result.get("medications", []):
+                if med.get("name"):
+                    try:
+                        await self.patient_memory.add_medication(
+                            patient_id=patient_id,
+                            name=med["name"],
+                            dosage=med.get("dosage", "unknown"),
+                            frequency=med.get("frequency", "unknown")
+                        )
+                        logger.info(f"Extracted and stored medication: {med['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store medication {med['name']}: {e}")
+
+            # Store extracted allergies
+            for allergy in result.get("allergies", []):
+                if allergy.get("substance"):
+                    try:
+                        await self.patient_memory.add_allergy(
+                            patient_id=patient_id,
+                            substance=allergy["substance"],
+                            reaction=allergy.get("reaction", "unknown"),
+                            severity=allergy.get("severity", "moderate")
+                        )
+                        logger.info(f"Extracted and stored allergy: {allergy['substance']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store allergy {allergy['substance']}: {e}")
+
+        except Exception as e:
+            logger.warning(f"Medical fact extraction failed: {e}")
 
     async def _retrieve_medical_knowledge(
         self,
@@ -502,56 +689,76 @@ Entities (medical terms, disease names, drug names, data concepts):"""
         data_context: Dict[str, Any],
         patient_context=None  # NEW: Optional patient context
     ) -> Dict[str, Any]:
-        """Apply neurosymbolic reasoning to the gathered context."""
+        """Apply neurosymbolic reasoning using layer-aware query execution."""
         try:
-            # Create proper KnowledgeEvent for reasoning engine
-            event = KnowledgeEvent(
-                action="chat_query",  # Custom action for chat queries
-                data={
-                    "question": question,
-                    "medical_entities": medical_context.get("entities", []),
-                    "medical_relationships": medical_context.get("relationships", []),
-                    "data_tables": data_context.get("tables", []),
-                    "data_columns": data_context.get("columns", []),
-                    "warnings": [],  # Initialize warnings list for reasoning to populate
-                    "patient_context": patient_context  # NEW: Pass patient data to reasoning
-                },
-                role=Role.KNOWLEDGE_MANAGER  # Chat acts as knowledge manager
+            # Execute query across knowledge graph layers
+            result, trace = await self.neurosymbolic_service.execute_query(
+                query_text=question,
+                patient_context=patient_context,
+                force_strategy=None,  # Let service auto-detect strategy
+                trace_execution=True
             )
 
-            # Apply collaborative reasoning (neural + symbolic)
-            result = await self.reasoning_engine.apply_reasoning(
-                event=event,
-                strategy="collaborative"
-            )
-
-            # Format provenance into readable strings
-            provenance_list = result.get("provenance", [])
+            # Build provenance from execution trace
             formatted_provenance = []
 
-            for i, prov in enumerate(provenance_list, 1):
-                if isinstance(prov, dict):
-                    rule_name = prov.get("rule", "unknown")
-                    rule_type = prov.get("type", "unknown")
-                    contribution = prov.get("contribution", 0)
-                    formatted_provenance.append(
-                        f"{i}. Applied {rule_type} reasoning: {rule_name} ({contribution} inferences)"
-                    )
-                else:
-                    formatted_provenance.append(f"{i}. {prov}")
+            if trace:
+                # Add strategy information
+                formatted_provenance.append(
+                    f"Query Strategy: {trace.strategy.value} (auto-detected)"
+                )
 
+                # Add layer traversal information
+                layers_str = " → ".join([l.value for l in trace.layers_traversed])
+                formatted_provenance.append(
+                    f"Layers Traversed: {layers_str}"
+                )
+
+                # Add layer-specific results
+                for i, layer_result in enumerate(trace.layer_results, 1):
+                    entities_count = len(layer_result.entities)
+                    rels_count = len(layer_result.relationships)
+                    cache_status = " (cached)" if layer_result.cache_hit else ""
+                    formatted_provenance.append(
+                        f"{i}. {layer_result.layer.value} layer: {entities_count} entities, "
+                        f"{rels_count} relationships (confidence: {layer_result.confidence.score:.2f}){cache_status}"
+                    )
+
+                # Add conflict detection
+                if trace.conflicts_detected:
+                    formatted_provenance.append(
+                        f"Conflicts Detected: {len(trace.conflicts_detected)} "
+                        f"(resolved using higher layer priority)"
+                    )
+
+                # Add final confidence
+                formatted_provenance.append(
+                    f"Final Confidence: {trace.final_confidence.score:.2f} "
+                    f"(source: {trace.final_confidence.source.value})"
+                )
+
+            # Ensure result has all expected fields
             result["provenance"] = formatted_provenance
+            result["applied_rules"] = result.get("applied_rules", [])
+            result["inferences"] = result.get("inferences", [])
+            result["assertions"] = result.get("assertions", [])
+
+            logger.info(
+                f"Neurosymbolic reasoning completed: strategy={result.get('strategy')}, "
+                f"confidence={result.get('confidence'):.2f}, layers={result.get('layers_traversed')}"
+            )
 
             return result
 
         except Exception as e:
-            logger.warning(f"Reasoning failed: {e}", exc_info=True)
+            logger.warning(f"Neurosymbolic reasoning failed: {e}", exc_info=True)
             # Return reasonable defaults on failure
             return {
-                "provenance": ["Reasoning engine unavailable - using fallback"],
+                "provenance": ["Neurosymbolic query execution unavailable - using fallback"],
                 "confidence": 0.7,
                 "applied_rules": [],
-                "inferences": []
+                "inferences": [],
+                "assertions": []
             }
 
     async def _validate_facts(
