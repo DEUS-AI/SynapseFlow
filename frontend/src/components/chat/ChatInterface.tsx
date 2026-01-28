@@ -97,7 +97,8 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
         setIsThinking(data.status === 'thinking');
       } else if (data.type === 'message' && data.role === 'assistant') {
         messageCounter.current += 1;
-        const messageId = `${currentSessionId}-${messageCounter.current}-${Date.now()}`;
+        // Use response_id from backend for feedback tracking, fallback to generated ID
+        const messageId = data.response_id || `${currentSessionId}-${messageCounter.current}-${Date.now()}`;
         setMessages((prev) => [
           ...prev,
           {

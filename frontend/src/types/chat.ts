@@ -62,4 +62,5 @@ export interface WebSocketChatMessage {
   sources?: Source[];
   reasoning_trail?: string[];
   related_concepts?: string[];
+  response_id?: string;  // For feedback tracking
 }

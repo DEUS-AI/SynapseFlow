@@ -361,8 +361,17 @@ class FeedbackTracerService:
         logger.info(f"Created preference pair: {pair['pair_id']}")
 
     async def get_feedback_statistics(self) -> FeedbackStatistics:
-        """Get aggregated feedback statistics."""
-        if not self._feedbacks:
+        """Get aggregated feedback statistics from memory and Neo4j."""
+        # Try to load feedbacks from Neo4j if in-memory is empty
+        feedbacks_to_analyze = self._feedbacks
+        if not feedbacks_to_analyze and hasattr(self.backend, "query_raw"):
+            try:
+                feedbacks_to_analyze = await self._load_feedbacks_from_neo4j()
+            except Exception as e:
+                logger.warning(f"Failed to load feedbacks from Neo4j: {e}")
+                feedbacks_to_analyze = []
+
+        if not feedbacks_to_analyze:
             return FeedbackStatistics(
                 total_feedbacks=0,
                 average_rating=0.0,
@@ -373,17 +382,19 @@ class FeedbackTracerService:
             )
 
         # Calculate distributions
-        ratings = [f.rating for f in self._feedbacks]
+        ratings = [f.rating for f in feedbacks_to_analyze]
         rating_dist = {i: ratings.count(i) for i in range(1, 6)}
 
         type_dist = {}
-        for f in self._feedbacks:
-            type_dist[f.feedback_type.value] = type_dist.get(f.feedback_type.value, 0) + 1
+        for f in feedbacks_to_analyze:
+            fb_type = f.feedback_type.value if hasattr(f.feedback_type, 'value') else f.feedback_type
+            type_dist[fb_type] = type_dist.get(fb_type, 0) + 1
 
         # Calculate layer performance
         layer_perf = {}
-        for f in self._feedbacks:
-            for layer in f.layers_traversed:
+        for f in feedbacks_to_analyze:
+            layers = f.layers_traversed if f.layers_traversed else []
+            for layer in layers:
                 if layer not in layer_perf:
                     layer_perf[layer] = {"total": 0, "rating_sum": 0, "negative": 0}
                 layer_perf[layer]["total"] += 1
@@ -398,13 +409,77 @@ class FeedbackTracerService:
             layer_perf[layer]["negative_rate"] = layer_perf[layer]["negative"] / total
 
         return FeedbackStatistics(
-            total_feedbacks=len(self._feedbacks),
+            total_feedbacks=len(feedbacks_to_analyze),
             average_rating=sum(ratings) / len(ratings),
             rating_distribution=rating_dist,
             feedback_type_distribution=type_dist,
             layer_performance=layer_perf,
             recent_trends=self._calculate_trends(),
         )
+
+    async def _load_feedbacks_from_neo4j(self) -> List[UserFeedback]:
+        """Load feedbacks from Neo4j database."""
+        query = """
+        MATCH (f:UserFeedback)
+        RETURN f.feedback_id as feedback_id,
+               f.response_id as response_id,
+               f.patient_id as patient_id,
+               f.session_id as session_id,
+               f.query_text as query_text,
+               f.response_text as response_text,
+               f.rating as rating,
+               f.feedback_type as feedback_type,
+               f.severity as severity,
+               f.correction_text as correction_text,
+               f.entities_involved as entities_involved,
+               f.layers_traversed as layers_traversed,
+               f.created_at as created_at
+        ORDER BY f.created_at DESC
+        LIMIT 1000
+        """
+        results = await self.backend.query_raw(query)
+
+        feedbacks = []
+        for record in results:
+            try:
+                # Parse feedback type
+                fb_type_str = record.get("feedback_type", "helpful")
+                try:
+                    fb_type = FeedbackType(fb_type_str)
+                except ValueError:
+                    fb_type = FeedbackType.HELPFUL
+
+                # Parse severity
+                severity_str = record.get("severity")
+                severity = None
+                if severity_str:
+                    try:
+                        severity = FeedbackSeverity(severity_str)
+                    except ValueError:
+                        pass
+
+                feedback = UserFeedback(
+                    feedback_id=record.get("feedback_id", ""),
+                    response_id=record.get("response_id", ""),
+                    patient_id=record.get("patient_id", ""),
+                    session_id=record.get("session_id", ""),
+                    query_text=record.get("query_text", ""),
+                    response_text=record.get("response_text", ""),
+                    rating=record.get("rating", 3),
+                    feedback_type=fb_type,
+                    severity=severity,
+                    correction_text=record.get("correction_text"),
+                    entities_involved=record.get("entities_involved", []) or [],
+                    layers_traversed=record.get("layers_traversed", []) or [],
+                    created_at=record.get("created_at") or datetime.now(),
+                )
+                feedbacks.append(feedback)
+            except Exception as e:
+                logger.warning(f"Failed to parse feedback record: {e}")
+                continue
+
+        logger.info(f"Loaded {len(feedbacks)} feedbacks from Neo4j")
+        return feedbacks
 
     def _calculate_trends(self) -> Dict[str, Any]:
         """Calculate recent feedback trends."""

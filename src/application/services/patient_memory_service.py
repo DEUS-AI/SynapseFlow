@@ -142,10 +142,12 @@ class PatientMemoryService:
         )
 
         # 2. Get from Neo4j (permanent medical record)
+        # Only return active medications (filter out discontinued)
         query = """
         MATCH (p:Patient {id: $patient_id})
         OPTIONAL MATCH (p)-[:HAS_DIAGNOSIS]->(dx:Diagnosis)
         OPTIONAL MATCH (p)-[:CURRENT_MEDICATION]->(med:Medication)
+            WHERE med.status IS NULL OR med.status = 'active'
         OPTIONAL MATCH (p)-[:HAS_ALLERGY]->(allergy:Allergy)
         RETURN
             p,
@@ -271,7 +273,7 @@ class PatientMemoryService:
         metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        Record new medication for patient.
+        Record new medication for patient (with deduplication).
 
         Args:
             patient_id: Patient identifier
@@ -282,10 +284,23 @@ class PatientMemoryService:
             metadata: Additional metadata (optional)
 
         Returns:
-            str: Medication ID
+            str: Medication ID (existing or new)
         """
-        med_id = f"med:{uuid.uuid4().hex[:12]}"
         logger.info(f"Adding medication for patient {patient_id}: {name}")
+
+        # Check if medication already exists for this patient (case-insensitive)
+        existing_med = await self._find_existing_medication(patient_id, name)
+        if existing_med:
+            # Update existing medication instead of creating duplicate
+            med_id = existing_med.get("id") or existing_med.get("med_id")
+            logger.info(f"Medication {name} already exists for patient {patient_id}, updating: {med_id}")
+            await self._update_medication_properties(
+                med_id, dosage, frequency, "active"
+            )
+            return med_id
+
+        # Create new medication
+        med_id = f"med:{uuid.uuid4().hex[:12]}"
 
         # Store in Neo4j
         await self.neo4j.add_entity(
@@ -321,6 +336,156 @@ class PatientMemoryService:
 
         logger.info(f"Medication added successfully: {med_id}")
         return med_id
+
+    async def _find_existing_medication(
+        self, patient_id: str, medication_name: str
+    ) -> Optional[Dict[str, Any]]:
+        """Find existing medication for patient by name (case-insensitive)."""
+        try:
+            query = """
+            MATCH (p:Patient {id: $patient_id})-[:CURRENT_MEDICATION]->(med:Medication)
+            WHERE toLower(med.name) = toLower($med_name)
+            RETURN med.id as med_id, med.name as name, med.status as status
+            LIMIT 1
+            """
+            results = await self.neo4j.query_raw(query, {
+                "patient_id": patient_id,
+                "med_name": medication_name
+            })
+            return results[0] if results else None
+        except Exception as e:
+            logger.warning(f"Error finding existing medication: {e}")
+            return None
+
+    async def _update_medication_properties(
+        self, med_id: str, dosage: str, frequency: str, status: str
+    ) -> None:
+        """Update medication properties."""
+        try:
+            query = """
+            MATCH (med:Medication)
+            WHERE med.id = $med_id
+            SET med.dosage = $dosage,
+                med.frequency = $frequency,
+                med.status = $status,
+                med.updated_at = datetime()
+            """
+            await self.neo4j.query_raw(query, {
+                "med_id": med_id,
+                "dosage": dosage,
+                "frequency": frequency,
+                "status": status
+            })
+        except Exception as e:
+            logger.error(f"Error updating medication: {e}")
+
+    async def update_medication_status(
+        self,
+        patient_id: str,
+        medication_name: str,
+        new_status: str,
+        reason: Optional[str] = None
+    ) -> bool:
+        """
+        Update medication status (e.g., mark as discontinued).
+
+        Args:
+            patient_id: Patient identifier
+            medication_name: Name of the medication
+            new_status: New status (active, discontinued, paused)
+            reason: Reason for status change (optional)
+
+        Returns:
+            bool: True if updated, False if not found
+        """
+        logger.info(f"Updating medication status for {patient_id}: {medication_name} -> {new_status}")
+
+        try:
+            query = """
+            MATCH (p:Patient {id: $patient_id})-[r:CURRENT_MEDICATION]->(med:Medication)
+            WHERE toLower(med.name) = toLower($med_name)
+            SET med.status = $new_status,
+                med.status_changed_at = datetime(),
+                med.status_reason = $reason
+            RETURN med.id as med_id
+            """
+            results = await self.neo4j.query_raw(query, {
+                "patient_id": patient_id,
+                "med_name": medication_name,
+                "new_status": new_status,
+                "reason": reason
+            })
+
+            if results:
+                # Update Mem0
+                self.mem0.add(
+                    f"Patient {new_status} taking {medication_name}" +
+                    (f" - {reason}" if reason else ""),
+                    user_id=patient_id,
+                    metadata={
+                        "type": "medication_status_change",
+                        "name": medication_name,
+                        "status": new_status
+                    }
+                )
+                logger.info(f"Medication status updated: {medication_name} -> {new_status}")
+                return True
+
+            logger.warning(f"Medication not found for status update: {medication_name}")
+            return False
+
+        except Exception as e:
+            logger.error(f"Error updating medication status: {e}")
+            return False
+
+    async def remove_medication(
+        self,
+        patient_id: str,
+        medication_name: str,
+        reason: Optional[str] = None
+    ) -> bool:
+        """
+        Remove/discontinue medication for patient.
+
+        Args:
+            patient_id: Patient identifier
+            medication_name: Name of the medication to remove
+            reason: Reason for removal (optional)
+
+        Returns:
+            bool: True if removed, False if not found
+        """
+        return await self.update_medication_status(
+            patient_id, medication_name, "discontinued", reason
+        )
+
+    async def deduplicate_medications(self, patient_id: str) -> int:
+        """
+        Remove duplicate medications for a patient, keeping only the most recent.
+
+        Returns:
+            int: Number of duplicates removed
+        """
+        logger.info(f"Deduplicating medications for patient {patient_id}")
+
+        try:
+            # Find duplicates and delete all but the most recent
+            query = """
+            MATCH (p:Patient {id: $patient_id})-[:CURRENT_MEDICATION]->(med:Medication)
+            WITH toLower(med.name) as med_name, collect(med) as meds
+            WHERE size(meds) > 1
+            UNWIND meds[1..] as duplicate
+            DETACH DELETE duplicate
+            RETURN count(*) as deleted_count
+            """
+            results = await self.neo4j.query_raw(query, {"patient_id": patient_id})
+            deleted = results[0]["deleted_count"] if results else 0
+            logger.info(f"Removed {deleted} duplicate medications for patient {patient_id}")
+            return deleted
+
+        except Exception as e:
+            logger.error(f"Error deduplicating medications: {e}")
+            return 0
 
     async def add_allergy(
         self,

@@ -157,7 +157,37 @@ async def chat_websocket_endpoint(
                     session_id=session_id
                 )
 
-                # Send response back
+                # Generate response_id and track for feedback attribution
+                import uuid
+                response_id = str(uuid.uuid4())
+
+                # Extract entities and layers from response if available
+                entities_involved = []
+                layers_traversed = []
+                if hasattr(response, 'reasoning_trail') and response.reasoning_trail:
+                    # Extract layer info from reasoning trail
+                    for trail in response.reasoning_trail:
+                        if isinstance(trail, str):
+                            if "PERCEPTION" in trail:
+                                layers_traversed.append("PERCEPTION")
+                            if "SEMANTIC" in trail:
+                                layers_traversed.append("SEMANTIC")
+                            if "REASONING" in trail:
+                                layers_traversed.append("REASONING")
+                            if "APPLICATION" in trail:
+                                layers_traversed.append("APPLICATION")
+                    layers_traversed = list(set(layers_traversed))  # Deduplicate
+
+                # Track response for feedback attribution
+                track_response(
+                    response_id=response_id,
+                    query_text=message_text,
+                    response_text=response.answer,
+                    entities_involved=entities_involved,
+                    layers_traversed=layers_traversed if layers_traversed else ["SEMANTIC"],
+                )
+
+                # Send response back with response_id for feedback
                 await manager.send_personal_message(
                     {
                         "type": "message",
@@ -167,7 +197,8 @@ async def chat_websocket_endpoint(
                         "sources": [{"type": s.get("type", "KnowledgeGraph"), "name": s.get("name", "")} for s in response.sources],
                         "reasoning_trail": response.reasoning_trail,
                         "related_concepts": response.related_concepts,
-                        "query_time": response.query_time_seconds
+                        "query_time": response.query_time_seconds,
+                        "response_id": response_id  # Include for feedback tracking
                     },
                     client_id
                 )
@@ -211,6 +242,57 @@ async def get_patient_context(
         }
     except Exception as e:
         logger.error(f"Error fetching patient context: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/patients/{patient_id}/deduplicate-medications")
+async def deduplicate_patient_medications(
+    patient_id: str,
+    patient_memory = Depends(get_patient_memory)
+):
+    """Remove duplicate medications for a patient, keeping only the most recent."""
+    try:
+        deleted_count = await patient_memory.deduplicate_medications(patient_id)
+        return {
+            "patient_id": patient_id,
+            "duplicates_removed": deleted_count,
+            "message": f"Removed {deleted_count} duplicate medications"
+        }
+    except Exception as e:
+        logger.error(f"Error deduplicating medications: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/patients/{patient_id}/medications/{medication_name}/discontinue")
+async def discontinue_medication(
+    patient_id: str,
+    medication_name: str,
+    reason: Optional[str] = None,
+    patient_memory = Depends(get_patient_memory)
+):
+    """Mark a medication as discontinued for a patient."""
+    try:
+        success = await patient_memory.remove_medication(
+            patient_id=patient_id,
+            medication_name=medication_name,
+            reason=reason
+        )
+        if success:
+            return {
+                "patient_id": patient_id,
+                "medication": medication_name,
+                "status": "discontinued",
+                "message": f"Medication {medication_name} marked as discontinued"
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Medication {medication_name} not found for patient {patient_id}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error discontinuing medication: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1289,7 +1371,8 @@ async def get_preference_pairs(
         )
 
         return {
-            "pairs": pairs,
+            "preference_pairs": pairs,  # Frontend expects this key
+            "pairs": pairs,  # Keep for backwards compatibility
             "total_count": len(pairs),
             "format": "dpo_preference_pairs"
         }

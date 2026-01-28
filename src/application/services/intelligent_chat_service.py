@@ -477,7 +477,13 @@ Entities (medical terms, disease names, drug names, data concepts):"""
 Return a JSON object with these arrays (empty if none found):
 - diagnoses: [{condition: "disease name", details: "any additional info like when diagnosed"}]
 - medications: [{name: "drug name", dosage: "if mentioned", frequency: "if mentioned"}]
+- stopped_medications: [{name: "drug name", reason: "why stopped if mentioned"}]
 - allergies: [{substance: "allergen", reaction: "if mentioned", severity: "mild/moderate/severe if mentioned"}]
+
+IMPORTANT: Distinguish between:
+- "I take ibuprofen" → add to medications
+- "I stopped taking ibuprofen" / "I no longer take ibuprofen" / "I discontinued ibuprofen" → add to stopped_medications
+- "I'm not taking ibuprofen anymore" → add to stopped_medications
 
 Only extract facts the patient explicitly states about THEMSELVES (not general questions).
 Be precise - "I have Crohn's disease" is a diagnosis, "what is Crohn's disease" is NOT.
@@ -524,6 +530,19 @@ Patient message: """ + message
                         logger.info(f"Extracted and stored medication: {med['name']} for {patient_id}")
                     except Exception as e:
                         logger.warning(f"Failed to store medication {med['name']}: {e}")
+
+            # Handle stopped/discontinued medications
+            for stopped_med in result.get("stopped_medications", []):
+                if stopped_med.get("name"):
+                    try:
+                        await self.patient_memory.remove_medication(
+                            patient_id=patient_id,
+                            medication_name=stopped_med["name"],
+                            reason=stopped_med.get("reason", "Patient reported discontinuation")
+                        )
+                        logger.info(f"Marked medication as discontinued: {stopped_med['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to discontinue medication {stopped_med['name']}: {e}")
 
             # Store extracted allergies
             for allergy in result.get("allergies", []):
