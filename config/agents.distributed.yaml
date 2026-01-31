@@ -1,0 +1,75 @@
+# Agent Infrastructure Configuration - Distributed Mode
+# Use this configuration when deploying agents in isolated containers.
+#
+# To use this config:
+#   export AGENT_CONFIG_PATH=config/agents.distributed.yaml
+#
+# Or in docker-compose:
+#   environment:
+#     - AGENT_CONFIG_PATH=/app/config/agents.distributed.yaml
+
+deployment_mode: distributed
+
+# Event Bus - RabbitMQ for distributed messaging
+event_bus:
+  type: rabbitmq
+  rabbitmq:
+    url: amqp://guest:guest@rabbitmq:5672/
+    exchange_name: knowledge_events
+    queue_prefix: kg_
+    max_retries: 5
+    retry_delay: 2.0
+
+# Communication Channel - A2A for agent-to-agent HTTP calls
+communication_channel:
+  type: a2a
+  a2a:
+    # Default base URL (overridden per-agent)
+    base_url: http://api-gateway:8000
+
+# Agent Discovery - Neo4j for service registry
+discovery:
+  type: neo4j
+  neo4j:
+    uri: bolt://neo4j:7687
+    username: neo4j
+    password: password
+  heartbeat_interval_seconds: 30
+  stale_threshold_seconds: 120  # Faster detection for containers
+
+# Agent-specific configurations
+agents:
+  knowledge_manager:
+    enabled: true
+    url: http://knowledge-manager:8001
+    capabilities:
+      - knowledge_graph_query
+      - entity_resolution
+      - layer_promotion
+      - reasoning
+      - neurosymbolic_query
+
+  data_architect:
+    enabled: true
+    url: http://data-architect:8002
+    capabilities:
+      - domain_modeling
+      - dda_processing
+      - schema_design
+
+  data_engineer:
+    enabled: true
+    url: http://data-engineer:8003
+    capabilities:
+      - data_pipeline
+      - metadata_generation
+      - kg_operations
+
+  medical_assistant:
+    enabled: true
+    url: http://medical-assistant:8004
+    capabilities:
+      - patient_interaction
+      - medical_reasoning
+      - memory_management
+      - symptom_analysis
