@@ -13,6 +13,8 @@ from datetime import datetime
 import logging
 
 from application.services.document_tracker import DocumentTracker
+from application.services.document_quality_service import DocumentQualityService, quick_quality_check
+from domain.quality_models import QualityLevel
 
 logger = logging.getLogger(__name__)
 
@@ -307,6 +309,178 @@ async def delete_document(
     return result
 
 
+# --- Quality Assessment Endpoints ---
+
+@router.get("/{doc_id}/quality")
+async def get_document_quality(doc_id: str):
+    """Get quality metrics for a document."""
+    doc = document_tracker.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Check if markdown exists for quality assessment
+    if not doc.markdown_path or not Path(doc.markdown_path).exists():
+        raise HTTPException(
+            status_code=400,
+            detail="Document must be ingested before quality assessment"
+        )
+
+    try:
+        # Read markdown content
+        markdown_content = Path(doc.markdown_path).read_text(encoding='utf-8')
+
+        # Quick quality check
+        result = await quick_quality_check(
+            markdown_text=markdown_content,
+            document_name=doc.filename
+        )
+
+        return {
+            "document_id": doc_id,
+            "filename": doc.filename,
+            **result
+        }
+
+    except Exception as e:
+        logger.error(f"Quality assessment failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{doc_id}/quality/assess")
+async def assess_document_quality(
+    doc_id: str,
+    expected_topics: Optional[List[str]] = Query(None, description="Expected topics to verify")
+):
+    """Run full quality assessment on a document."""
+    doc = document_tracker.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not doc.markdown_path or not Path(doc.markdown_path).exists():
+        raise HTTPException(
+            status_code=400,
+            detail="Document must be ingested before quality assessment"
+        )
+
+    try:
+        markdown_content = Path(doc.markdown_path).read_text(encoding='utf-8')
+
+        # Import chunker for full assessment
+        from application.services.text_chunker import TextChunker
+        import hashlib
+
+        chunker = TextChunker()
+        content_hash = hashlib.sha256(markdown_content.encode()).hexdigest()[:16]
+        chunks = chunker.chunk_text(markdown_content, doc_id=content_hash)
+
+        # Full quality assessment
+        quality_service = DocumentQualityService()
+        report = await quality_service.assess_document(
+            document_id=doc_id,
+            document_name=doc.filename,
+            markdown_text=markdown_content,
+            chunks=chunks,
+            expected_topics=expected_topics,
+        )
+
+        return report.to_dict()
+
+    except Exception as e:
+        logger.error(f"Full quality assessment failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/quality/summary")
+async def get_quality_summary():
+    """Get quality summary across all ingested documents.
+
+    Returns data in the format expected by the QualityDashboard frontend component.
+    """
+    try:
+        documents = document_tracker.list_documents(status="completed")
+
+        if not documents:
+            return {
+                "total_assessed": 0,
+                "by_quality_level": {},
+                "averages": {
+                    "overall_score": 0,
+                    "context_precision": 0,
+                    "context_recall": 0,
+                    "topic_coverage": 0,
+                    "signal_to_noise": 0,
+                    "entity_extraction_rate": 0,
+                    "retrieval_quality": 0,
+                },
+            }
+
+        # Assess each document that has markdown
+        quality_results = []
+        quality_levels = {level.value: 0 for level in QualityLevel}
+        score_sums = {
+            "overall_score": 0,
+            "context_precision": 0,
+            "context_recall": 0,
+            "topic_coverage": 0,
+            "signal_to_noise": 0,
+            "entity_extraction_rate": 0,
+            "retrieval_quality": 0,
+        }
+
+        for doc in documents:
+            if not doc.markdown_path or not Path(doc.markdown_path).exists():
+                continue
+
+            try:
+                markdown_content = Path(doc.markdown_path).read_text(encoding='utf-8')
+                result = await quick_quality_check(markdown_content, doc.filename)
+
+                quality_results.append({
+                    "document_id": doc.id,
+                    "filename": doc.filename,
+                    "quality_level": result["quality_level"],
+                    "overall_score": result["overall_score"],
+                })
+
+                quality_levels[result["quality_level"]] += 1
+
+                # Accumulate scores
+                score_sums["overall_score"] += result["overall_score"]
+                scores = result.get("scores", {})
+                if scores:
+                    score_sums["context_precision"] += scores.get("context_precision", 0)
+                    score_sums["context_recall"] += scores.get("context_recall", 0)
+                    score_sums["topic_coverage"] += scores.get("topic_coverage", 0)
+                    score_sums["signal_to_noise"] += scores.get("signal_to_noise", 0)
+                    score_sums["entity_extraction_rate"] += scores.get("entity_extraction_rate", 0)
+                    score_sums["retrieval_quality"] += scores.get("retrieval_quality", 0)
+
+                # Update document tracker with quality data
+                document_tracker.update_document(
+                    doc.id,
+                    quality_score=result["overall_score"],
+                    quality_level=result["quality_level"],
+                    quality_assessed_at=datetime.now().isoformat()
+                )
+
+            except Exception as e:
+                logger.warning(f"Could not assess {doc.filename}: {e}")
+
+        n = len(quality_results)
+        averages = {k: v / n if n > 0 else 0 for k, v in score_sums.items()}
+
+        return {
+            "total_assessed": n,
+            "by_quality_level": quality_levels,
+            "averages": averages,
+            "documents": quality_results[:20],  # Top 20 for display
+        }
+
+    except Exception as e:
+        logger.error(f"Quality summary failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def run_ingestion(
     job_id: str,
     doc_id: str,
@@ -368,8 +542,10 @@ async def run_ingestion(
                 markdown_output_dir=MARKDOWN_DIRECTORY if save_markdown else None
             )
 
-            job["progress"] = 1.0
-            job["message"] = "Ingestion complete"
+            job["progress"] = 0.8
+            job["message"] = "Ingestion complete, assessing quality..."
+
+            markdown_path = str(MARKDOWN_DIRECTORY / f"{pdf_path.stem}.md") if save_markdown else None
 
             # Update document record
             document_tracker.update_document(
@@ -378,10 +554,39 @@ async def run_ingestion(
                 ingested_at=datetime.now().isoformat(),
                 entity_count=result.get("entities_added", 0),
                 relationship_count=result.get("relationships_added", 0),
-                markdown_path=str(MARKDOWN_DIRECTORY / f"{pdf_path.stem}.md") if save_markdown else None,
+                markdown_path=markdown_path,
                 error_message=None
             )
 
+            # Auto-assess quality if markdown is available
+            quality_score = None
+            quality_level = None
+            if markdown_path and Path(markdown_path).exists():
+                try:
+                    markdown_content = Path(markdown_path).read_text(encoding='utf-8')
+                    quality_result = await quick_quality_check(markdown_content, doc.filename)
+
+                    quality_score = quality_result.get("overall_score")
+                    quality_level = quality_result.get("quality_level")
+
+                    # Update document with quality data
+                    document_tracker.update_document(
+                        doc_id,
+                        quality_score=quality_score,
+                        quality_level=quality_level,
+                        quality_assessed_at=datetime.now().isoformat()
+                    )
+
+                    job["quality_score"] = quality_score
+                    job["quality_level"] = quality_level
+
+                    logger.info(f"Quality assessed for {doc.filename}: {quality_level} ({quality_score:.2f})")
+
+                except Exception as qe:
+                    logger.warning(f"Quality assessment failed for {doc.filename}: {qe}")
+
+            job["progress"] = 1.0
+            job["message"] = "Complete"
             job["status"] = "completed"
             job["entities_added"] = result.get("entities_added", 0)
             job["relationships_added"] = result.get("relationships_added", 0)

@@ -31,6 +31,9 @@ class DocumentRecord:
     markdown_path: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    quality_score: Optional[float] = None
+    quality_level: Optional[str] = None
+    quality_assessed_at: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
