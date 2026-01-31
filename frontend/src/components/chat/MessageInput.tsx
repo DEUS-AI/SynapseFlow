@@ -19,7 +19,7 @@ export function MessageInput({ onSend, disabled = false }: MessageInputProps) {
   };
 
   return (
-    <div className="border-t bg-white px-6 py-4">
+    <div className="border-t border-slate-700 bg-slate-800 px-6 py-4">
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
         <div className="flex gap-3">
           <input
@@ -28,7 +28,7 @@ export function MessageInput({ onSend, disabled = false }: MessageInputProps) {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Ask a medical question..."
             disabled={disabled}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 text-slate-100 placeholder-slate-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-800 disabled:cursor-not-allowed"
           />
           <Button
             type="submit"

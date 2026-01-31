@@ -19,6 +19,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   const [safetyWarnings, setSafetyWarnings] = useState<string[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showSessionList, setShowSessionList] = useState(true);
+  const [sessionListKey, setSessionListKey] = useState(0); // For forcing SessionList refresh
   const lastUserQuery = useRef<string>('');
   const messageCounter = useRef(0);
 
@@ -128,28 +129,16 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
 
         setIsThinking(false);
 
-        // Auto-generate title after 3 messages
-        if (messageCounter.current === 3 && currentSessionId) {
-          autoGenerateTitle(currentSessionId);
-        }
+        // Note: Auto-title is now triggered from backend after 3 messages
+        // and sends a 'title_updated' event via WebSocket
+      } else if (data.type === 'title_updated') {
+        // Session title was auto-generated or updated
+        console.log('Session title updated:', data.title);
+        // Refresh session list to show new title
+        setSessionListKey((prev) => prev + 1);
       }
     },
   });
-
-  // Auto-generate session title after 3 messages
-  const autoGenerateTitle = async (sessionId: string) => {
-    try {
-      // The backend will auto-generate the title using intent classification
-      const response = await fetch(`/api/chat/sessions/${sessionId}/auto-title`, {
-        method: 'POST'
-      });
-      if (response.ok) {
-        console.log('Title auto-generated for session:', sessionId);
-      }
-    } catch (err) {
-      console.error('Error auto-generating title:', err);
-    }
-  };
 
   const handleSendMessage = (content: string) => {
     if (!currentSessionId) {
@@ -191,6 +180,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
       {showSessionList && (
         <div className="w-80 flex-shrink-0">
           <SessionList
+            key={sessionListKey} // Force refresh when title updates
             patientId={patientId}
             currentSessionId={currentSessionId || undefined}
             onSessionSelect={handleSessionSelect}

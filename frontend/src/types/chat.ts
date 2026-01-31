@@ -54,7 +54,7 @@ export interface Symptom {
 }
 
 export interface WebSocketChatMessage {
-  type: 'status' | 'message';
+  type: 'status' | 'message' | 'title_updated' | 'error';
   status?: 'thinking' | 'idle';
   role?: 'user' | 'assistant';
   content?: string;
@@ -63,4 +63,7 @@ export interface WebSocketChatMessage {
   reasoning_trail?: string[];
   related_concepts?: string[];
   response_id?: string;  // For feedback tracking
+  session_id?: string;   // For title_updated events
+  title?: string;        // For title_updated events
+  message?: string;      // For error events
 }

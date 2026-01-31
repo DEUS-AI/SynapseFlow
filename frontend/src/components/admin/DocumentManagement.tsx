@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Upload, Trash2, Play, Eye, FileText,
   CheckCircle, XCircle, Clock, Loader2, RefreshCw,
-  FolderOpen, Filter
+  FolderOpen, Filter, BarChart3, AlertTriangle, AlertCircle
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -20,6 +20,8 @@ interface Document {
   relationship_count: number;
   error_message: string | null;
   markdown_path: string | null;
+  quality_score: number | null;
+  quality_level: string | null;
 }
 
 interface Job {
@@ -251,6 +253,35 @@ export function DocumentManagement() {
     );
   };
 
+  const getQualityBadge = (score: number | null, level: string | null) => {
+    if (score === null || level === null) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-400">
+          <AlertCircle className="h-3 w-3" />
+          Not assessed
+        </span>
+      );
+    }
+
+    const badges: Record<string, { color: string; icon: React.ReactNode }> = {
+      excellent: { color: 'bg-green-100 text-green-700', icon: <CheckCircle className="h-3 w-3" /> },
+      good: { color: 'bg-blue-100 text-blue-700', icon: <CheckCircle className="h-3 w-3" /> },
+      acceptable: { color: 'bg-yellow-100 text-yellow-700', icon: <AlertCircle className="h-3 w-3" /> },
+      poor: { color: 'bg-orange-100 text-orange-700', icon: <AlertTriangle className="h-3 w-3" /> },
+      critical: { color: 'bg-red-100 text-red-700', icon: <XCircle className="h-3 w-3" /> },
+    };
+
+    const badge = badges[level.toLowerCase()] || badges.acceptable;
+    const scorePercent = (score * 100).toFixed(0);
+
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+        {badge.icon}
+        {scorePercent}%
+      </span>
+    );
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -377,8 +408,8 @@ export function DocumentManagement() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quality</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entities</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Relations</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -401,8 +432,12 @@ export function DocumentManagement() {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">{formatBytes(doc.size_bytes)}</td>
                   <td className="px-6 py-4">{getStatusBadge(doc.status)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{doc.entity_count || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{doc.relationship_count || '-'}</td>
+                  <td className="px-6 py-4">{getQualityBadge(doc.quality_score, doc.quality_level)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    <span title={`${doc.entity_count || 0} entities, ${doc.relationship_count || 0} relationships`}>
+                      {doc.entity_count || 0} / {doc.relationship_count || 0}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <Button
@@ -540,22 +575,90 @@ export function DocumentManagement() {
   );
 }
 
+interface QualityReport {
+  overall_score: number;
+  quality_level: string;
+  assessed_at: string;
+  scores: {
+    contextual_relevancy: { precision: number; recall: number; f1: number };
+    context_sufficiency: { topic_coverage: number; completeness: number };
+    information_density: { facts_per_chunk: number; redundancy: number; signal_to_noise: number };
+    structural_clarity: { hierarchy_score: number; section_coherence: number };
+    entity_density: { entities_per_chunk: number; extraction_rate: number; consistency: number };
+    chunking_quality: { self_containment: number; boundary_coherence: number; retrieval_quality: number };
+  };
+  recommendations: string[];
+}
+
 function DocumentDetails({ documentId, onClose }: { documentId: string; onClose: () => void }) {
   const [details, setDetails] = useState<any>(null);
+  const [quality, setQuality] = useState<QualityReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [assessing, setAssessing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'quality' | 'preview'>('info');
+
+  const fetchDetails = async () => {
+    try {
+      const response = await fetch(`/api/admin/documents/${documentId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDetails(data);
+      }
+    } catch (err) {
+      console.error('Failed to load details:', err);
+    }
+  };
+
+  const fetchQuality = async () => {
+    try {
+      const response = await fetch(`/api/admin/documents/${documentId}/quality`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.overall_score !== undefined) {
+          setQuality(data);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load quality:', err);
+    }
+  };
 
   useEffect(() => {
-    fetch(`/api/admin/documents/${documentId}`)
-      .then(res => res.json())
-      .then(data => {
-        setDetails(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to load details:', err);
-        setLoading(false);
-      });
+    Promise.all([fetchDetails(), fetchQuality()]).finally(() => setLoading(false));
   }, [documentId]);
+
+  const handleAssessQuality = async () => {
+    setAssessing(true);
+    try {
+      const response = await fetch(`/api/admin/documents/${documentId}/quality/assess`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setQuality(data);
+        setActiveTab('quality');
+      } else {
+        const err = await response.json();
+        alert(`Assessment failed: ${err.detail || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Quality assessment failed:', err);
+      alert('Failed to assess quality');
+    } finally {
+      setAssessing(false);
+    }
+  };
+
+  const getQualityLevelColor = (level: string) => {
+    const colors: Record<string, string> = {
+      excellent: 'text-green-700 bg-green-100',
+      good: 'text-blue-700 bg-blue-100',
+      acceptable: 'text-yellow-700 bg-yellow-100',
+      poor: 'text-orange-700 bg-orange-100',
+      critical: 'text-red-700 bg-red-100',
+    };
+    return colors[level?.toLowerCase()] || 'text-gray-600 bg-gray-100';
+  };
 
   if (loading) {
     return (
@@ -570,51 +673,224 @@ function DocumentDetails({ documentId, onClose }: { documentId: string; onClose:
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold">{details.filename}</h2>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold truncate">{details.filename}</h2>
         <Button variant="ghost" onClick={onClose}>Close</Button>
       </div>
 
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-sm text-gray-500">Category</div>
-            <div className="font-medium">{details.category}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-500">Status</div>
-            <div className="font-medium">{details.status}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-500">Entities</div>
-            <div className="font-medium">{details.entity_count || 0}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-500">Relationships</div>
-            <div className="font-medium">{details.relationship_count || 0}</div>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b mb-4">
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'info' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setActiveTab('info')}
+        >
+          Info
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'quality' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setActiveTab('quality')}
+        >
+          Quality
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'preview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setActiveTab('preview')}
+        >
+          Preview
+        </button>
+      </div>
 
-        {details.error_message && (
-          <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
-            <strong>Error:</strong> {details.error_message}
-          </div>
-        )}
-
-        {details.markdown_preview && (
-          <div>
-            <h3 className="font-semibold mb-2">Markdown Preview</h3>
-            <div className="bg-gray-50 border rounded p-4 max-h-96 overflow-auto">
-              <pre className="text-sm whitespace-pre-wrap font-mono">{details.markdown_preview}</pre>
+      <div className="flex-1 overflow-auto">
+        {/* Info Tab */}
+        {activeTab === 'info' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-sm text-gray-500">Category</div>
+                <div className="font-medium">{details.category}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Status</div>
+                <div className="font-medium">{details.status}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Entities</div>
+                <div className="font-medium">{details.entity_count || 0}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Relationships</div>
+                <div className="font-medium">{details.relationship_count || 0}</div>
+              </div>
             </div>
-            {details.markdown_length > 2000 && (
-              <p className="text-xs text-gray-500 mt-1">
-                Showing first 2000 characters of {details.markdown_length.toLocaleString()} total
-              </p>
+
+            {details.error_message && (
+              <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
+                <strong>Error:</strong> {details.error_message}
+              </div>
             )}
           </div>
         )}
+
+        {/* Quality Tab */}
+        {activeTab === 'quality' && (
+          <div className="space-y-4">
+            {quality ? (
+              <>
+                {/* Quality Summary */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getQualityLevelColor(quality.quality_level)}`}>
+                      {quality.quality_level.toUpperCase()}
+                    </span>
+                    <span className="text-lg font-bold">{(quality.overall_score * 100).toFixed(0)}%</span>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleAssessQuality} disabled={assessing}>
+                    {assessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    <span className="ml-2">Re-assess</span>
+                  </Button>
+                </div>
+
+                {/* Metric Categories */}
+                <div className="space-y-3">
+                  <QualityMetricGroup
+                    title="Contextual Relevancy"
+                    metrics={[
+                      { label: 'Precision', value: quality.scores.contextual_relevancy.precision },
+                      { label: 'Recall', value: quality.scores.contextual_relevancy.recall },
+                      { label: 'F1 Score', value: quality.scores.contextual_relevancy.f1 },
+                    ]}
+                  />
+                  <QualityMetricGroup
+                    title="Context Sufficiency"
+                    metrics={[
+                      { label: 'Topic Coverage', value: quality.scores.context_sufficiency.topic_coverage },
+                      { label: 'Completeness', value: quality.scores.context_sufficiency.completeness },
+                    ]}
+                  />
+                  <QualityMetricGroup
+                    title="Information Density"
+                    metrics={[
+                      { label: 'Signal/Noise', value: quality.scores.information_density.signal_to_noise },
+                      { label: 'Redundancy', value: 1 - quality.scores.information_density.redundancy },
+                    ]}
+                  />
+                  <QualityMetricGroup
+                    title="Structure & Entities"
+                    metrics={[
+                      { label: 'Hierarchy', value: quality.scores.structural_clarity.hierarchy_score },
+                      { label: 'Entity Extraction', value: quality.scores.entity_density.extraction_rate },
+                    ]}
+                  />
+                  <QualityMetricGroup
+                    title="Chunking Quality"
+                    metrics={[
+                      { label: 'Boundary Coherence', value: quality.scores.chunking_quality.boundary_coherence },
+                      { label: 'Retrieval Quality', value: quality.scores.chunking_quality.retrieval_quality },
+                    ]}
+                  />
+                </div>
+
+                {/* Recommendations */}
+                {quality.recommendations.length > 0 && (
+                  <div className="pt-4 border-t">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Recommendations</h4>
+                    <ul className="space-y-2">
+                      {quality.recommendations.map((rec, i) => (
+                        <li key={i} className="text-sm text-gray-600 bg-yellow-50 px-3 py-2 rounded border border-yellow-100">
+                          {rec}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="text-xs text-gray-400 pt-2">
+                  Assessed: {new Date(quality.assessed_at).toLocaleString()}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <BarChart3 className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 mb-4">No quality assessment yet</p>
+                <Button onClick={handleAssessQuality} disabled={assessing || details.status !== 'completed'}>
+                  {assessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Assessing...
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Assess Quality
+                    </>
+                  )}
+                </Button>
+                {details.status !== 'completed' && (
+                  <p className="text-sm text-gray-400 mt-2">Document must be ingested first</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Preview Tab */}
+        {activeTab === 'preview' && (
+          <div>
+            {details.markdown_preview ? (
+              <>
+                <div className="bg-gray-50 border rounded p-4 max-h-[60vh] overflow-auto">
+                  <pre className="text-sm whitespace-pre-wrap font-mono">{details.markdown_preview}</pre>
+                </div>
+                {details.markdown_length > 2000 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Showing first 2000 characters of {details.markdown_length.toLocaleString()} total
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">No markdown preview available</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function QualityMetricGroup({ title, metrics }: { title: string; metrics: { label: string; value: number }[] }) {
+  return (
+    <div className="bg-gray-50 rounded-lg p-3">
+      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{title}</h4>
+      <div className="grid grid-cols-2 gap-2">
+        {metrics.map((m, i) => (
+          <div key={i}>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-gray-600">{m.label}</span>
+              <span className="font-medium">{(m.value * 100).toFixed(0)}%</span>
+            </div>
+            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all ${
+                  m.value >= 0.8 ? 'bg-green-500' :
+                  m.value >= 0.6 ? 'bg-blue-500' :
+                  m.value >= 0.4 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}
+                style={{ width: `${Math.min(m.value * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

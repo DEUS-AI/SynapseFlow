@@ -93,10 +93,10 @@ class LayerMigration:
             "Session",
             "Message",
             "UserFeedback",
-            # System/audit nodes
-            "LayerTransition",
-            "__User__",  # Graphiti internal user tracking
         ],
+        # Note: LayerTransition and __User__ are audit/system nodes - they should NOT
+        # have a layer property as they are metadata, not knowledge entities.
+        # They are excluded from layer assignment to keep the KG visualization clean.
     }
 
     # Required indexes for layer-based queries

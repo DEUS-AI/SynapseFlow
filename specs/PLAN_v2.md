@@ -64,6 +64,6 @@ This plan outlines the tasks required to implement the multi-agent system descri
 -   [x] **Implement KG-based Service Registration:**
     -   [x] Add a `register_self()` method to the base `Agent` class.
     -   [x] The implementation uses the `GraphRepository` to create an `AgentService` node.
--   [ ] **Implement KG-based Service Discovery:**
+-   [x] **Implement KG-based Service Discovery:**
     -   [x] Add an abstract `discover_agent(capability: str)` method to the base `Agent` class.
-    -   [ ] The implementation will query the KG for a suitable agent and return its endpoint. 
+    -   [x] The implementation queries the KG for a suitable agent and returns its endpoint.

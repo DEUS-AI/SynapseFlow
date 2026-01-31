@@ -2,11 +2,11 @@
  * SessionList Component - Display and manage chat sessions
  *
  * Shows patient's chat sessions grouped by time (today, yesterday, etc.)
- * with support for selecting, searching, and creating new sessions.
+ * with support for selecting, searching, creating new sessions, and inline title editing.
  */
 
-import React, { useState, useEffect } from 'react';
-import { MessageSquare, Plus, Search, Clock, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MessageSquare, Plus, Search, Clock, AlertCircle, Pencil, Check, X } from 'lucide-react';
 
 interface Session {
   session_id: string;
@@ -55,10 +55,24 @@ export function SessionList({
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // Inline editing state
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [saving, setSaving] = useState(false);
+  const editInputRef = useRef<HTMLInputElement>(null);
+
   // Load sessions on mount
   useEffect(() => {
     loadSessions();
   }, [patientId]);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingSessionId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingSessionId]);
 
   const loadSessions = async () => {
     try {
@@ -120,6 +134,70 @@ export function SessionList({
     }
   };
 
+  const startEditing = (session: Session, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSessionId(session.session_id);
+    setEditTitle(session.title || 'New Conversation');
+  };
+
+  const cancelEditing = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingSessionId(null);
+    setEditTitle('');
+  };
+
+  const saveTitle = async (sessionId: string, e?: React.MouseEvent | React.KeyboardEvent) => {
+    e?.stopPropagation();
+
+    if (!editTitle.trim()) {
+      cancelEditing();
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fetch(`/api/chat/sessions/${sessionId}/title`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editTitle.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update title');
+      }
+
+      // Update local state
+      const updateSessionTitle = (group: Session[]) =>
+        group.map((s) =>
+          s.session_id === sessionId ? { ...s, title: editTitle.trim() } : s
+        );
+
+      setSessions({
+        today: updateSessionTitle(sessions.today),
+        yesterday: updateSessionTitle(sessions.yesterday),
+        this_week: updateSessionTitle(sessions.this_week),
+        this_month: updateSessionTitle(sessions.this_month),
+        older: updateSessionTitle(sessions.older),
+      });
+
+      setEditingSessionId(null);
+      setEditTitle('');
+    } catch (err) {
+      console.error('Error updating title:', err);
+      // Keep editing mode open on error
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (sessionId: string, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveTitle(sessionId, e);
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  };
+
   const getUrgencyBadge = (urgency: string) => {
     if (urgency === 'critical' || urgency === 'high') {
       return (
@@ -133,14 +211,15 @@ export function SessionList({
 
   const renderSession = (session: Session) => {
     const isActive = session.session_id === currentSessionId;
+    const isEditing = editingSessionId === session.session_id;
     const hasUnresolvedSymptoms = session.unresolved_symptoms && session.unresolved_symptoms.length > 0;
 
     return (
-      <button
+      <div
         key={session.session_id}
-        onClick={() => onSessionSelect(session.session_id)}
+        onClick={() => !isEditing && onSessionSelect(session.session_id)}
         className={`
-          w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-colors
+          w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-colors cursor-pointer group
           ${
             isActive
               ? 'bg-blue-900/50 border border-blue-700'
@@ -152,12 +231,55 @@ export function SessionList({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />
-              <h4 className="text-sm font-medium text-slate-200 truncate">
-                {session.title || 'New Conversation'}
-              </h4>
+
+              {isEditing ? (
+                // Edit mode
+                <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    ref={editInputRef}
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(session.session_id, e)}
+                    className="flex-1 px-2 py-0.5 text-sm bg-slate-700 border border-slate-500 rounded text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    maxLength={200}
+                    disabled={saving}
+                  />
+                  <button
+                    onClick={(e) => saveTitle(session.session_id, e)}
+                    disabled={saving}
+                    className="p-1 text-green-400 hover:text-green-300 disabled:opacity-50"
+                    title="Save"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    disabled={saving}
+                    className="p-1 text-slate-400 hover:text-slate-300 disabled:opacity-50"
+                    title="Cancel"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                // Display mode
+                <>
+                  <h4 className="text-sm font-medium text-slate-200 truncate flex-1">
+                    {session.title || 'New Conversation'}
+                  </h4>
+                  <button
+                    onClick={(e) => startEditing(session, e)}
+                    className="p-1 text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Edit title"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
             </div>
 
-            {session.preview_text && (
+            {session.preview_text && !isEditing && (
               <p className="text-xs text-slate-400 line-clamp-1 ml-6">
                 {session.preview_text}
               </p>
@@ -190,7 +312,7 @@ export function SessionList({
             )}
           </div>
         </div>
-      </button>
+      </div>
     );
   };
 

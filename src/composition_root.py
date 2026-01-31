@@ -42,6 +42,8 @@ from graphiti_core import Graphiti
 from infrastructure.in_memory_backend import InMemoryGraphBackend
 from domain.kg_backends import KnowledgeGraphBackend
 from application.event_bus import EventBus
+from config.agent_config import get_agent_config, AgentInfraConfig
+from infrastructure.agent_infrastructure_builder import AgentInfrastructureBuilder
 
 
 # --- Agent Factory Functions ---
@@ -285,11 +287,97 @@ async def bootstrap_patient_memory():
         patient_memory_service = PatientMemoryService(mem0, neo4j, redis)
         print("✅ Patient Memory Service initialized")
 
-        return patient_memory_service
+        # Return both service and mem0 for conversational layer (Phase 6)
+        return patient_memory_service, mem0
 
     except Exception as e:
         print(f"⚠️ Failed to initialize Patient Memory Service: {e}")
         raise
+
+
+async def bootstrap_postgres_repositories():
+    """Initialize PostgreSQL database and repositories.
+
+    Returns:
+        Tuple of (SessionRepository, MessageRepository, FeedbackRepository) or None values if disabled.
+    """
+    import os
+    from application.services.feature_flag_service import is_flag_enabled
+
+    # Only initialize if PostgreSQL features are enabled
+    if not (is_flag_enabled("dual_write_sessions") or
+            is_flag_enabled("use_postgres_sessions") or
+            is_flag_enabled("dual_write_feedback") or
+            is_flag_enabled("use_postgres_feedback")):
+        print("ℹ️  PostgreSQL features not enabled, skipping initialization")
+        return None, None, None
+
+    print("🔄 Initializing PostgreSQL Database...")
+
+    try:
+        from infrastructure.database.session import init_database, db_session
+        from infrastructure.database.repositories import (
+            SessionRepository,
+            MessageRepository,
+            FeedbackRepository,
+        )
+
+        # Initialize database connection
+        await init_database(create_tables=True)
+        print("  ✅ PostgreSQL connection initialized")
+
+        # Create repositories using a session context
+        # Note: In production, you'd want to manage session lifecycle more carefully
+        async with db_session() as session:
+            session_repo = SessionRepository(session)
+            message_repo = MessageRepository(session)
+            feedback_repo = FeedbackRepository(session)
+
+            print("✅ PostgreSQL repositories initialized")
+            # Return factory functions that create repos with fresh sessions
+            return session_repo, message_repo, feedback_repo
+
+    except Exception as e:
+        print(f"⚠️ Failed to initialize PostgreSQL: {e}")
+        print("   Continuing with Neo4j-only mode")
+        return None, None, None
+
+
+def get_postgres_repository_factory():
+    """Get a factory for creating PostgreSQL repositories.
+
+    Returns a factory function that can create repository instances
+    with proper session management.
+    """
+    from infrastructure.database.session import db_session
+    from infrastructure.database.repositories import (
+        SessionRepository,
+        MessageRepository,
+        FeedbackRepository,
+    )
+
+    class RepositoryFactory:
+        """Factory for creating PostgreSQL repositories with managed sessions."""
+
+        @staticmethod
+        async def get_session_repo():
+            """Get a SessionRepository with a new database session."""
+            async with db_session() as session:
+                return SessionRepository(session)
+
+        @staticmethod
+        async def get_message_repo():
+            """Get a MessageRepository with a new database session."""
+            async with db_session() as session:
+                return MessageRepository(session)
+
+        @staticmethod
+        async def get_feedback_repo():
+            """Get a FeedbackRepository with a new database session."""
+            async with db_session() as session:
+                return FeedbackRepository(session)
+
+    return RepositoryFactory()
 
 
 async def bootstrap_knowledge_management() -> Tuple[KnowledgeGraphBackend, EventBus]:
@@ -364,3 +452,87 @@ async def bootstrap_knowledge_management() -> Tuple[KnowledgeGraphBackend, Event
         print("✅ Using In-Memory Event Bus")
     
     return kg_backend, event_bus
+
+
+async def bootstrap_agent_infrastructure(
+    config: Optional[AgentInfraConfig] = None,
+    kg_backend: Optional[KnowledgeGraphBackend] = None,
+) -> Tuple[EventBus, CommunicationChannel, Optional["AgentDiscoveryService"]]:
+    """
+    Bootstrap agent infrastructure using YAML configuration.
+
+    This is the recommended way to initialize agent communication components.
+    Uses config/agents.yaml by default, with environment variable overrides.
+
+    Args:
+        config: Optional custom configuration. If not provided, loads from
+                config/agents.yaml with environment overrides.
+        kg_backend: Optional KG backend for discovery service (required for
+                    Neo4j-based discovery).
+
+    Returns:
+        Tuple of (EventBus, CommunicationChannel, AgentDiscoveryService or None)
+
+    Usage:
+        # Simple usage (loads config/agents.yaml)
+        event_bus, channel, discovery = await bootstrap_agent_infrastructure()
+
+        # With custom config
+        config = AgentInfraConfig.from_yaml("custom/path.yaml")
+        event_bus, channel, discovery = await bootstrap_agent_infrastructure(config)
+
+        # With existing KG backend for discovery
+        kg_backend, _ = await bootstrap_knowledge_management()
+        event_bus, channel, discovery = await bootstrap_agent_infrastructure(
+            kg_backend=kg_backend
+        )
+    """
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from application.services.agent_discovery import AgentDiscoveryService
+
+    builder = AgentInfrastructureBuilder(config)
+
+    print(f"🔄 Bootstrapping agent infrastructure...")
+    print(f"   Deployment mode: {builder.config.deployment_mode.value}")
+    print(f"   Event bus: {builder.config.event_bus.type.value}")
+    print(f"   Channel: {builder.config.communication_channel.type.value}")
+    print(f"   Discovery: {builder.config.discovery.type.value}")
+
+    # Build components
+    event_bus = await builder.build_event_bus()
+    channel = builder.build_communication_channel()
+    discovery = await builder.build_discovery_service(backend=kg_backend)
+
+    print("✅ Agent infrastructure bootstrapped")
+
+    return event_bus, channel, discovery
+
+
+def get_infrastructure_builder(
+    config: Optional[AgentInfraConfig] = None
+) -> AgentInfrastructureBuilder:
+    """
+    Get an infrastructure builder for creating agent components.
+
+    This is useful when you need more control over component creation,
+    or want to create multiple channels with different configurations.
+
+    Args:
+        config: Optional custom configuration.
+
+    Returns:
+        AgentInfrastructureBuilder instance
+
+    Usage:
+        builder = get_infrastructure_builder()
+
+        # Build components as needed
+        event_bus = await builder.build_event_bus()
+        channel = builder.build_communication_channel(agent_url="http://my-agent:8001")
+
+        # Check if specific agents are enabled
+        if builder.is_agent_enabled("knowledge_manager"):
+            km_url = builder.get_agent_url("knowledge_manager")
+    """
+    return AgentInfrastructureBuilder(config)

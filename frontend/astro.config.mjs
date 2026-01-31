@@ -11,6 +11,9 @@ export default defineConfig({
     host: true,
   },
   vite: {
+    optimizeDeps: {
+      include: ['react-markdown', 'remark-parse', 'unified'],
+    },
     server: {
       proxy: {
         '/api': {

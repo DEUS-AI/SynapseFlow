@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: synapseflow_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=synapseflow
+      - POSTGRES_PASSWORD=synapseflow_dev
+      - POSTGRES_DB=synapseflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapseflow -d synapseflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   neo4j:
     image: neo4j:latest
     container_name: neo4j
@@ -103,6 +121,7 @@ services:
 
 
 volumes:
+  postgres_data:
   neo4j_data:
   neo4j_logs:
   rabbitmq_data:
