@@ -128,6 +128,16 @@ async def chat_websocket_endpoint(
         # Ensure patient exists in the system (creates if not found)
         await patient_memory.get_or_create_patient(patient_id)
         logger.info(f"Patient verified/created: {patient_id}")
+
+        # Ensure session exists (creates if not found)
+        # This is CRITICAL for conversation history to work
+        await patient_memory.create_session(
+            session_id=session_id,
+            patient_id=patient_id,
+            title="New Conversation",
+            device_type="web"
+        )
+        logger.info(f"Session verified/created: {session_id}")
     except Exception as e:
         logger.error(f"Failed to initialize dependencies for {client_id}: {e}", exc_info=True)
         await websocket.send_json({"type": "error", "message": f"Service initialization failed: {str(e)}"})
@@ -150,9 +160,18 @@ async def chat_websocket_endpoint(
             )
 
             try:
-                # Query chat service
+                # Load conversation history for context continuity
+                history_service = await get_chat_history_service()
+                conversation_messages = await history_service.get_session_messages(
+                    session_id=session_id,
+                    limit=10  # Last 10 messages for context
+                )
+                logger.debug(f"Loaded {len(conversation_messages)} messages for context")
+
+                # Query chat service with conversation history
                 response = await chat_service.query(
                     question=message_text,
+                    conversation_history=conversation_messages,
                     patient_id=patient_id,
                     session_id=session_id
                 )

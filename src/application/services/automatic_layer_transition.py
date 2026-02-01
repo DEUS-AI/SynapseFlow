@@ -616,8 +616,20 @@ class AutomaticLayerTransitionService:
                         entity_data = await self._get_entity_data(entity_id)
 
                     if entity_id and entity_data:
-                        from_layer = Layer(layer)
-                        to_layer = Layer.SEMANTIC if layer == "PERCEPTION" else Layer.REASONING
+                        # Get entity's ACTUAL layer from data, not the scan parameter
+                        # This prevents trying to "promote" entities that are already at a higher layer
+                        entity_props = entity_data.get("properties", entity_data)
+                        actual_layer = entity_props.get("layer", layer)
+
+                        # Skip if entity is not at the expected layer (already promoted)
+                        if actual_layer != layer:
+                            logger.debug(
+                                f"Skipping entity {entity_id}: expected layer {layer}, actual {actual_layer}"
+                            )
+                            continue
+
+                        from_layer = Layer(actual_layer)
+                        to_layer = Layer.SEMANTIC if actual_layer == "PERCEPTION" else Layer.REASONING
 
                         record = await self._promote_entity(
                             entity_id=entity_id,

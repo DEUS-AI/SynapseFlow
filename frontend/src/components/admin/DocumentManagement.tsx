@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Upload, Trash2, Play, Eye, FileText,
   CheckCircle, XCircle, Clock, Loader2, RefreshCw,
-  FolderOpen, Filter, BarChart3, AlertTriangle, AlertCircle
+  FolderOpen, Filter, BarChart3, AlertTriangle, AlertCircle,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -440,11 +441,18 @@ export function DocumentManagement() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
+                      <a
+                        href={`/admin/documents/${doc.id}`}
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-gray-100 transition-colors"
+                        title="Open full detail page"
+                      >
+                        <ExternalLink className="h-4 w-4 text-blue-600" />
+                      </a>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowDetails(doc.id)}
-                        title="View details"
+                        title="Quick preview"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

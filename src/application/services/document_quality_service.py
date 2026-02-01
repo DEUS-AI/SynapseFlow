@@ -742,7 +742,7 @@ async def quick_quality_check(
         document_name: Name for identification
 
     Returns:
-        Quick quality summary
+        Quick quality summary with detailed metrics for frontend radar chart
     """
     service = DocumentQualityService()
 
@@ -760,9 +760,58 @@ async def quick_quality_check(
         chunks=chunks,
     )
 
+    # Return detailed metrics for frontend radar chart
+    # Frontend expects each category to have a 'score' property
     return {
         "quality_level": report.quality_level.value,
         "overall_score": round(report.overall_score, 2),
         "chunk_count": report.chunk_count,
         "recommendations": report.improvement_priority[:3],
+        "assessed_at": report.assessed_at.isoformat(),
+        # Detailed metrics for radar chart - each has 'score' as main value
+        "contextual_relevancy": {
+            "score": report.contextual_relevancy.f1_score,
+            "precision": report.contextual_relevancy.context_precision,
+            "recall": report.contextual_relevancy.context_recall,
+            "f1_score": report.contextual_relevancy.f1_score,
+        },
+        "context_sufficiency": {
+            "score": report.context_sufficiency.completeness,
+            "topic_coverage": report.context_sufficiency.topic_coverage,
+            "completeness": report.context_sufficiency.completeness,
+        },
+        "information_density": {
+            "score": report.information_density.signal_to_noise,
+            "facts_per_chunk": report.information_density.unique_facts_per_chunk,
+            "redundancy_ratio": report.information_density.redundancy_ratio,
+            "signal_to_noise": report.information_density.signal_to_noise,
+        },
+        "structural_clarity": {
+            "score": (report.structural_clarity.heading_hierarchy_score +
+                      report.structural_clarity.section_coherence +
+                      report.structural_clarity.logical_flow) / 3,
+            "hierarchy_score": report.structural_clarity.heading_hierarchy_score,
+            "section_coherence": report.structural_clarity.section_coherence,
+        },
+        "entity_density": {
+            "score": report.entity_density.entity_extraction_rate,
+            "entities_per_chunk": report.entity_density.entities_per_chunk,
+            "extraction_rate": report.entity_density.entity_extraction_rate,
+            "consistency": report.entity_density.entity_consistency,
+        },
+        "chunking_quality": {
+            "score": report.chunking_quality.retrieval_quality,
+            "self_containment": report.chunking_quality.self_containment,
+            "boundary_coherence": report.chunking_quality.boundary_coherence,
+            "retrieval_quality": report.chunking_quality.retrieval_quality,
+        },
+        # Flat scores for summary dashboard
+        "scores": {
+            "context_precision": report.contextual_relevancy.context_precision,
+            "context_recall": report.contextual_relevancy.context_recall,
+            "topic_coverage": report.context_sufficiency.topic_coverage,
+            "signal_to_noise": report.information_density.signal_to_noise,
+            "entity_extraction_rate": report.entity_density.entity_extraction_rate,
+            "retrieval_quality": report.chunking_quality.retrieval_quality,
+        },
     }

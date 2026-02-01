@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { QualityTrendChart } from '../charts/QualityTrendChart';
+import { SparklineWithLabel } from '../charts/SparklineChart';
+import { DocumentQualityRadar, OntologyQualityRadar } from '../charts/MetricRadarChart';
 
 interface TrendDataPoint {
   date: string;
@@ -415,9 +418,24 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
                 </div>
               </div>
 
-              {/* Average Metrics */}
+              {/* Radar Chart */}
               <div className="pt-4 border-t">
                 <p className="text-sm font-medium text-gray-700 mb-3">Average Scores</p>
+                <DocumentQualityRadar
+                  metrics={{
+                    contextualRelevancy: (documentStats.averages.context_precision + documentStats.averages.context_recall) / 2,
+                    contextSufficiency: documentStats.averages.topic_coverage,
+                    informationDensity: documentStats.averages.signal_to_noise,
+                    structuralClarity: 0.75, // Default if not available
+                    entityDensity: documentStats.averages.entity_extraction_rate,
+                    chunkingQuality: documentStats.averages.retrieval_quality,
+                  }}
+                  height={200}
+                />
+              </div>
+
+              {/* Average Metrics Grid */}
+              <div className="pt-4 border-t">
                 <div className="grid grid-cols-2 gap-3">
                   <MetricBar
                     label="Context Precision"
@@ -498,6 +516,17 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
                   Score: {formatScore(ontologyStats.latest.overall_score)}
                 </span>
               </div>
+
+              {/* Radar Chart for Ontology Metrics */}
+              <OntologyQualityRadar
+                metrics={{
+                  coverage: ontologyStats.latest.coverage_ratio,
+                  compliance: ontologyStats.latest.compliance_ratio,
+                  coherence: ontologyStats.latest.coherence_ratio,
+                  consistency: ontologyStats.latest.consistency_ratio,
+                }}
+                height={180}
+              />
 
               {/* Key Metrics */}
               <div className="grid grid-cols-2 gap-3">
@@ -604,6 +633,14 @@ interface TrendsViewProps {
 }
 
 function TrendsView({ documentTrends, ontologyTrends, getTrendIcon, getTrendColor }: TrendsViewProps) {
+  // Transform data points to match QualityTrendChart format
+  const transformDataPoints = (points: TrendDataPoint[]) =>
+    points.map(p => ({
+      date: p.date,
+      score: p.score,
+      assessments: p.count || 1,
+    }));
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -627,7 +664,11 @@ function TrendsView({ documentTrends, ontologyTrends, getTrendIcon, getTrendColo
                 </span>
               </div>
 
-              <TrendChart dataPoints={documentTrends.data_points} color="blue" />
+              <QualityTrendChart
+                data={transformDataPoints(documentTrends.data_points)}
+                height={200}
+                showPeriodSelector={false}
+              />
 
               <div className="text-sm text-gray-400">
                 Average change: {documentTrends.average_change >= 0 ? '+' : ''}{(documentTrends.average_change * 100).toFixed(1)}%
@@ -664,7 +705,13 @@ function TrendsView({ documentTrends, ontologyTrends, getTrendIcon, getTrendColo
                 </span>
               </div>
 
-              <TrendChart dataPoints={ontologyTrends.data_points} color="purple" />
+              <QualityTrendChart
+                data={transformDataPoints(ontologyTrends.data_points)}
+                height={200}
+                showPeriodSelector={false}
+                lineColor="#a855f7"
+                areaColor="rgba(168, 85, 247, 0.2)"
+              />
 
               <div className="text-sm text-gray-400">
                 Average change: {ontologyTrends.average_change >= 0 ? '+' : ''}{(ontologyTrends.average_change * 100).toFixed(1)}%
@@ -680,69 +727,6 @@ function TrendsView({ documentTrends, ontologyTrends, getTrendIcon, getTrendColo
             </div>
           )}
         </Card>
-      </div>
-    </div>
-  );
-}
-
-// Simple Trend Chart Component
-interface TrendChartProps {
-  dataPoints: TrendDataPoint[];
-  color: 'blue' | 'purple' | 'green';
-}
-
-function TrendChart({ dataPoints, color }: TrendChartProps) {
-  const maxScore = Math.max(...dataPoints.map(p => p.score), 1);
-  const minScore = Math.min(...dataPoints.map(p => p.score), 0);
-  const range = maxScore - minScore || 1;
-
-  const colorClasses = {
-    blue: { bg: 'bg-blue-500', line: 'border-blue-500', fill: 'bg-blue-500/20' },
-    purple: { bg: 'bg-purple-500', line: 'border-purple-500', fill: 'bg-purple-500/20' },
-    green: { bg: 'bg-green-500', line: 'border-green-500', fill: 'bg-green-500/20' },
-  };
-
-  const colors = colorClasses[color];
-
-  return (
-    <div className="relative h-40 bg-slate-900 rounded-lg p-4">
-      {/* Y-axis labels */}
-      <div className="absolute left-0 top-4 bottom-4 w-10 flex flex-col justify-between text-xs text-gray-500">
-        <span>{(maxScore * 100).toFixed(0)}%</span>
-        <span>{((maxScore + minScore) / 2 * 100).toFixed(0)}%</span>
-        <span>{(minScore * 100).toFixed(0)}%</span>
-      </div>
-
-      {/* Chart area */}
-      <div className="ml-12 h-full flex items-end gap-1">
-        {dataPoints.slice(-14).map((point, index) => {
-          const height = ((point.score - minScore) / range) * 100;
-          return (
-            <div
-              key={index}
-              className="flex-1 flex flex-col items-center group relative"
-            >
-              <div
-                className={`w-full ${colors.bg} rounded-t opacity-80 hover:opacity-100 transition-opacity`}
-                style={{ height: `${height}%`, minHeight: '4px' }}
-              />
-              {/* Tooltip */}
-              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
-                {new Date(point.date).toLocaleDateString()}: {(point.score * 100).toFixed(1)}%
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* X-axis labels */}
-      <div className="ml-12 flex justify-between text-xs text-gray-500 mt-2">
-        {dataPoints.length > 0 && (
-          <>
-            <span>{new Date(dataPoints[0].date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
-            <span>{new Date(dataPoints[dataPoints.length - 1].date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
-          </>
-        )}
       </div>
     </div>
   );

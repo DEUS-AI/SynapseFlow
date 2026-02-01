@@ -193,8 +193,19 @@ class PromotionScannerJob:
                     entity_data = await self.transition_service._get_entity_data(entity_id)
 
                 if entity_id and entity_data:
-                    from_layer = layer
-                    to_layer = "SEMANTIC" if layer == "PERCEPTION" else "REASONING"
+                    # Get entity's ACTUAL layer from data, not the scan parameter
+                    # This prevents trying to "promote" entities that are already at a higher layer
+                    entity_props = entity_data.get("properties", entity_data)
+                    actual_layer = entity_props.get("layer", layer)
+
+                    # Skip if entity is not at the expected layer (already promoted)
+                    if actual_layer != layer:
+                        logger.debug(
+                            f"Skipping entity {entity_id}: expected layer {layer}, actual {actual_layer}"
+                        )
+                        continue
+
+                    to_layer = "SEMANTIC" if actual_layer == "PERCEPTION" else "REASONING"
 
                     # Import Layer enum
                     from application.services.layer_transition import Layer
@@ -202,7 +213,7 @@ class PromotionScannerJob:
                     record = await self.transition_service._promote_entity(
                         entity_id=entity_id,
                         entity_data=entity_data,
-                        from_layer=Layer(from_layer),
+                        from_layer=Layer(actual_layer),
                         to_layer=Layer(to_layer),
                         reason=f"Background scan promotion"
                     )

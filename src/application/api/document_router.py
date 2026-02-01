@@ -93,6 +93,9 @@ async def get_document_details(doc_id: str):
 
         result = doc.to_dict()
 
+        # Add processed_at alias for frontend compatibility (backend uses ingested_at)
+        result["processed_at"] = result.get("ingested_at")
+
         # Add markdown preview if available
         if doc.markdown_path and Path(doc.markdown_path).exists():
             try:
@@ -310,6 +313,264 @@ async def delete_document(
 
 
 # --- Quality Assessment Endpoints ---
+
+@router.get("/{doc_id}/content")
+async def get_document_content(doc_id: str):
+    """Get the full markdown content of a document for preview."""
+    doc = document_tracker.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not doc.markdown_path or not Path(doc.markdown_path).exists():
+        raise HTTPException(status_code=404, detail="Document content not found")
+
+    try:
+        content = Path(doc.markdown_path).read_text(encoding='utf-8')
+        size_bytes = Path(doc.markdown_path).stat().st_size
+        word_count = len(content.split())
+
+        return {
+            "content": content,
+            "content_type": "text/markdown",
+            "size_bytes": size_bytes,
+            "word_count": word_count,
+        }
+    except Exception as e:
+        logger.error(f"Error reading document content: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{doc_id}/entities")
+async def get_document_entities(
+    doc_id: str,
+    layer: Optional[str] = Query(None, description="Filter by layer (PERCEPTION, SEMANTIC, REASONING, APPLICATION)"),
+    entity_type: Optional[str] = Query(None, description="Filter by entity type"),
+    limit: int = Query(100, description="Maximum entities to return"),
+    offset: int = Query(0, description="Offset for pagination"),
+):
+    """Get entities extracted from this document."""
+    doc = document_tracker.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    try:
+        from infrastructure.neo4j_backend import Neo4jBackend
+        import os
+
+        neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+        neo4j_user = os.environ.get("NEO4J_USERNAME", "neo4j")
+        neo4j_password = os.environ.get("NEO4J_PASSWORD", "password")
+
+        backend = Neo4jBackend(uri=neo4j_uri, username=neo4j_user, password=neo4j_password)
+
+        # Build query using relationship path: Document -> Chunk -> Entity
+        # Entities are linked via: (Document)-[:HAS_CHUNK]->(Chunk)-[:MENTIONS]->(Entity)
+        params = {"doc_name": doc.filename, "limit": limit, "offset": offset}
+        logger.info(f"Fetching entities for document: '{doc.filename}' (doc_id: {doc_id})")
+
+        # Build optional WHERE clause for filters
+        entity_filters = []
+        if layer:
+            entity_filters.append("e.layer = $layer")
+            params["layer"] = layer.upper()
+        if entity_type:
+            entity_filters.append("$entity_type IN labels(e)")
+            params["entity_type"] = entity_type
+
+        entity_where = f"WHERE {' AND '.join(entity_filters)}" if entity_filters else ""
+
+        # Query entities via relationship path
+        query = f"""
+            MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)-[:MENTIONS]->(e:ExtractedEntity)
+            WHERE d.name = $doc_name
+            WITH DISTINCT e
+            {entity_where}
+            RETURN e, labels(e) as labels
+            ORDER BY e.name
+            SKIP $offset LIMIT $limit
+        """
+
+        count_query = f"""
+            MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)-[:MENTIONS]->(e:ExtractedEntity)
+            WHERE d.name = $doc_name
+            WITH DISTINCT e
+            {entity_where}
+            RETURN count(e) as total
+        """
+
+        driver = await backend._get_driver()
+        async with driver.session() as session:
+            # Get total count
+            count_result = await session.run(count_query, params)
+            count_record = await count_result.single()
+            total = count_record["total"] if count_record else 0
+
+            # Get entities
+            result = await session.run(query, params)
+            records = await result.data()
+
+        logger.info(f"Query returned {len(records)} entity records for '{doc.filename}'")
+
+        entities = []
+        for record in records:
+            node = record["e"]
+            labels = record["labels"]
+            # Filter out base labels to get the specific entity type
+            entity_type_label = next(
+                (l for l in labels if l not in ["Entity", "ExtractedEntity"]),
+                labels[0] if labels else "Unknown"
+            )
+
+            entities.append({
+                "id": node.get("id") or node.get("name"),
+                "name": node.get("name", "Unnamed"),
+                "type": entity_type_label,
+                "layer": node.get("layer", "PERCEPTION"),
+                "confidence": node.get("confidence") or node.get("extraction_confidence", 0.7),
+                "properties": {k: v for k, v in node.items() if k not in ["id", "name", "layer", "confidence", "extraction_confidence", "source_document"]},
+            })
+
+        await backend._close_driver()
+
+        return {
+            "document_id": doc_id,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "entities": entities,
+        }
+
+    except ImportError:
+        # Neo4j not available, return mock data
+        logger.warning("Neo4j backend not available, returning empty entities")
+        return {
+            "document_id": doc_id,
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "entities": [],
+        }
+    except Exception as e:
+        logger.error(f"Error fetching document entities: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{doc_id}/graph")
+async def get_document_graph(
+    doc_id: str,
+    limit: int = Query(100, description="Maximum nodes to return"),
+):
+    """Get knowledge graph subgraph created by this document."""
+    doc = document_tracker.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    try:
+        from infrastructure.neo4j_backend import Neo4jBackend
+        import os
+
+        neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+        neo4j_user = os.environ.get("NEO4J_USERNAME", "neo4j")
+        neo4j_password = os.environ.get("NEO4J_PASSWORD", "password")
+
+        backend = Neo4jBackend(uri=neo4j_uri, username=neo4j_user, password=neo4j_password)
+
+        # Query entities via relationship path: Document -> Chunk -> Entity
+        # Then find relationships between those entities (LINKS_TO)
+        query = """
+            MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)-[:MENTIONS]->(e:ExtractedEntity)
+            WHERE d.name = $doc_name
+            WITH DISTINCT e
+            LIMIT $limit
+            OPTIONAL MATCH (e)-[r:LINKS_TO]-(other:ExtractedEntity)
+            RETURN e, labels(e) as labels, collect(DISTINCT {rel: r, target: other}) as connections
+        """
+
+        driver = await backend._get_driver()
+        async with driver.session() as session:
+            result = await session.run(query, {"doc_name": doc.filename, "limit": limit})
+            records = await result.data()
+
+        nodes = []
+        edges = []
+        seen_nodes = set()
+        seen_edges = set()
+
+        for record in records:
+            node = record["e"]
+            labels = record["labels"]
+            node_id = node.get("id") or node.get("name")
+
+            if node_id and node_id not in seen_nodes:
+                seen_nodes.add(node_id)
+                entity_type = next(
+                    (l for l in labels if l not in ["Entity", "ExtractedEntity"]),
+                    labels[0] if labels else "Unknown"
+                )
+                nodes.append({
+                    "id": node_id,
+                    "label": node.get("name", node_id),
+                    "name": node.get("name", node_id),
+                    "type": entity_type,
+                    "layer": node.get("layer", "PERCEPTION"),
+                    "confidence": node.get("confidence") or node.get("extraction_confidence", 0.7),
+                })
+
+            # Process connections (LINKS_TO relationships between entities)
+            for conn in record.get("connections", []):
+                rel = conn.get("rel")
+                target = conn.get("target")
+
+                if rel and target:
+                    target_id = target.get("id") or target.get("name")
+                    if target_id and target_id not in seen_nodes:
+                        seen_nodes.add(target_id)
+                        # Get target labels from the node dict
+                        target_type = target.get("type", "Unknown")
+                        nodes.append({
+                            "id": target_id,
+                            "label": target.get("name", target_id),
+                            "name": target.get("name", target_id),
+                            "type": target_type,
+                            "layer": target.get("layer", "PERCEPTION"),
+                            "confidence": target.get("confidence") or target.get("extraction_confidence", 0.7),
+                        })
+
+                    # Create edge
+                    edge_key = tuple(sorted([node_id, target_id]))
+                    if edge_key not in seen_edges:
+                        seen_edges.add(edge_key)
+                        rel_type = rel.type if hasattr(rel, 'type') else "LINKS_TO"
+                        edges.append({
+                            "source": node_id,
+                            "target": target_id,
+                            "type": rel_type,
+                            "label": rel_type,
+                        })
+
+        await backend._close_driver()
+
+        return {
+            "document_id": doc_id,
+            "nodes": nodes,
+            "edges": edges,
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+        }
+
+    except ImportError:
+        logger.warning("Neo4j backend not available, returning empty graph")
+        return {
+            "document_id": doc_id,
+            "nodes": [],
+            "edges": [],
+            "node_count": 0,
+            "edge_count": 0,
+        }
+    except Exception as e:
+        logger.error(f"Error fetching document graph: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/{doc_id}/quality")
 async def get_document_quality(doc_id: str):

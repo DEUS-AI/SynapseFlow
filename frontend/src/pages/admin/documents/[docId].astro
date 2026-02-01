@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { DocumentDetailView } from '../../../components/admin/DocumentDetailView';
+
+export const prerender = false;
+
+const { docId } = Astro.params;
+---
+
+<BaseLayout title="Document Details">
+  <div class="h-[calc(100vh-4rem)]">
+    <DocumentDetailView docId={docId} client:load />
+  </div>
+</BaseLayout>

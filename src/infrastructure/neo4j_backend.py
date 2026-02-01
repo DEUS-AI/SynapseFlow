@@ -640,6 +640,7 @@ class Neo4jBackend(KnowledgeGraphBackend):
               )
             RETURN coalesce(n.id, n.name) as id,
                    n.name as name,
+                   n.layer as layer,
                    labels(n) as labels,
                    coalesce(n.confidence, 0) as confidence,
                    coalesce(n.validation_count, 0) as validation_count,
@@ -662,6 +663,7 @@ class Neo4jBackend(KnowledgeGraphBackend):
             WHERE reference_count >= 5 OR coalesce(n.confidence, 0) >= $threshold
             RETURN coalesce(n.id, n.name) as id,
                    n.name as name,
+                   n.layer as layer,
                    labels(n) as labels,
                    coalesce(n.confidence, 0.5) as confidence,
                    reference_count,
@@ -680,6 +682,7 @@ class Neo4jBackend(KnowledgeGraphBackend):
               AND coalesce(n.query_count, 0) >= 10
             RETURN coalesce(n.id, n.name) as id,
                    n.name as name,
+                   n.layer as layer,
                    labels(n) as labels,
                    coalesce(n.confidence, 0.5) as confidence,
                    n.query_count as query_count,

@@ -21,9 +21,11 @@ interface SimEdge extends GraphEdge {
 
 interface KnowledgeGraphViewerProps {
   initialData?: GraphData;
+  documentFilter?: string;
+  hideControls?: boolean;
 }
 
-export function KnowledgeGraphViewer({ initialData }: KnowledgeGraphViewerProps) {
+export function KnowledgeGraphViewer({ initialData, documentFilter, hideControls = false }: KnowledgeGraphViewerProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [graphData, setGraphData] = useState<GraphData | null>(initialData || null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
@@ -31,24 +33,31 @@ export function KnowledgeGraphViewer({ initialData }: KnowledgeGraphViewerProps)
   const [loading, setLoading] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState<LayerType>('all');
 
-  // Load graph data from API - fetches dynamically based on selected layer
+  // Load graph data from API - fetches dynamically based on selected layer and document filter
   useEffect(() => {
-    if (initialData && selectedLayer === 'all') {
-      // Use initial data only for 'all' layer if provided
+    if (initialData && selectedLayer === 'all' && !documentFilter) {
+      // Use initial data only for 'all' layer if provided and no document filter
       setGraphData(initialData);
       return;
     }
 
     setLoading(true);
 
-    // Build URL with layer parameter for server-side filtering
-    const params = new URLSearchParams({ limit: '300' });
-    if (selectedLayer !== 'all') {
-      // Send lowercase to match stored data format
-      params.set('layer', selectedLayer.toLowerCase());
+    // Determine the endpoint based on whether we have a document filter
+    let url: string;
+    if (documentFilter) {
+      // Use document-specific endpoint
+      url = `/api/admin/documents/${encodeURIComponent(documentFilter)}/graph?limit=300`;
+    } else {
+      // Use general graph endpoint
+      const params = new URLSearchParams({ limit: '300' });
+      if (selectedLayer !== 'all') {
+        params.set('layer', selectedLayer.toLowerCase());
+      }
+      url = `/api/graph/data?${params}`;
     }
 
-    fetch(`/api/graph/data?${params}`)
+    fetch(url)
       .then(res => {
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -70,7 +79,7 @@ export function KnowledgeGraphViewer({ initialData }: KnowledgeGraphViewerProps)
         setGraphData({ nodes: [], edges: [] }); // Set empty data on error
         setLoading(false);
       });
-  }, [initialData, selectedLayer]);
+  }, [initialData, selectedLayer, documentFilter]);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -269,21 +278,28 @@ export function KnowledgeGraphViewer({ initialData }: KnowledgeGraphViewerProps)
   return (
     <div className="flex h-full bg-slate-900">
       <div className="flex-1 relative">
-        <GraphControls
-          onLayoutChange={setLayout}
-          onLayerChange={setSelectedLayer}
-          selectedLayer={selectedLayer}
-          onReset={() => {
-            // Reset zoom
-            const svg = d3.select(svgRef.current);
-            svg.transition().duration(750).call(
-              (d3.zoom() as any).transform,
-              d3.zoomIdentity
-            );
-          }}
-          nodeCount={graphData?.nodes?.length ?? 0}
-          edgeCount={graphData?.edges?.length ?? 0}
-        />
+        {!hideControls && (
+          <GraphControls
+            onLayoutChange={setLayout}
+            onLayerChange={setSelectedLayer}
+            selectedLayer={selectedLayer}
+            onReset={() => {
+              // Reset zoom
+              const svg = d3.select(svgRef.current);
+              svg.transition().duration(750).call(
+                (d3.zoom() as any).transform,
+                d3.zoomIdentity
+              );
+            }}
+            nodeCount={graphData?.nodes?.length ?? 0}
+            edgeCount={graphData?.edges?.length ?? 0}
+          />
+        )}
+        {hideControls && graphData?.nodes?.length !== undefined && (
+          <div className="absolute top-4 right-4 z-10 bg-slate-800/90 px-3 py-1.5 rounded-lg text-sm text-slate-300">
+            {graphData.nodes.length} nodes, {graphData.edges?.length ?? 0} edges
+          </div>
+        )}
         {renderContent()}
         <svg
           ref={svgRef}
