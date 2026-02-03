@@ -1,0 +1,29 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { MetadataViewer } from '../../components/dda/MetadataViewer';
+---
+
+<BaseLayout title="Metadata Viewer">
+  <div class="min-h-screen bg-gray-50">
+    <header class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 py-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Metadata Viewer</h1>
+            <p class="mt-2 text-gray-600">Browse catalogs, schemas, tables, and columns</p>
+          </div>
+          <a
+            href="/dda"
+            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+          >
+            ← Back to DDA Management
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+      <MetadataViewer client:load />
+    </main>
+  </div>
+</BaseLayout>

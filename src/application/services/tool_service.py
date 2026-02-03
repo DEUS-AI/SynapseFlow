@@ -2,8 +2,8 @@ import inspect
 from typing import Type
 from pydantic import BaseModel
 
-from src.domain.commands import Command
-from src.domain.tool_definition import ToolDefinition
+from domain.commands import Command
+from domain.tool_definition import ToolDefinition
 
 
 def command_to_tool_definition(command_cls: Type[Command]) -> ToolDefinition:

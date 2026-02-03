@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { ChatInterface } from '../../components/chat/ChatInterface';
+
+// For static build, we need to define possible paths
+// In development/production with dynamic routing, this would come from the API
+export async function getStaticPaths() {
+  // Return a demo patient for static build
+  return [
+    { params: { patientId: 'patient:demo' } },
+  ];
+}
+
+const { patientId } = Astro.params;
+
+// Generate session ID (in production, would come from auth)
+const sessionId = `session:${Date.now()}`;
+---
+
+<BaseLayout title="Patient Chat">
+  <div class="chat-container">
+    <ChatInterface
+      patientId={patientId}
+      sessionId={sessionId}
+      client:load
+    />
+  </div>
+</BaseLayout>
+
+<style>
+  .chat-container {
+    height: calc(100vh - 4rem);
+  }
+</style>

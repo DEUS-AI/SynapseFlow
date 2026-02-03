@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock, AsyncMock, patch
 from application.commands.modeling_command import ModelingCommand
 from application.commands.modeling_handler import ModelingCommandHandler
 from application.agents.data_architect.modeling_workflow import ModelingWorkflow, ModelingResult
@@ -189,7 +189,8 @@ class TestModelingWorkflow:
         mock_domain_modeler.create_domain_graph.return_value = {
             "nodes": [],
             "relationships": [],
-            "domain": "Test Domain"
+            "domain": "Test Domain",
+            "group_id": "test_group"  # Add group_id for handoff
         }
         
         # Create command with a temporary file
@@ -206,8 +207,23 @@ class TestModelingWorkflow:
                 output_path=None
             )
             
-            # Execute workflow
-            result = await workflow.execute(command)
+            # Mock httpx for handoff (httpx is imported inside the method)
+            with patch('httpx.AsyncClient') as mock_client_class:
+                mock_response = Mock()
+                mock_response.json.return_value = {"status": "success"}
+                mock_response.raise_for_status = Mock()
+                mock_client_instance = AsyncMock()
+                mock_client_instance.__aenter__.return_value = mock_client_instance
+                mock_client_instance.__aexit__.return_value = None
+                mock_client_instance.post = AsyncMock(return_value=mock_response)
+                mock_client_class.return_value = mock_client_instance
+                
+                # Execute workflow
+                result = await workflow.execute(command)
+            
+            # Debug: print result if it failed
+            if not result.get("success"):
+                print(f"Workflow failed: {result}")
             
             # Verify results
             assert result["success"] is True

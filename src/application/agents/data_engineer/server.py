@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from application.commands.base import CommandBus
-from src.domain.agent_definition import AgentDefinition
-from src.application.services.tool_service import command_to_tool_definition
+from domain.agent_definition import AgentDefinition
+from application.services.tool_service import command_to_tool_definition
 
 
 class A2ATask(BaseModel):

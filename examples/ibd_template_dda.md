@@ -2,87 +2,37 @@
 
 ## Document Information
 - **Domain**: Inflammatory Bowel Disease
-- **Stakeholders**: [List key stakeholders]
-- **Data Owner**: [Data owner name/role]
-- **Effective Date**: [YYYY-MM-DD]
-- **Review Cycle**: [Monthly/Quarterly/Annually]
+- **Stakeholders**: Clinical Team
+- **Data Owner**: Data Owner
+- **Effective Date**: 2025-01-01
+- **Review Cycle**: Quarterly
 
 ## Business Context
-[Describe the business context and purpose of this domain]
+The purpose of this DDA is to model patient and encounter data for inflammatory bowel disease research and care.
 
 ## Data Entities
 
-### [Entity Name]
-- **Description**: [Entity description]
+### Patient
+- **Description**: Patient demographic information.
 - **Key Attributes**:
-  - [Attribute 1] (Primary Key)
-  - [Attribute 2]
-  - [Attribute 3]
+  - Patient ID (Primary Key)
+  - Name
+  - Date of Birth
 - **Business Rules**:
-  - [Business rule 1]
-  - [Business rule 2]
+  - Patient ID must be unique.
 
-### [Entity Name 2]
-- **Description**: [Entity description]
+### Encounter
+- **Description**: Clinical encounter records for patients.
 - **Key Attributes**:
-  - [Attribute 1] (Primary Key)
-  - [Attribute 2] (Foreign Key)
-  - [Attribute 3]
+  - Encounter ID (Primary Key)
+  - Patient ID (Foreign Key)
+  - Encounter Date
 - **Business Rules**:
-  - [Business rule 1]
-  - [Business rule 2]
+  - Patient ID must reference a valid Patient.
 
 ## Relationships
 
-### [Relationship Category]
-- **[Entity 1]** → **[Entity 2]** (1:N)
-  - [Relationship description]
-  - [Constraints]
-
-- **[Entity 1]** → **[Entity 3]** (M:N)
-  - [Relationship description]
-  - [Constraints]
-
-## Data Quality Requirements
-
-### Completeness
-- [Completeness requirement 1]
-- [Completeness requirement 2]
-
-### Accuracy
-- [Accuracy requirement 1]
-- [Accuracy requirement 2]
-
-### Timeliness
-- [Timeliness requirement 1]
-- [Timeliness requirement 2]
-
-## Access Patterns
-
-### Common Queries
-1. [Query description 1]
-2. [Query description 2]
-3. [Query description 3]
-
-### Performance Requirements
-- [Performance requirement 1]
-- [Performance requirement 2]
-
-## Data Governance
-
-### Privacy
-- [Privacy requirement 1]
-- [Privacy requirement 2]
-
-### Security
-- [Security requirement 1]
-- [Security requirement 2]
-
-### Compliance
-- [Compliance requirement 1]
-- [Compliance requirement 2]
-
-## Success Metrics
-- [Success metric 1]
-- [Success metric 2]
-- [Success metric 3]
+### Clinical
+- **Patient** → **Encounter** (1:N)
+  - Each patient can have multiple encounters.
+  - Constraint: Patient ID foreign key in Encounter.

@@ -9,7 +9,7 @@
 
 ## Phase 2: Core Implementation
 - [x] Implement MarkItDown wrapper for document conversion (with robust integration tests)
-- [ ] Implement knowledge management agent/service (for escalated/complex ops)
+- [x] Implement knowledge management agent/service (for escalated/complex ops)
 - [ ] Integrate KG update logic into agents (for simple ops)
 - [ ] Implement event bus (RabbitMQ) and API (FastAPI) for KG operations
 - [ ] Implement layered knowledge organization in codebase (dynamic ontology)

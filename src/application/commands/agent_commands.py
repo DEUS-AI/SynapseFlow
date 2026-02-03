@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 from application.agent_runner import AgentRunner
 from application.commands.base import CommandHandler
-from src.domain.commands import Command
+from domain.commands import Command
 
 
 class RunAgentCommand(Command, BaseModel):

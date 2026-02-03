@@ -1,0 +1,16 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { KnowledgeGraphViewer } from '../../components/graph/KnowledgeGraphViewer';
+---
+
+<BaseLayout title="Knowledge Graph">
+  <div class="h-full">
+    <KnowledgeGraphViewer client:load />
+  </div>
+</BaseLayout>
+
+<style>
+  div {
+    height: calc(100vh - 4rem);
+  }
+</style>

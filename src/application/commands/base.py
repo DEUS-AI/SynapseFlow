@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, TypeVar
 
-from src.domain.command_bus import CommandBus as AbstractCommandBus
-from src.domain.commands import Command
+from domain.command_bus import CommandBus as AbstractCommandBus
+from domain.commands import Command
 
 T = TypeVar("T", bound=Command)
 

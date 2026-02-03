@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from domain.communication import CommunicationChannel, Message
-from src.domain.command_bus import CommandBus
+from domain.command_bus import CommandBus
 
 
 class Agent(ABC):

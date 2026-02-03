@@ -22,9 +22,12 @@ class InMemoryGraphBackend(KnowledgeGraphBackend):
         # History stack for rudimentary rollback support
         self._history: List[Tuple[str, Any]] = []
 
-    async def add_entity(self, entity_id: str, properties: Dict[str, Any]) -> None:
+    async def add_entity(self, entity_id: str, properties: Dict[str, Any], labels: List[str] = None) -> None:
         # Overwrite existing properties if the entity already exists
-        self.nodes[entity_id] = dict(properties)
+        props = dict(properties)
+        if labels:
+            props["labels"] = labels
+        self.nodes[entity_id] = props
         # Record history for rollback
         self._history.append(("entity", entity_id))
 
@@ -72,3 +75,32 @@ class InMemoryGraphBackend(KnowledgeGraphBackend):
             "nodes": copy.deepcopy(self.nodes),
             "edges": {k: copy.deepcopy(v) for k, v in self.edges.items()},
         }
+
+    async def list_relationships(
+        self,
+        source_id: str = None,
+        target_id: str = None,
+        relationship_type: str = None
+    ) -> List[Dict[str, Any]]:
+        """List relationships matching criteria."""
+        results = []
+        
+        for src, edges in self.edges.items():
+            if source_id and src != source_id:
+                continue
+                
+            for rel_type, tgt, props in edges:
+                if target_id and tgt != target_id:
+                    continue
+                
+                if relationship_type and rel_type != relationship_type:
+                    continue
+                    
+                results.append({
+                    "source": src,
+                    "target": tgt,
+                    "type": rel_type,
+                    "properties": props
+                })
+        
+        return results

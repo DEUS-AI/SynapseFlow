@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:/root/.cargo/bin:$PATH"
+
+# Copy project files
+COPY pyproject.toml .
+COPY src/ src/
+COPY .env .
+
+# Install dependencies
+RUN uv pip install --system .
+
+# Set python path
+ENV PYTHONPATH=/app/src
+
+# Default command (can be overridden)
+CMD ["python", "-m", "src.interfaces.cli", "--help"]

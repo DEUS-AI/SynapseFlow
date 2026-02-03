@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List
-from src.domain.tool_definition import ToolDefinition
+from domain.tool_definition import ToolDefinition
 
 
 class AgentDefinition(BaseModel):

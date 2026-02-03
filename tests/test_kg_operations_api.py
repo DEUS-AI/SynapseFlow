@@ -397,7 +397,11 @@ class TestKGOperationsAPI(unittest.TestCase):
 
     def test_cors_headers(self):
         """Test that CORS headers are properly set."""
-        response = self.client.options("/health")
+        # CORS preflight request requires Origin header
+        response = self.client.options(
+            "/health",
+            headers={"Origin": "http://localhost:3000"}
+        )
         # CORS preflight request should work
         self.assertIn("access-control-allow-origin", response.headers)
 

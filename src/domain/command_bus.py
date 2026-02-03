@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Type
 
-from src.domain.commands import Command
+from domain.commands import Command
 
 
 class CommandBus(ABC):

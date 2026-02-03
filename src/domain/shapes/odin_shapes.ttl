@@ -1,0 +1,349 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix odin: <http://example.org/odin#> .
+@prefix schema: <http://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# --- Data Entity Shapes ---
+
+odin:DataEntityShape
+    a sh:NodeShape ;
+    sh:targetClass odin:DataEntity ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A DataEntity must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:origin ;
+        sh:minCount 1 ;
+        sh:message "A DataEntity must have an origin (e.g., source system)." ;
+    ] .
+
+# --- Information Asset Shapes ---
+
+odin:InformationAssetShape
+    a sh:NodeShape ;
+    sh:targetClass odin:InformationAsset ;
+    sh:property [
+        sh:path odin:derivedFrom ;
+        sh:minCount 1 ;
+        sh:class odin:DataEntity ;
+        sh:message "An InformationAsset must be derived from at least one DataEntity." ;
+    ] .
+
+# --- Business Concept Shapes ---
+
+odin:BusinessConceptShape
+    a sh:NodeShape ;
+    sh:targetClass odin:BusinessConcept ;
+    sh:property [
+        sh:path odin:description ;
+        sh:minCount 1 ;
+        sh:message "A BusinessConcept must have a description." ;
+    ] .
+
+# --- Column Shapes ---
+
+odin:ColumnShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Column ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Column must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:belongsTo ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:class odin:Table ;
+        sh:message "A Column must belong to exactly one Table." ;
+    ] ;
+    sh:property [
+        sh:path odin:hasDataType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "A Column must have exactly one data type assignment." ;
+    ] ;
+    sh:property [
+        sh:path odin:layer ;
+        sh:in ( "PERCEPTION" "SEMANTIC" "REASONING" "APPLICATION" ) ;
+        sh:message "Column layer must be one of: PERCEPTION, SEMANTIC, REASONING, APPLICATION." ;
+    ] .
+
+# --- Table Shapes ---
+
+odin:TableShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Table ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Table must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:belongsTo ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:class odin:Schema ;
+        sh:message "A Table must belong to exactly one Schema." ;
+    ] ;
+    sh:property [
+        sh:path odin:hasColumn ;
+        sh:minCount 1 ;
+        sh:class odin:Column ;
+        sh:message "A Table must have at least one Column." ;
+    ] ;
+    sh:property [
+        sh:path odin:layer ;
+        sh:hasValue "PERCEPTION" ;
+        sh:message "Table entities must be in PERCEPTION layer." ;
+    ] .
+
+# --- Constraint Shapes ---
+
+odin:ConstraintShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Constraint ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Constraint must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:constraintType ;
+        sh:minCount 1 ;
+        sh:in ( "PRIMARY_KEY" "FOREIGN_KEY" "UNIQUE" "NOT_NULL" "CHECK" "DEFAULT" ) ;
+        sh:message "Constraint type must be one of: PRIMARY_KEY, FOREIGN_KEY, UNIQUE, NOT_NULL, CHECK, DEFAULT." ;
+    ] ;
+    sh:property [
+        sh:path odin:appliesTo ;
+        sh:minCount 1 ;
+        sh:class odin:Column ;
+        sh:message "A Constraint must apply to at least one Column." ;
+    ] .
+
+# --- Foreign Key Constraint Specific Shape ---
+
+odin:ForeignKeyConstraintShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Constraint ;
+    sh:sparql [
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this odin:constraintType "FOREIGN_KEY" .
+                FILTER NOT EXISTS { $this odin:referencesColumn ?refCol }
+            }
+        """ ;
+        sh:message "A FOREIGN_KEY constraint must reference a column." ;
+    ] .
+
+# --- Relationship Shapes ---
+
+odin:RelationshipShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Relationship ;
+    sh:property [
+        sh:path odin:source ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "A Relationship must have exactly one source." ;
+    ] ;
+    sh:property [
+        sh:path odin:target ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "A Relationship must have exactly one target." ;
+    ] ;
+    sh:property [
+        sh:path odin:relationshipType ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Relationship must have a type." ;
+    ] .
+
+# --- Domain Shapes ---
+
+odin:DomainShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Domain ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Domain must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:description ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Domain must have a description." ;
+    ] ;
+    sh:property [
+        sh:path odin:layer ;
+        sh:hasValue "SEMANTIC" ;
+        sh:message "Domain entities must be in SEMANTIC layer." ;
+    ] .
+
+# --- Type Assignment Shapes ---
+
+odin:TypeAssignmentShape
+    a sh:NodeShape ;
+    sh:targetClass odin:TypeAssignment ;
+    sh:property [
+        sh:path odin:column ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:class odin:Column ;
+        sh:message "A TypeAssignment must reference exactly one Column." ;
+    ] ;
+    sh:property [
+        sh:path odin:dataType ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:class odin:DataType ;
+        sh:message "A TypeAssignment must reference exactly one DataType." ;
+    ] ;
+    sh:property [
+        sh:path odin:layer ;
+        sh:hasValue "PERCEPTION" ;
+        sh:message "TypeAssignment entities must be in PERCEPTION layer." ;
+    ] .
+
+# --- Schema Shapes ---
+
+odin:SchemaShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Schema ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Schema must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:belongsTo ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:class odin:Catalog ;
+        sh:message "A Schema must belong to exactly one Catalog." ;
+    ] ;
+    sh:property [
+        sh:path odin:layer ;
+        sh:hasValue "PERCEPTION" ;
+        sh:message "Schema entities must be in PERCEPTION layer." ;
+    ] .
+
+# --- Catalog Shapes ---
+
+odin:CatalogShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Catalog ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A Catalog must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:layer ;
+        sh:hasValue "PERCEPTION" ;
+        sh:message "Catalog entities must be in PERCEPTION layer." ;
+    ] .
+
+# --- Data Quality Rule Shapes ---
+
+odin:DataQualityRuleShape
+    a sh:NodeShape ;
+    sh:targetClass odin:DataQualityRule ;
+    sh:property [
+        sh:path odin:name ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A DataQualityRule must have a name." ;
+    ] ;
+    sh:property [
+        sh:path odin:expression ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "A DataQualityRule must have an expression." ;
+    ] ;
+    sh:property [
+        sh:path odin:dimension ;
+        sh:minCount 1 ;
+        sh:in ( "COMPLETENESS" "ACCURACY" "CONSISTENCY" "TIMELINESS" "VALIDITY" ) ;
+        sh:message "DataQualityRule dimension must be one of: COMPLETENESS, ACCURACY, CONSISTENCY, TIMELINESS, VALIDITY." ;
+    ] ;
+    sh:property [
+        sh:path odin:layer ;
+        sh:hasValue "REASONING" ;
+        sh:message "DataQualityRule entities must be in REASONING layer." ;
+    ] .
+
+# --- Layer Hierarchy Constraints ---
+
+odin:LayerHierarchyShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Relationship ;
+    sh:sparql [
+        sh:select """
+            PREFIX odin: <http://example.org/odin#>
+            SELECT $this
+            WHERE {
+                $this odin:source ?source ;
+                      odin:target ?target .
+                ?source odin:layer ?sourceLayer .
+                ?target odin:layer ?targetLayer .
+
+                # Define layer ordering: PERCEPTION(1) < SEMANTIC(2) < REASONING(3) < APPLICATION(4)
+                # Relationships should generally go from lower to higher layers
+                # Reverse relationships (higher to lower) should be flagged
+
+                FILTER (
+                    (?sourceLayer = "REASONING" && ?targetLayer = "PERCEPTION") ||
+                    (?sourceLayer = "REASONING" && ?targetLayer = "SEMANTIC") ||
+                    (?sourceLayer = "APPLICATION" && ?targetLayer = "PERCEPTION") ||
+                    (?sourceLayer = "APPLICATION" && ?targetLayer = "SEMANTIC") ||
+                    (?sourceLayer = "APPLICATION" && ?targetLayer = "REASONING")
+                )
+            }
+        """ ;
+        sh:message "Relationships should generally flow from lower layers to higher layers in the DIKW hierarchy." ;
+    ] .
+
+# --- Confidence Score Constraints ---
+
+odin:ConfidenceScoreShape
+    a sh:NodeShape ;
+    sh:targetClass odin:BusinessConcept, odin:InformationAsset ;
+    sh:property [
+        sh:path odin:confidence ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:datatype xsd:decimal ;
+        sh:message "Confidence score must be between 0.0 and 1.0." ;
+    ] .
+
+# --- Reasoning Layer Constraints ---
+
+odin:ReasoningLayerShape
+    a sh:NodeShape ;
+    sh:targetClass odin:Entity ;
+    sh:sparql [
+        sh:select """
+            PREFIX odin: <http://example.org/odin#>
+            SELECT $this
+            WHERE {
+                $this odin:layer "REASONING" .
+                FILTER NOT EXISTS { $this odin:confidence ?conf }
+            }
+        """ ;
+        sh:message "Entities in REASONING layer must have a confidence score." ;
+    ] .

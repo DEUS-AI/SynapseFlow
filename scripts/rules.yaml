@@ -1,0 +1,17 @@
+- name: "PII Encryption Required"
+  description: "Columns classified as PII must have encryption_required=True"
+  target: "Column"
+  condition: "node.get('classification') == 'PII' and not node.get('encryption_required')"
+  violation_message: "PII column without encryption"
+
+- name: "Retention Policy Required"
+  description: "Tables must have a retention period defined"
+  target: "Table"
+  condition: "not node.get('retention_period')"
+  violation_message: "Table missing retention period"
+
+- name: "Access Control Defined"
+  description: "Tables must have access control roles defined"
+  target: "Table"
+  condition: "not node.get('access_control')"
+  violation_message: "Table missing access control roles"

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
-from src.domain.commands import Command
+from domain.commands import Command
 import os
 
 

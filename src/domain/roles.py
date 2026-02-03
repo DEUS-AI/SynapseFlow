@@ -15,4 +15,5 @@ class Role(str, Enum):
     DATA_ARCHITECT = "data_architect"
     DATA_ENGINEER = "data_engineer"
     KNOWLEDGE_MANAGER = "knowledge_manager"
+    MEDICAL_ASSISTANT = "medical_assistant"
     SYSTEM_ADMIN = "system_admin"
