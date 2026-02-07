@@ -1,6 +1,6 @@
 """Reasoning engine for applying symbolic logic to knowledge graph operations."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from domain.kg_backends import KnowledgeGraphBackend
 from domain.event import KnowledgeEvent
 from domain.confidence_models import (
@@ -12,6 +12,9 @@ from domain.confidence_models import (
 from graphiti_core import Graphiti
 from .ontology_mapper import OntologyMapper
 import logging
+
+if TYPE_CHECKING:
+    from application.rules.medical_rules import MedicalRulesEngine
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +34,8 @@ class ReasoningEngine:
         self,
         backend: KnowledgeGraphBackend,
         llm: Optional[Graphiti] = None,
-        enable_confidence_tracking: bool = True
+        enable_confidence_tracking: bool = True,
+        medical_rules_engine: Optional["MedicalRulesEngine"] = None
     ):
         self.backend = backend
         self.llm = llm
@@ -44,6 +48,16 @@ class ReasoningEngine:
         if llm:
             from .llm_reasoner import LLMReasoner
             self.llm_reasoner = LLMReasoner(llm)
+
+        # Initialize Medical Rules Engine (if provided or create default)
+        self.medical_rules_engine = medical_rules_engine
+        if self.medical_rules_engine is None:
+            try:
+                from application.rules.medical_rules import MedicalRulesEngine
+                self.medical_rules_engine = MedicalRulesEngine()
+                logger.info("MedicalRulesEngine initialized with default configuration")
+            except ImportError:
+                logger.warning("MedicalRulesEngine not available - using built-in rules only")
 
         # Track reasoning provenance
         self._reasoning_provenance: Dict[str, List[Dict[str, Any]]] = {}
@@ -1498,6 +1512,7 @@ class ReasoningEngine:
         Check for drug allergies and medication interactions (CRITICAL SAFETY).
 
         This is the highest priority reasoning rule for patient safety.
+        Uses MedicalRulesEngine when available for comprehensive rule evaluation.
         """
         patient_context = event.data.get("patient_context")
 
@@ -1505,12 +1520,86 @@ class ReasoningEngine:
             return None
 
         # Extract medications mentioned in question
-        question = event.data.get("question", "").lower()
         medical_entities = event.data.get("medical_entities", [])
 
         warnings = []
         inferences = []
 
+        # Use MedicalRulesEngine if available for comprehensive evaluation
+        if self.medical_rules_engine:
+            from application.rules.medical_rules import PatientContext as RulesPatientContext
+
+            # Build rules patient context
+            rules_context = RulesPatientContext(
+                medications=[med.get("name", "") for med in patient_context.medications],
+                allergies=patient_context.allergies,
+                conditions=[dx.get("condition", "") for dx in patient_context.diagnoses],
+                symptoms=event.data.get("symptoms", []),
+            )
+
+            # Evaluate all medical rules
+            evaluation = self.medical_rules_engine.evaluate(rules_context)
+
+            # Convert rule results to reasoning format
+            for result in evaluation.results:
+                severity_map = {
+                    "CRITICAL": "critical",
+                    "HIGH": "high",
+                    "MODERATE": "medium",
+                    "LOW": "low",
+                    "INFO": "info",
+                }
+                severity = severity_map.get(result.severity.value, "medium")
+
+                if result.severity.value in ("CRITICAL", "HIGH"):
+                    warnings.append(f"⚠️ {result.severity.value}: {result.message}")
+
+                inferences.append({
+                    "type": result.category.value.lower() + "_detected",
+                    "severity": severity,
+                    "rule_id": result.rule_id,
+                    "message": result.message,
+                    "recommendation": result.recommendation,
+                    "confidence": result.confidence,
+                    "reason": f"Medical rule: {result.rule_id}",
+                    "triggered_by": result.triggered_by,
+                })
+
+            # If no issues found, add positive signal
+            if not evaluation.has_critical and not evaluation.has_high:
+                inferences.append({
+                    "type": "no_critical_contraindications",
+                    "confidence": 0.90,
+                    "reason": "No critical or high-severity issues detected by MedicalRulesEngine"
+                })
+
+            logger.info(
+                f"MedicalRulesEngine evaluated: {len(evaluation.results)} issues, "
+                f"critical={evaluation.has_critical}, high={evaluation.has_high}"
+            )
+        else:
+            # Fallback to built-in simple checks if MedicalRulesEngine not available
+            await self._check_contraindications_fallback(
+                patient_context, medical_entities, warnings, inferences
+            )
+
+        return {
+            "warnings": warnings,
+            "inferences": inferences
+        }
+
+    async def _check_contraindications_fallback(
+        self,
+        patient_context,
+        medical_entities: List[Dict[str, Any]],
+        warnings: List[str],
+        inferences: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Fallback contraindication check using built-in rules.
+
+        Used when MedicalRulesEngine is not available.
+        """
         # Check 1: Allergy contraindications
         allergies = patient_context.allergies
         for entity in medical_entities:
@@ -1531,10 +1620,10 @@ class ReasoningEngine:
                         "reason": "Patient has documented allergy to similar substance"
                     })
 
-        # Check 2: Current medication interactions (simplified - would use drug database in production)
+        # Check 2: Current medication interactions
         current_meds = [med["name"].lower() for med in patient_context.medications]
 
-        # Known interaction pairs (simplified for demo - production would use drug interaction API)
+        # Known interaction pairs (simplified fallback)
         known_interactions = {
             ("warfarin", "aspirin"): "Increased bleeding risk",
             ("methotrexate", "nsaid"): "Increased toxicity risk",
@@ -1567,17 +1656,11 @@ class ReasoningEngine:
                     })
 
         if not warnings and not inferences:
-            # No contraindications found - positive signal
             inferences.append({
                 "type": "no_contraindications",
                 "confidence": 0.90,
                 "reason": "No contraindications detected based on patient allergies and current medications"
             })
-
-        return {
-            "warnings": warnings,
-            "inferences": inferences
-        }
 
     async def _analyze_treatment_history(
         self,
