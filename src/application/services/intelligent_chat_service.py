@@ -223,7 +223,8 @@ Answer:"""
         question: str,
         conversation_history: Optional[List[Message]] = None,
         patient_id: Optional[str] = None,  # NEW: Patient identifier
-        session_id: Optional[str] = None   # NEW: Session identifier
+        session_id: Optional[str] = None,  # NEW: Session identifier
+        response_id: Optional[str] = None  # NEW: Response ID for feedback tracking
     ) -> ChatResponse:
         """
         Process a user question and generate an answer.
@@ -233,6 +234,7 @@ Answer:"""
             conversation_history: Previous messages in the conversation
             patient_id: Optional patient identifier for personalized responses
             session_id: Optional session identifier for conversation tracking
+            response_id: Optional response ID for feedback tracking (persisted with message)
 
         Returns:
             ChatResponse with answer, confidence, sources, and reasoning
@@ -416,7 +418,7 @@ Answer:"""
                 # Extract and store medical facts from user message
                 await self._extract_and_store_medical_facts(question, patient_id)
 
-                # Store assistant message
+                # Store assistant message with full metadata for later retrieval
                 await self.patient_memory.store_message(
                     ConversationMessage(
                         role="assistant",
@@ -426,8 +428,11 @@ Answer:"""
                         session_id=session_id,
                         metadata={
                             "confidence": confidence,
-                            "sources_count": len(sources),
-                            "reasoning_steps": len(reasoning_result.get("provenance", []))
+                            "sources": sources,  # Full sources array
+                            "reasoning_trail": reasoning_result.get("provenance", []),
+                            "related_concepts": related_concepts,
+                            "query_time": query_time,
+                            "response_id": response_id,  # For feedback tracking after reload
                         }
                     )
                 )
@@ -495,12 +500,21 @@ Return a JSON object with these arrays (empty if none found):
 - diagnoses: [{condition: "disease name", details: "any additional info like when diagnosed"}]
 - medications: [{name: "drug name", dosage: "if mentioned", frequency: "if mentioned"}]
 - stopped_medications: [{name: "drug name", reason: "why stopped if mentioned"}]
+- resolved_conditions: [{condition: "condition name", details: "any info about when/how resolved"}]
 - allergies: [{substance: "allergen", reaction: "if mentioned", severity: "mild/moderate/severe if mentioned"}]
 
 IMPORTANT: Distinguish between:
 - "I take ibuprofen" → add to medications
 - "I stopped taking ibuprofen" / "I no longer take ibuprofen" / "I discontinued ibuprofen" → add to stopped_medications
 - "I'm not taking ibuprofen anymore" → add to stopped_medications
+
+IMPORTANT: Detect RESOLVED conditions (symptoms/diagnoses that are no longer present):
+- "I no longer have knee pain" → add to resolved_conditions
+- "my headache is gone" → add to resolved_conditions
+- "the pain went away" → add to resolved_conditions
+- "my back is much better now" / "it has cleared up" → add to resolved_conditions
+- "I don't have that pain anymore" → add to resolved_conditions
+- "my X has resolved" / "X is better" → add to resolved_conditions
 
 Only extract facts the patient explicitly states about THEMSELVES (not general questions).
 Be precise - "I have Crohn's disease" is a diagnosis, "what is Crohn's disease" is NOT.
@@ -560,6 +574,19 @@ Patient message: """ + message
                         logger.info(f"Marked medication as discontinued: {stopped_med['name']} for {patient_id}")
                     except Exception as e:
                         logger.warning(f"Failed to discontinue medication {stopped_med['name']}: {e}")
+
+            # Handle resolved conditions (diagnoses/symptoms that are no longer present)
+            for resolved in result.get("resolved_conditions", []):
+                if resolved.get("condition"):
+                    try:
+                        await self.patient_memory.resolve_diagnosis(
+                            patient_id=patient_id,
+                            diagnosis_name=resolved["condition"],
+                            resolution_reason=resolved.get("details", "Patient reported condition resolved")
+                        )
+                        logger.info(f"Marked condition as resolved: {resolved['condition']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to resolve condition {resolved['condition']}: {e}")
 
             # Store extracted allergies
             for allergy in result.get("allergies", []):

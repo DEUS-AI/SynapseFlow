@@ -1,13 +1,71 @@
 # SynapseFlow Project Status & Roadmap
 
-**Date:** 2026-01-28
-**Current Status:** Core Infrastructure Complete, RLHF Verification Pending
+**Date:** 2026-02-02
+**Current Status:** LangGraph Conversation Engine Complete
 
 ---
 
-## 🎉 Completed Today (2026-01-28)
+## 🎉 Completed Today (2026-02-02)
 
-### Storage Architecture Migration (PostgreSQL Dual-Write) ✅ NEW!
+### LangGraph Conversation Engine
+
+**Status:** 100% Complete, 29 Tests Passing
+
+**What Was Built:**
+- LangGraph-based state machine for multi-turn conversations
+- 6 conversation modes: CASUAL_CHAT, MEDICAL_CONSULT, RESEARCH_EXPLORE, GOAL_DRIVEN, FOLLOW_UP, CLOSING
+- Goal-driven dialogue system with slot filling
+- 5 goal templates: Diet Planning, Exercise Planning, Disease Education, Medication Management, Mental Health Support
+- Feature flag (`enable_langgraph_chat`) for gradual rollout
+- Streaming support for real-time responses
+- Integration with existing memory services
+
+**Key Files Created:**
+| File | Purpose |
+|------|---------|
+| `src/domain/conversation_state.py` | State schema with ConversationMode, GoalType enums |
+| `src/domain/goal_templates.py` | Goal slot templates for 5 goal types |
+| `src/application/services/conversation_graph.py` | Main LangGraph graph definition |
+| `src/application/services/conversation_nodes.py` | Node implementations (entry, classifier, mode nodes) |
+| `src/application/services/conversation_router.py` | Conditional routing logic |
+| `src/application/services/langgraph_chat_service.py` | Service wrapper for API compatibility |
+| `tests/test_conversation_graph.py` | 29 comprehensive tests |
+
+**How to Enable:**
+```bash
+# Via environment variable
+export ENABLE_LANGGRAPH_CHAT=true
+
+# Or via feature flag
+export FEATURE_FLAG_ENABLE_LANGGRAPH_CHAT=true
+```
+
+**Conversation Mode Flow:**
+```
+User Message → Entry → Classifier → Mode Router
+                                        ├── casual_chat
+                                        ├── medical_consult
+                                        ├── research_explore
+                                        ├── goal_driven
+                                        └── closing
+                                              ↓
+                              Response Synthesizer → Memory Persist → Response
+```
+
+**Goal-Driven Mode Templates:**
+| Goal Type | Required Slots | Completion Action |
+|-----------|----------------|-------------------|
+| Diet Planning | condition, dietary_restrictions, goals | generate_meal_plan |
+| Exercise Planning | condition, fitness_level, limitations | generate_exercise_routine |
+| Disease Education | disease, depth_level | generate_educational_content |
+| Medication Management | medications | generate_medication_guide |
+| Mental Health Support | primary_concern | provide_support_resources |
+
+---
+
+## 🎉 Completed Previously (2026-01-28)
+
+### Storage Architecture Migration (PostgreSQL Dual-Write) ✅
 
 **Status:** 100% Complete
 

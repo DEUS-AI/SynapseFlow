@@ -110,9 +110,10 @@ class Neo4jBackend(KnowledgeGraphBackend):
         properties: Dict[str, Any],
     ) -> None:
         """Add a relationship between two entities.
-        
-        Creates source/target nodes if they don't exist.
-        
+
+        Matches existing nodes by ID (regardless of label) and creates the relationship.
+        Falls back to creating Entity nodes if nodes don't exist.
+
         Args:
             source_id: Source entity ID
             relationship_type: Type of relationship
@@ -120,24 +121,42 @@ class Neo4jBackend(KnowledgeGraphBackend):
             properties: Relationship properties
         """
         driver = await self._get_driver()
-        
+
         # Sanitize relationship type (replace special chars)
         safe_rel_type = relationship_type.replace(":", "_").replace(" ", "_").upper()
-        
-        # Use MERGE for nodes to ensure they exist, then create relationship
+
+        # MATCH existing nodes by ID (regardless of their label) instead of creating new Entity nodes
+        # This fixes the issue where relationships were created between Entity nodes
+        # instead of the actual ConversationSession/Message nodes
         query = f"""
-        MERGE (source:Entity {{id: $source_id}})
-        MERGE (target:Entity {{id: $target_id}})
+        MATCH (source {{id: $source_id}})
+        MATCH (target {{id: $target_id}})
         MERGE (source)-[r:`{safe_rel_type}`]->(target)
         SET r += $properties
         RETURN r
         """
-        
+
         async with driver.session(database=self.database) as session:
-            await session.run(query, 
-                            source_id=source_id, 
-                            target_id=target_id, 
+            result = await session.run(query,
+                            source_id=source_id,
+                            target_id=target_id,
                             properties=properties)
+            records = [r async for r in result]
+
+            # If no nodes found, fall back to creating Entity nodes (legacy behavior)
+            if not records:
+                logger.warning(f"Nodes not found for relationship {source_id} -> {target_id}, creating Entity nodes")
+                fallback_query = f"""
+                MERGE (source:Entity {{id: $source_id}})
+                MERGE (target:Entity {{id: $target_id}})
+                MERGE (source)-[r:`{safe_rel_type}`]->(target)
+                SET r += $properties
+                RETURN r
+                """
+                await session.run(fallback_query,
+                                source_id=source_id,
+                                target_id=target_id,
+                                properties=properties)
 
     async def get_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
         """Get entity by ID or name.
@@ -173,6 +192,49 @@ class Neo4jBackend(KnowledgeGraphBackend):
                     "labels": record["labels"]
                 }
             return None
+
+    async def update_entity_properties(
+        self,
+        entity_id: str,
+        properties: Dict[str, Any]
+    ) -> bool:
+        """Update properties of an entity.
+
+        Finds entity by id or name and updates the specified properties.
+        Used for updating session titles, status, and other entity attributes.
+
+        Args:
+            entity_id: Entity identifier (can be id or name)
+            properties: Dictionary of properties to update
+
+        Returns:
+            True if entity was found and updated, False otherwise
+        """
+        driver = await self._get_driver()
+
+        # Build SET clause dynamically for the properties
+        # Use parameter binding for safety
+        query = """
+        MATCH (n)
+        WHERE n.id = $entity_id OR n.name = $entity_id
+        SET n += $properties
+        RETURN n
+        """
+
+        async with driver.session(database=self.database) as session:
+            result = await session.run(
+                query,
+                entity_id=entity_id,
+                properties=properties
+            )
+            record = await result.single()
+
+            if record:
+                logger.debug(f"Updated entity {entity_id} with properties: {list(properties.keys())}")
+                return True
+
+            logger.warning(f"Entity not found for update: {entity_id}")
+            return False
 
     async def list_entities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """List entities with pagination.

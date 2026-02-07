@@ -17,6 +17,8 @@ _event_bus_instance: EventBus | None = None
 _patient_memory_instance = None
 _mem0_instance = None  # NEW: Mem0 instance for conversational layer
 _chat_service_instance = None
+_conversation_graph_instance = None  # LangGraph conversation engine
+_neurosymbolic_service_instance = None
 
 # Layer transition services
 _layer_transition_service = None
@@ -56,28 +58,105 @@ async def get_patient_memory():
         _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
     return _patient_memory_instance
 
-async def get_chat_service():
-    """Dependency to get Intelligent Chat Service."""
-    global _chat_service_instance, _patient_memory_instance, _mem0_instance
+async def get_neurosymbolic_service():
+    """Get the NeurosymbolicQueryService instance."""
+    global _neurosymbolic_service_instance
 
-    if _chat_service_instance is None:
-        from application.services.intelligent_chat_service import IntelligentChatService
+    if _neurosymbolic_service_instance is None:
+        from application.services.neurosymbolic_query_service import NeurosymbolicQueryService
+        from application.agents.knowledge_manager.reasoning_engine import ReasoningEngine
+        from domain.confidence_models import CrossLayerConfidencePropagation
+
+        backend = await get_kg_backend()
+        reasoning_engine = ReasoningEngine(backend=backend)
+        confidence_propagator = CrossLayerConfidencePropagation()
+
+        _neurosymbolic_service_instance = NeurosymbolicQueryService(
+            backend=backend,
+            reasoning_engine=reasoning_engine,
+            confidence_propagator=confidence_propagator,
+        )
+
+        print("✅ NeurosymbolicQueryService initialized")
+
+    return _neurosymbolic_service_instance
+
+
+async def get_conversation_graph():
+    """
+    Get the LangGraph-based ConversationGraph instance.
+
+    This is the new conversation engine that replaces the intent-based
+    routing with a state machine approach.
+    """
+    global _conversation_graph_instance, _patient_memory_instance, _mem0_instance
+
+    if _conversation_graph_instance is None:
+        from application.services.conversation_graph import build_conversation_graph
 
         # Ensure patient memory is initialized
         if _patient_memory_instance is None:
             _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
 
-        # Enable conversational layer if environment variable is set (default: True)
-        enable_conversational = os.getenv("ENABLE_CONVERSATIONAL_LAYER", "true").lower() == "true"
+        # Get neurosymbolic service for knowledge retrieval
+        neurosymbolic_service = await get_neurosymbolic_service()
 
-        _chat_service_instance = IntelligentChatService(
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
+        _conversation_graph_instance = build_conversation_graph(
             patient_memory_service=_patient_memory_instance,
-            mem0=_mem0_instance,  # NEW: Pass mem0 for conversational layer
-            enable_conversational_layer=enable_conversational  # NEW: Enable conversational layer
+            neurosymbolic_service=neurosymbolic_service,
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            model=os.getenv("CHAT_MODEL", "gpt-4o"),
         )
 
-        print(f"✅ IntelligentChatService initialized (conversational_layer={enable_conversational})")
+        print("✅ ConversationGraph (LangGraph) initialized")
+
+    return _conversation_graph_instance
+
+
+async def get_chat_service():
+    """
+    Dependency to get Chat Service.
+
+    Uses LangGraph-based ConversationGraph when ENABLE_LANGGRAPH_CHAT=true,
+    otherwise falls back to the legacy IntelligentChatService.
+    """
+    global _chat_service_instance, _patient_memory_instance, _mem0_instance
+
+    if _chat_service_instance is None:
+        # Check if LangGraph chat is enabled (default: false for backward compatibility)
+        use_langgraph = os.getenv("ENABLE_LANGGRAPH_CHAT", "false").lower() == "true"
+
+        # Ensure patient memory is initialized
+        if _patient_memory_instance is None:
+            _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
+
+        if use_langgraph:
+            # Use new LangGraph-based conversation engine
+            from application.services.langgraph_chat_service import LangGraphChatService
+
+            conversation_graph = await get_conversation_graph()
+
+            _chat_service_instance = LangGraphChatService(
+                conversation_graph=conversation_graph,
+                patient_memory_service=_patient_memory_instance,
+            )
+
+            print("✅ LangGraphChatService initialized (LangGraph conversation engine)")
+        else:
+            # Use legacy IntelligentChatService
+            from application.services.intelligent_chat_service import IntelligentChatService
+
+            # Enable conversational layer if environment variable is set (default: True)
+            enable_conversational = os.getenv("ENABLE_CONVERSATIONAL_LAYER", "true").lower() == "true"
+
+            _chat_service_instance = IntelligentChatService(
+                openai_api_key=os.getenv("OPENAI_API_KEY"),
+                patient_memory_service=_patient_memory_instance,
+                mem0=_mem0_instance,
+                enable_conversational_layer=enable_conversational
+            )
+
+            print(f"✅ IntelligentChatService initialized (conversational_layer={enable_conversational})")
 
     return _chat_service_instance
 

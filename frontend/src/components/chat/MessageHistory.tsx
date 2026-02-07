@@ -23,7 +23,11 @@ interface APIMessage {
   timestamp: string;
   patient_id?: string;
   confidence?: number;
-  sources?: string[];
+  sources?: Array<{ type: string; name: string; snippet?: string }>;
+  reasoning_trail?: string[];
+  related_concepts?: string[];
+  response_id?: string;
+  query_time?: number;
   intent?: string;
   urgency?: string;
 }
@@ -60,12 +64,14 @@ export function MessageHistory({
 
       // Convert API messages to ChatMessage format
       const chatMessages: ChatMessage[] = data.messages.map((msg: APIMessage) => ({
-        id: msg.id,
+        id: msg.response_id || msg.id,  // Prefer response_id for feedback tracking
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
         timestamp: new Date(msg.timestamp),
         confidence: msg.confidence,
         sources: msg.sources || [],
+        reasoning_trail: msg.reasoning_trail || [],
+        related_concepts: msg.related_concepts || [],
       }));
 
       setMessages(chatMessages);

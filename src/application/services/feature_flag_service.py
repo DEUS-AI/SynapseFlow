@@ -57,6 +57,11 @@ MIGRATION_FLAGS = {
         default=True,
         description="Track query patterns and performance"
     ),
+    "enable_langgraph_chat": FeatureFlagConfig(
+        name="enable_langgraph_chat",
+        default=False,
+        description="Use LangGraph-based conversation engine instead of intent-based routing"
+    ),
 }
 
 
@@ -235,3 +240,8 @@ def use_postgres_feedback() -> bool:
 def dual_write_enabled(data_type: str) -> bool:
     """Check if dual-write is enabled for a data type."""
     return is_flag_enabled(f"dual_write_{data_type}")
+
+
+def use_langgraph_chat() -> bool:
+    """Check if LangGraph conversation engine should be used."""
+    return is_flag_enabled("enable_langgraph_chat")

@@ -77,16 +77,26 @@ class MemoryContextBuilder:
         # 4. Get current session state from Redis
         current_session_topics, turn_count = await self._get_session_state(session_id) if session_id else ([], 0)
 
-        # 5. Extract proactive hints
-        unresolved_symptoms = self._extract_unresolved_symptoms(patient_context, recent_topics)
-        pending_followups = self._extract_pending_followups(recent_topics, last_session_summary)
+        # 5. Get recently resolved conditions (for conversation continuity)
+        # Must be done before extracting unresolved symptoms
+        recently_resolved = await self._get_recently_resolved_conditions(patient_id)
 
-        # 6. Build unified context
+        # 6. Filter recent_topics to remove resolved conditions
+        # This prevents the assistant from mentioning resolved issues in greetings/responses
+        filtered_topics = self._filter_resolved_topics(recent_topics, recently_resolved)
+
+        # 7. Extract proactive hints (filter out resolved conditions)
+        unresolved_symptoms = self._extract_unresolved_symptoms(
+            patient_context, filtered_topics, recently_resolved
+        )
+        pending_followups = self._extract_pending_followups(filtered_topics, last_session_summary)
+
+        # 8. Build unified context
         context = MemoryContext(
             patient_id=patient_id,
             patient_name=self._extract_patient_name(patient_id),
-            # Mem0 data
-            recent_topics=recent_topics,
+            # Mem0 data (filtered to exclude resolved conditions)
+            recent_topics=filtered_topics,
             last_session_summary=last_session_summary,
             days_since_last_session=days_since_last,
             last_session_date=last_session_date,
@@ -100,11 +110,13 @@ class MemoryContextBuilder:
             conversation_turn_count=turn_count,
             # Proactive hints
             unresolved_symptoms=unresolved_symptoms,
-            pending_followups=pending_followups
+            pending_followups=pending_followups,
+            # Recently resolved (for continuity)
+            recently_resolved=recently_resolved
         )
 
-        logger.info(f"Memory context built: {len(recent_topics)} topics, {len(context.active_conditions)} conditions, "
-                   f"returning_user={context.is_returning_user()}")
+        logger.info(f"Memory context built: {len(filtered_topics)} topics (filtered from {len(recent_topics)}), "
+                   f"{len(context.active_conditions)} conditions, returning_user={context.is_returning_user()}")
         return context
 
     async def _get_mem0_memories(
@@ -131,7 +143,16 @@ class MemoryContextBuilder:
                 logger.debug(f"No Mem0 memories found for patient {patient_id}")
                 return ([], None, None)
 
-            results = memories["results"]
+            # SECURITY: Filter to only include memories belonging to this patient
+            # This prevents cross-patient data leakage if Mem0's filtering fails
+            results = [
+                m for m in memories["results"]
+                if (m.get("user_id") or m.get("metadata", {}).get("user_id")) in (None, patient_id)
+            ]
+
+            if len(results) != len(memories["results"]):
+                logger.warning(f"[MEM0_ISOLATION] Filtered out {len(memories['results']) - len(results)} "
+                              f"memories belonging to other patients from {patient_id}'s context")
 
             # Extract topics from memories
             topics = []
@@ -260,43 +281,102 @@ class MemoryContextBuilder:
         # In a real system, this would query the patient record
         return None
 
+    def _filter_resolved_topics(
+        self,
+        topics: List[str],
+        resolved_conditions: List[str]
+    ) -> List[str]:
+        """
+        Filter out topics that match resolved conditions.
+
+        This prevents the assistant from mentioning resolved conditions
+        in greetings and responses (e.g., "How is your knee pain?" when
+        knee pain has been marked as resolved).
+
+        Args:
+            topics: List of extracted topics from Mem0
+            resolved_conditions: List of recently resolved condition names
+
+        Returns:
+            Filtered list of topics without resolved conditions
+        """
+        if not resolved_conditions:
+            return topics
+
+        resolved_lower = [c.lower() for c in resolved_conditions]
+        filtered = []
+
+        for topic in topics:
+            topic_lower = topic.lower()
+
+            # Check if this topic matches any resolved condition
+            is_resolved = any(
+                resolved in topic_lower or topic_lower in resolved
+                for resolved in resolved_lower
+            )
+
+            if is_resolved:
+                logger.debug(f"Filtering out resolved topic from recent_topics: {topic}")
+                continue
+
+            filtered.append(topic)
+
+        return filtered
+
     def _extract_unresolved_symptoms(
         self,
         patient_context: Any,
-        recent_topics: List[str]
+        recent_topics: List[str],
+        resolved_conditions: Optional[List[str]] = None
     ) -> List[str]:
         """
         Extract unresolved symptoms from recent topics.
 
+        Filters out:
+        1. Conditions that are in active diagnoses
+        2. Conditions that have been marked as resolved
+
         Args:
             patient_context: Patient context from Neo4j
             recent_topics: Recent conversation topics
+            resolved_conditions: List of resolved condition names
 
         Returns:
             List of unresolved symptoms
         """
-        # Symptoms that appear in recent topics but not in diagnoses
+        # Symptoms that appear in recent topics but are not resolved
         unresolved = []
+        resolved_lower = [c.lower() for c in (resolved_conditions or [])]
 
         symptom_keywords = ["pain", "ache", "fever", "cough", "headache", "dizziness"]
 
         for topic in recent_topics:
+            topic_lower = topic.lower()
+
             # Check if it's a symptom
-            if any(keyword in topic.lower() for keyword in symptom_keywords):
-                # Check if it's not in active conditions
-                # Diagnoses are dicts, extract name/condition field
+            if any(keyword in topic_lower for keyword in symptom_keywords):
+                # Check if it's been resolved
+                is_resolved = any(
+                    resolved in topic_lower or topic_lower in resolved
+                    for resolved in resolved_lower
+                )
+
+                if is_resolved:
+                    logger.debug(f"Filtering out resolved symptom from unresolved list: {topic}")
+                    continue
+
+                # Check if it's in active conditions (already diagnosed)
                 diagnosis_names = []
                 for condition in patient_context.diagnoses:
                     if isinstance(condition, dict):
-                        # Try common field names for condition name
                         name = condition.get("name") or condition.get("condition") or condition.get("diagnosis") or ""
                         if name:
                             diagnosis_names.append(name.lower())
                     elif isinstance(condition, str):
                         diagnosis_names.append(condition.lower())
 
-                is_resolved = any(topic.lower() in diag for diag in diagnosis_names)
-                if not is_resolved:
+                is_diagnosed = any(topic_lower in diag for diag in diagnosis_names)
+                if not is_diagnosed:
                     unresolved.append(topic)
 
         return unresolved[:3]  # Limit to top 3
@@ -335,6 +415,28 @@ class MemoryContextBuilder:
                 followups.append("Follow up on recommendations")
 
         return followups[:3]  # Limit to top 3
+
+    async def _get_recently_resolved_conditions(
+        self,
+        patient_id: str
+    ) -> List[str]:
+        """
+        Get conditions that were recently resolved.
+
+        This enables the assistant to acknowledge progress
+        (e.g., "Glad your knee pain has resolved!").
+
+        Args:
+            patient_id: Patient identifier
+
+        Returns:
+            List of recently resolved condition names
+        """
+        try:
+            return await self.memory.get_recently_resolved_conditions(patient_id, days=7)
+        except Exception as e:
+            logger.warning(f"Failed to get recently resolved conditions: {e}")
+            return []
 
     async def get_proactive_topics(self, patient_id: str) -> List[str]:
         """
@@ -399,5 +501,10 @@ class MemoryContextBuilder:
         if context.unresolved_symptoms:
             symptom = context.unresolved_symptoms[0]
             parts.append(f"How is your {symptom}?")
+
+        # Recently resolved conditions (positive acknowledgment)
+        if context.recently_resolved:
+            resolved = context.recently_resolved[0]
+            parts.append(f"I'm glad to hear your {resolved} has resolved")
 
         return ". ".join(parts) if parts else ""

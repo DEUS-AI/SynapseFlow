@@ -534,7 +534,11 @@ class AutomaticLayerTransitionService:
         new_layer: Layer,
         enriched_data: Dict[str, Any]
     ) -> None:
-        """Update entity layer in the backend."""
+        """Update entity layer in the backend.
+
+        Includes pre-flight check to verify entity's current layer before
+        attempting promotion, preventing race condition errors.
+        """
         if hasattr(self.backend, "promote_entity"):
             try:
                 # Import the backend's KnowledgeLayer enum
@@ -542,6 +546,25 @@ class AutomaticLayerTransitionService:
 
                 # Map our Layer to backend's KnowledgeLayer
                 target_layer = BackendLayer(new_layer.value)
+
+                # PRE-FLIGHT CHECK: Verify entity's current layer before promotion
+                # This prevents race conditions where entity was promoted by another process
+                layer_order = ["PERCEPTION", "SEMANTIC", "REASONING", "APPLICATION"]
+                target_idx = layer_order.index(new_layer.value)
+
+                # Get current entity state from database
+                current_entity = await self.backend.get_entity(entity_id)
+                if current_entity:
+                    current_layer = current_entity.get("properties", {}).get("layer", "PERCEPTION")
+                    current_idx = layer_order.index(current_layer) if current_layer in layer_order else 0
+
+                    # Skip if entity is already at or above target layer
+                    if current_idx >= target_idx:
+                        logger.debug(
+                            f"Skipping promotion for {entity_id}: current layer {current_layer} "
+                            f"is already at or above target {new_layer.value}"
+                        )
+                        return
 
                 # Get properties - handle both flat and nested structures
                 props = enriched_data.get("properties", enriched_data)

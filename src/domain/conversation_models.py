@@ -89,6 +89,9 @@ class MemoryContext:
     unresolved_symptoms: List[str] = field(default_factory=list)
     pending_followups: List[str] = field(default_factory=list)
 
+    # Recently resolved conditions (for continuity in conversations)
+    recently_resolved: List[str] = field(default_factory=list)
+
     def has_history(self) -> bool:
         """Check if patient has any conversation history."""
         return bool(self.recent_topics or self.last_session_summary)
