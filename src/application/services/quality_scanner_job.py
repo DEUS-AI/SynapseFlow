@@ -95,6 +95,12 @@ class QualityScannerJob:
     @property
     def status(self) -> Dict[str, Any]:
         """Get the current scanner status."""
+        # Calculate totals from scan history
+        doc_scans = [r for r in self._scan_history if r.scan_type == "document"]
+        ont_scans = [r for r in self._scan_history if r.scan_type == "ontology"]
+        documents_scanned_total = sum(r.documents_assessed for r in doc_scans)
+        ontology_scans_total = len(ont_scans)
+
         return {
             "enabled": self.config.enabled,
             "running": self._running,
@@ -104,6 +110,11 @@ class QualityScannerJob:
             "last_ontology_scan": (
                 self._last_ontology_scan.isoformat() if self._last_ontology_scan else None
             ),
+            # Frontend expects these field names
+            "scan_interval_seconds": self.config.document_scan_interval_seconds,
+            "documents_scanned_total": documents_scanned_total,
+            "ontology_scans_total": ontology_scans_total,
+            # Also include detailed config
             "document_scan_interval_seconds": self.config.document_scan_interval_seconds,
             "ontology_scan_interval_seconds": self.config.ontology_scan_interval_seconds,
             "batch_size": self.config.batch_size,

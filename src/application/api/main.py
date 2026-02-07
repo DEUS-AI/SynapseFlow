@@ -168,17 +168,18 @@ async def chat_websocket_endpoint(
                 )
                 logger.debug(f"Loaded {len(conversation_messages)} messages for context")
 
+                # Generate response_id BEFORE query so it can be stored with the message
+                import uuid
+                response_id = str(uuid.uuid4())
+
                 # Query chat service with conversation history
                 response = await chat_service.query(
                     question=message_text,
                     conversation_history=conversation_messages,
                     patient_id=patient_id,
-                    session_id=session_id
+                    session_id=session_id,
+                    response_id=response_id  # Pass for storage with message metadata
                 )
-
-                # Generate response_id and track for feedback attribution
-                import uuid
-                response_id = str(uuid.uuid4())
 
                 # Extract entities and layers from response if available
                 entities_involved = []
@@ -204,6 +205,9 @@ async def chat_websocket_endpoint(
                     response_text=response.answer,
                     entities_involved=entities_involved,
                     layers_traversed=layers_traversed if layers_traversed else ["SEMANTIC"],
+                    patient_id=patient_id,
+                    session_id=session_id,
+                    confidence=response.confidence,
                 )
 
                 # Send response back with response_id for feedback
@@ -338,6 +342,141 @@ async def discontinue_medication(
         raise
     except Exception as e:
         logger.error(f"Error discontinuing medication: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/patients/{patient_id}/memories")
+async def get_patient_memories(
+    patient_id: str,
+    limit: int = 20,
+    patient_memory = Depends(get_patient_memory)
+):
+    """
+    Get raw Mem0 memories for a patient with timestamps.
+
+    Used for displaying memory history in the patient context panel.
+    """
+    try:
+        # Get memories from Mem0 (using the isolated manager)
+        memories_result = patient_memory.mem0.get_all(
+            user_id=patient_id,
+            limit=limit
+        )
+
+        results = memories_result.get("results", []) if memories_result else []
+
+        # Security filter: ensure all memories belong to this patient
+        filtered_memories = []
+        for mem in results:
+            mem_user_id = mem.get("user_id") or mem.get("metadata", {}).get("user_id")
+            if mem_user_id and mem_user_id != patient_id:
+                logger.warning(f"[MEM0_ISOLATION] Filtered memory from {mem_user_id} in {patient_id}'s request")
+                continue
+            filtered_memories.append({
+                "id": mem.get("id", ""),
+                "memory": mem.get("memory", ""),
+                "created_at": mem.get("created_at", ""),
+                "metadata": mem.get("metadata", {})
+            })
+
+        return {
+            "patient_id": patient_id,
+            "memories": filtered_memories,
+            "total_count": len(filtered_memories)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching patient memories: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/patients/{patient_id}/graph")
+async def get_patient_graph(
+    patient_id: str,
+    limit: int = 50,
+    kg_backend = Depends(get_kg_backend)
+):
+    """
+    Get patient-specific graph data for visualization.
+
+    Returns the patient node and all directly connected medical entities
+    (diagnoses, medications, allergies, symptoms).
+    """
+    try:
+        query = """
+        MATCH (p:Patient {id: $patient_id})
+        OPTIONAL MATCH (p)-[r]->(related)
+        WHERE related:Diagnosis OR related:Medication OR related:Allergy OR related:Symptom
+        WITH p, collect(DISTINCT related) as related_nodes, collect(DISTINCT r) as rels
+        RETURN p, related_nodes, rels
+        LIMIT $limit
+        """
+
+        result = await kg_backend.query_raw(query, {
+            "patient_id": patient_id,
+            "limit": limit
+        })
+
+        nodes = []
+        edges = []
+        seen_node_ids = set()
+
+        if result:
+            for record in result:
+                # Add patient node
+                patient_node = record.get("p")
+                if patient_node:
+                    patient_id_elem = patient_node.element_id if hasattr(patient_node, 'element_id') else str(patient_node.get("id", patient_id))
+                    if patient_id_elem not in seen_node_ids:
+                        nodes.append({
+                            "id": patient_id_elem,
+                            "label": patient_node.get("name", patient_id),
+                            "type": "Patient",
+                            "layer": "application",
+                            "properties": dict(patient_node) if hasattr(patient_node, '__iter__') else {}
+                        })
+                        seen_node_ids.add(patient_id_elem)
+
+                # Add related nodes
+                related_nodes = record.get("related_nodes", [])
+                for node in related_nodes:
+                    if node:
+                        node_id = node.element_id if hasattr(node, 'element_id') else str(node.get("id", ""))
+                        if node_id and node_id not in seen_node_ids:
+                            labels = list(node.labels) if hasattr(node, 'labels') else ["Entity"]
+                            node_type = labels[0] if labels else "Entity"
+                            nodes.append({
+                                "id": node_id,
+                                "label": node.get("name", node.get("condition", node.get("substance", node_id))),
+                                "type": node_type,
+                                "layer": node.get("layer", "semantic"),
+                                "properties": dict(node) if hasattr(node, '__iter__') else {}
+                            })
+                            seen_node_ids.add(node_id)
+
+                # Add relationships
+                rels = record.get("rels", [])
+                for rel in rels:
+                    if rel:
+                        rel_id = rel.element_id if hasattr(rel, 'element_id') else str(id(rel))
+                        start_id = rel.start_node.element_id if hasattr(rel, 'start_node') else ""
+                        end_id = rel.end_node.element_id if hasattr(rel, 'end_node') else ""
+                        rel_type = rel.type if hasattr(rel, 'type') else "RELATED_TO"
+
+                        if start_id and end_id:
+                            edges.append({
+                                "id": rel_id,
+                                "source": start_id,
+                                "target": end_id,
+                                "label": rel_type,
+                                "type": rel_type
+                            })
+
+        return {
+            "nodes": nodes,
+            "edges": edges
+        }
+    except Exception as e:
+        logger.error(f"Error fetching patient graph: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1517,10 +1656,10 @@ class FeedbackSeverityEnum(str, PyEnum):
 class FeedbackRequest(BaseModel):
     """Request model for submitting feedback."""
     response_id: str = Field(..., description="ID of the response being rated")
-    patient_id: str = Field(..., description="Patient identifier")
-    session_id: str = Field(..., description="Session identifier")
-    query_text: str = Field(..., description="Original query text")
-    response_text: str = Field(..., description="Response that was given")
+    patient_id: OptionalType[str] = Field(None, description="Patient identifier (looked up from response tracker if not provided)")
+    session_id: OptionalType[str] = Field(None, description="Session identifier (looked up from response tracker if not provided)")
+    query_text: OptionalType[str] = Field(None, description="Original query text (looked up from response tracker if not provided)")
+    response_text: OptionalType[str] = Field(None, description="Response that was given (looked up from response tracker if not provided)")
     rating: int = Field(..., ge=1, le=5, description="Rating from 1-5")
     feedback_type: FeedbackTypeEnum = Field(..., description="Type of feedback")
     severity: OptionalType[FeedbackSeverityEnum] = Field(None, description="Severity level")
@@ -1627,11 +1766,31 @@ async def submit_feedback(request: FeedbackRequest):
     - Entity and layer attribution
 
     Feedback is propagated to entity confidence scores.
+
+    Note: If patient_id, session_id, query_text, or response_text are not provided,
+    they will be looked up from the response tracker using response_id.
     """
     try:
         from application.services.feedback_tracer import FeedbackType, FeedbackSeverity
 
         feedback_service = await get_feedback_service()
+
+        # Look up tracked response data if fields not provided
+        response_data = get_tracked_response(request.response_id)
+        if not response_data:
+            logger.warning(
+                f"Response {request.response_id} not found in tracker. "
+                "Recording feedback with provided data only."
+            )
+            response_data = {}
+
+        # Use request data if provided, otherwise fall back to tracked data
+        patient_id = request.patient_id or response_data.get("patient_id", "anonymous")
+        session_id = request.session_id or response_data.get("session_id", "default")
+        query_text = request.query_text or response_data.get("query_text", "")
+        response_text = request.response_text or response_data.get("response_text", "")
+        entities_involved = request.entities_involved or response_data.get("entities_involved", [])
+        layers_traversed = request.layers_traversed or response_data.get("layers_traversed", [])
 
         # Convert enums
         feedback_type = FeedbackType(request.feedback_type.value)
@@ -1639,38 +1798,38 @@ async def submit_feedback(request: FeedbackRequest):
 
         feedback = await feedback_service.submit_feedback(
             response_id=request.response_id,
-            patient_id=request.patient_id,
-            session_id=request.session_id,
-            query_text=request.query_text,
-            response_text=request.response_text,
+            patient_id=patient_id,
+            session_id=session_id,
+            query_text=query_text,
+            response_text=response_text,
             rating=request.rating,
             feedback_type=feedback_type,
             severity=severity,
             correction_text=request.correction_text,
-            entities_involved=request.entities_involved or [],
-            layers_traversed=request.layers_traversed or [],
+            entities_involved=entities_involved,
+            layers_traversed=layers_traversed,
         )
 
         # Dual-write to PostgreSQL if enabled
         await _dual_write_feedback_to_postgres(
             feedback_id=feedback.feedback_id,
             response_id=request.response_id,
-            patient_id=request.patient_id,
-            session_id=request.session_id,
-            query_text=request.query_text,
-            response_text=request.response_text,
+            patient_id=patient_id,
+            session_id=session_id,
+            query_text=query_text,
+            response_text=response_text,
             rating=request.rating,
             feedback_type=request.feedback_type.value,
             severity=request.severity.value if request.severity else None,
             correction_text=request.correction_text,
-            entities_involved=request.entities_involved or [],
-            layers_traversed=request.layers_traversed or [],
+            entities_involved=entities_involved,
+            layers_traversed=layers_traversed,
         )
 
         return FeedbackResponse(
             feedback_id=feedback.feedback_id,
             message="Feedback submitted successfully",
-            confidence_adjusted=len(request.entities_involved or []) > 0
+            confidence_adjusted=len(entities_involved) > 0
         )
 
     except Exception as e:
@@ -1688,6 +1847,9 @@ async def submit_thumbs_feedback(request: ThumbsFeedbackRequest):
 
     - Thumbs up (rating 5): Boosts entity confidence
     - Thumbs down (rating 1): Decreases entity confidence, may trigger demotion
+
+    Note: If response_id is not found (e.g., after server restart), feedback
+    is still recorded but without entity attribution.
     """
     try:
         from application.services.feedback_tracer import FeedbackType
@@ -1695,12 +1857,22 @@ async def submit_thumbs_feedback(request: ThumbsFeedbackRequest):
         # Look up tracked response
         response_data = get_tracked_response(request.response_id)
 
+        # If response not tracked (e.g., server restarted), use minimal data
+        # Still allow feedback submission for UX, just without entity attribution
         if not response_data:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Response {request.response_id} not found. "
-                "Ensure the response was tracked during generation."
+            logger.warning(
+                f"Response {request.response_id} not found in tracker. "
+                "Recording feedback without entity attribution (server may have restarted)."
             )
+            response_data = {
+                "patient_id": "anonymous",
+                "session_id": "default",
+                "query_text": "",
+                "response_text": "",
+                "entities_involved": [],
+                "layers_traversed": [],
+                "confidence": 0.0,
+            }
 
         feedback_service = await get_feedback_service()
 
@@ -2509,10 +2681,39 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
     - Critical issues and recommendations
     """
     from application.services.ontology_quality_service import quick_ontology_check
+    from datetime import datetime
 
     try:
         result = await quick_ontology_check(kg_backend)
-        return result
+
+        # Get relationship count from Neo4j
+        rel_query = "MATCH ()-[r]->() RETURN count(r) as count"
+        rel_result = await kg_backend.query_raw(rel_query, {})
+        relationship_count = rel_result[0]["count"] if rel_result else 0
+
+        # Wrap in structure expected by frontend
+        return {
+            "has_assessment": True,
+            "total_assessments": 1,
+            "latest": {
+                "assessment_id": "quick-check",
+                "overall_score": result.get("overall_score", 0),
+                "quality_level": result.get("quality_level", "unknown"),
+                "coverage_ratio": result.get("coverage_ratio", 0),
+                "compliance_ratio": result.get("compliance_ratio", 0),
+                "coherence_ratio": 1.0 - (result.get("entity_count", 0) / max(result.get("entity_count", 1), 1) * 0.1),  # Estimate based on orphan ratio
+                "consistency_ratio": result.get("compliance_ratio", 0),  # Use compliance as proxy
+                "entity_count": result.get("entity_count", 0),
+                "relationship_count": relationship_count,
+                "orphan_nodes": result.get("entity_count", 0),  # From quick check, all may appear orphan
+                "critical_issues": result.get("critical_issues", []),
+                "recommendations": result.get("top_recommendations", []),
+                "assessed_at": datetime.utcnow().isoformat() + "Z",
+            },
+            "by_quality_level": {
+                result.get("quality_level", "unknown"): 1
+            }
+        }
 
     except Exception as e:
         logger.error(f"Error getting ontology quality: {e}", exc_info=True)

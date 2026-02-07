@@ -1,5 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePatientStore } from '../../stores/patientStore';
+import { CollapsibleSection } from '../ui/CollapsibleSection';
+import { PatientMemoriesPanel } from './PatientMemoriesPanel';
+import { PatientGraphPreview } from './PatientGraphPreview';
+import { PatientDetailsModal } from './PatientDetailsModal';
+import {
+  AlertTriangle,
+  FileText,
+  Pill,
+  Zap,
+  MessageSquare,
+  Brain,
+  Network,
+  Maximize2,
+  Sparkles,
+} from 'lucide-react';
 
 interface PatientContextSidebarProps {
   patientId: string;
@@ -7,6 +22,7 @@ interface PatientContextSidebarProps {
 
 export function PatientContextSidebar({ patientId }: PatientContextSidebarProps) {
   const { context, loading, loadContext } = usePatientStore();
+  const [showGraphModal, setShowGraphModal] = useState(false);
 
   useEffect(() => {
     loadContext(patientId);
@@ -25,107 +41,158 @@ export function PatientContextSidebar({ patientId }: PatientContextSidebarProps)
   }
 
   return (
-    <div className="w-80 bg-slate-800 border-l border-slate-700 overflow-y-auto">
-      <div className="p-6 space-y-6">
-        <h2 className="text-lg font-semibold text-slate-100">Patient Context</h2>
-
-        {/* Allergies (CRITICAL) */}
-        {context.allergies.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <h3 className="font-semibold text-red-400">Allergies</h3>
+    <>
+      <div className="w-80 h-full bg-slate-800 border-l border-slate-700 overflow-y-auto flex-shrink-0">
+        {/* Header - Full Width */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-purple-900/80 to-blue-900/80 backdrop-blur-sm border-b border-slate-700">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              <h2 className="text-lg font-bold text-white tracking-wide">ODIN</h2>
             </div>
-            <ul className="space-y-2">
-              {context.allergies.map((allergy, i) => (
-                <li key={i} className="text-sm bg-red-900/30 text-red-200 px-3 py-2 rounded border border-red-800">
-                  {allergy}
-                </li>
-              ))}
-            </ul>
+            <button
+              onClick={() => setShowGraphModal(true)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+              title="Expand patient details"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
           </div>
-        )}
+        </div>
 
-        {/* Diagnoses */}
-        {context.diagnoses.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="font-semibold text-slate-100">Diagnoses</h3>
-            </div>
-            <ul className="space-y-2">
-              {context.diagnoses.map((dx, i) => (
-                <li key={i} className="text-sm">
-                  <p className="font-medium text-slate-200">{dx.condition}</p>
-                  <p className="text-slate-400 text-xs">
-                    {dx.icd10_code} • {dx.diagnosed_date}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div className="p-4 space-y-3">
 
-        {/* Medications */}
-        {context.medications.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>
-              <h3 className="font-semibold text-slate-100">Current Medications</h3>
-            </div>
-            <ul className="space-y-2">
-              {context.medications.map((med, i) => (
-                <li key={i} className="text-sm">
-                  <p className="font-medium text-slate-200">{med.name}</p>
-                  <p className="text-slate-400 text-xs">
-                    {med.dosage} • {med.frequency}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {/* Allergies (CRITICAL - always expanded) */}
+          {context.allergies.length > 0 && (
+            <CollapsibleSection
+              title="Allergies"
+              icon={<AlertTriangle className="w-4 h-4" />}
+              badge={context.allergies.length}
+              badgeColor="red"
+              defaultExpanded={true}
+            >
+              <ul className="space-y-2">
+                {context.allergies.map((allergy, i) => (
+                  <li
+                    key={i}
+                    className="text-sm bg-red-900/30 text-red-200 px-3 py-2 rounded border border-red-800"
+                  >
+                    {allergy}
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleSection>
+          )}
 
-        {/* Recent symptoms */}
-        {context.recent_symptoms.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="h-4 w-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <h3 className="font-semibold text-slate-100">Recent Symptoms</h3>
-            </div>
-            <ul className="space-y-2">
-              {context.recent_symptoms.slice(0, 5).map((symptom, i) => (
-                <li key={i} className="text-sm text-slate-400">
-                  {symptom.text}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {/* Diagnoses */}
+          {context.diagnoses.length > 0 && (
+            <CollapsibleSection
+              title="Diagnoses"
+              icon={<FileText className="w-4 h-4" />}
+              badge={context.diagnoses.length}
+              badgeColor="blue"
+              defaultExpanded={true}
+            >
+              <ul className="space-y-2">
+                {context.diagnoses.map((dx, i) => (
+                  <li key={i} className="text-sm">
+                    <p className="font-medium text-slate-200">{dx.condition}</p>
+                    <p className="text-slate-400 text-xs">
+                      {dx.icd10_code && `${dx.icd10_code} • `}
+                      {dx.diagnosed_date}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleSection>
+          )}
 
-        {/* Conversation Summary */}
-        {context.conversation_summary && context.conversation_summary !== 'No history' && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="h-4 w-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              <h3 className="font-semibold text-slate-100">Memory Summary</h3>
-            </div>
-            <p className="text-sm text-slate-400 bg-slate-700/50 px-3 py-2 rounded">
-              {context.conversation_summary}
-            </p>
-          </div>
-        )}
+          {/* Medications */}
+          {context.medications.length > 0 && (
+            <CollapsibleSection
+              title="Medications"
+              icon={<Pill className="w-4 h-4" />}
+              badge={context.medications.length}
+              badgeColor="green"
+              defaultExpanded={false}
+            >
+              <ul className="space-y-2">
+                {context.medications.map((med, i) => (
+                  <li key={i} className="text-sm">
+                    <p className="font-medium text-slate-200">{med.name}</p>
+                    <p className="text-slate-400 text-xs">
+                      {med.dosage} • {med.frequency}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleSection>
+          )}
+
+          {/* Recent Symptoms */}
+          {context.recent_symptoms.length > 0 && (
+            <CollapsibleSection
+              title="Recent Symptoms"
+              icon={<Zap className="w-4 h-4" />}
+              badge={context.recent_symptoms.length}
+              badgeColor="orange"
+              defaultExpanded={false}
+            >
+              <ul className="space-y-2">
+                {context.recent_symptoms.slice(0, 5).map((symptom, i) => (
+                  <li key={i} className="text-sm text-slate-400">
+                    {symptom.text}
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleSection>
+          )}
+
+          {/* Memory Summary (from conversation) */}
+          {context.conversation_summary && context.conversation_summary !== 'No history' && (
+            <CollapsibleSection
+              title="Memory Summary"
+              icon={<MessageSquare className="w-4 h-4" />}
+              badgeColor="purple"
+              defaultExpanded={false}
+            >
+              <p className="text-sm text-slate-400 bg-slate-900/50 px-3 py-2 rounded">
+                {context.conversation_summary}
+              </p>
+            </CollapsibleSection>
+          )}
+
+          {/* Memory History (NEW - from Mem0) */}
+          <CollapsibleSection
+            title="Memory History"
+            icon={<Brain className="w-4 h-4" />}
+            badgeColor="purple"
+            defaultExpanded={true}
+          >
+            <PatientMemoriesPanel patientId={patientId} maxVisible={3} />
+          </CollapsibleSection>
+
+          {/* Medical Graph (NEW) */}
+          <CollapsibleSection
+            title="Medical Graph"
+            icon={<Network className="w-4 h-4" />}
+            badgeColor="blue"
+            defaultExpanded={true}
+          >
+            <PatientGraphPreview
+              patientId={patientId}
+              onExpandClick={() => setShowGraphModal(true)}
+            />
+          </CollapsibleSection>
+        </div>
       </div>
-    </div>
+
+      {/* Full Graph Modal */}
+      <PatientDetailsModal
+        patientId={patientId}
+        isOpen={showGraphModal}
+        onClose={() => setShowGraphModal(false)}
+      />
+    </>
   );
 }
