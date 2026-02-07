@@ -246,25 +246,44 @@ def bootstrap_command_bus() -> CommandBus:
 
 
 async def bootstrap_patient_memory():
-    """Initialize patient memory service components."""
+    """Initialize patient memory service components.
+
+    Uses per-patient isolated Qdrant collections by default for HIPAA compliance.
+    Set ENABLE_ISOLATED_PATIENT_MEMORY=false to use shared collection (NOT recommended).
+    """
     import os
-    from config.memory_config import create_memory_instance
+    from config.memory_config import create_memory_instance, create_isolated_memory_manager
     from infrastructure.redis_session_cache import RedisSessionCache
     from infrastructure.neo4j_backend import Neo4jBackend
     from application.services.patient_memory_service import PatientMemoryService
 
     print("🔄 Initializing Patient Memory Service...")
 
+    # Use isolated memory by default for HIPAA compliance
+    use_isolated_memory = os.getenv("ENABLE_ISOLATED_PATIENT_MEMORY", "true").lower() in ("true", "1", "yes")
+
     try:
-        # Initialize Mem0
-        mem0 = create_memory_instance(
-            neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-            neo4j_user=os.getenv("NEO4J_USERNAME", "neo4j"),
-            neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
-            qdrant_url=os.getenv("QDRANT_URL", "http://localhost:6333"),
-            openai_api_key=os.getenv("OPENAI_API_KEY")
-        )
-        print("  ✅ Mem0 initialized")
+        if use_isolated_memory:
+            # RECOMMENDED: Per-patient Qdrant collections for true physical isolation
+            mem0 = create_isolated_memory_manager(
+                neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+                neo4j_user=os.getenv("NEO4J_USERNAME", "neo4j"),
+                neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
+                qdrant_url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+                openai_api_key=os.getenv("OPENAI_API_KEY")
+            )
+            print("  ✅ Mem0 initialized with ISOLATED per-patient collections (HIPAA compliant)")
+        else:
+            # Legacy: Shared collection with user_id filtering (NOT recommended for medical data)
+            print("  ⚠️  WARNING: Using shared Mem0 collection. NOT recommended for medical data!")
+            mem0 = create_memory_instance(
+                neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+                neo4j_user=os.getenv("NEO4J_USERNAME", "neo4j"),
+                neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
+                qdrant_url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+                openai_api_key=os.getenv("OPENAI_API_KEY")
+            )
+            print("  ✅ Mem0 initialized (shared collection mode)")
 
         # Initialize Neo4j backend
         neo4j = Neo4jBackend(
@@ -293,6 +312,52 @@ async def bootstrap_patient_memory():
     except Exception as e:
         print(f"⚠️ Failed to initialize Patient Memory Service: {e}")
         raise
+
+
+async def bootstrap_episodic_memory():
+    """Initialize Graphiti-based episodic memory service with FalkorDB backend.
+
+    This provides episodic memory for conversations, separate from the 3-layer
+    memory architecture (Redis + Mem0 + Neo4j). The episodic memory uses:
+    - FalkorDB: Episodic graph storage
+    - Graphiti: Episode processing, entity extraction, edge inference
+
+    Returns:
+        EpisodicMemoryService or None if initialization fails
+    """
+    import os
+    from application.services.feature_flag_service import is_flag_enabled
+
+    # Check if episodic memory is enabled via feature flag
+    # For now, we'll make it opt-in via environment variable since the feature flag might not exist yet
+    if not os.getenv("ENABLE_EPISODIC_MEMORY", "").lower() in ("true", "1", "yes"):
+        print("ℹ️  Episodic memory not enabled (set ENABLE_EPISODIC_MEMORY=true to enable)")
+        return None
+
+    print("🔄 Initializing Episodic Memory Service (Graphiti + FalkorDB)...")
+
+    try:
+        from application.services.episodic_memory_service import create_episodic_memory_service
+
+        episodic_memory = await create_episodic_memory_service(
+            falkordb_host=os.getenv("FALKORDB_HOST", "localhost"),
+            falkordb_port=int(os.getenv("FALKORDB_PORT", "6379")),
+            database_name=os.getenv("EPISODIC_MEMORY_DB", "episodic_memory"),
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+        )
+
+        print("✅ Episodic Memory Service initialized (FalkorDB + Graphiti)")
+        return episodic_memory
+
+    except ImportError as e:
+        print(f"⚠️  Episodic memory dependencies not installed: {e}")
+        print("   Install with: pip install graphiti-core[falkordb]")
+        return None
+
+    except Exception as e:
+        print(f"⚠️  Failed to initialize Episodic Memory Service: {e}")
+        print("   Continuing without episodic memory")
+        return None
 
 
 async def bootstrap_postgres_repositories():

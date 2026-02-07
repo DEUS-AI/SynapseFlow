@@ -5,9 +5,12 @@ import { ChatInterface } from '../../components/chat/ChatInterface';
 // For static build, we need to define possible paths
 // In development/production with dynamic routing, this would come from the API
 export async function getStaticPaths() {
-  // Return a demo patient for static build
+  // Return available patients for static build
+  // Add more patient IDs here as needed
   return [
     { params: { patientId: 'patient:demo' } },
+    { params: { patientId: 'patient:pablo' } },
+    { params: { patientId: 'patient:test' } },
   ];
 }
 

@@ -32,11 +32,12 @@ export function KnowledgeGraphViewer({ initialData, documentFilter, hideControls
   const [layout, setLayout] = useState<'force' | 'hierarchical'>('force');
   const [loading, setLoading] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState<LayerType>('all');
+  const [limit, setLimit] = useState(300);
 
-  // Load graph data from API - fetches dynamically based on selected layer and document filter
+  // Load graph data from API - fetches dynamically based on selected layer, document filter, and limit
   useEffect(() => {
-    if (initialData && selectedLayer === 'all' && !documentFilter) {
-      // Use initial data only for 'all' layer if provided and no document filter
+    if (initialData && selectedLayer === 'all' && !documentFilter && limit === 300) {
+      // Use initial data only for 'all' layer if provided, no document filter, and default limit
       setGraphData(initialData);
       return;
     }
@@ -47,10 +48,10 @@ export function KnowledgeGraphViewer({ initialData, documentFilter, hideControls
     let url: string;
     if (documentFilter) {
       // Use document-specific endpoint
-      url = `/api/admin/documents/${encodeURIComponent(documentFilter)}/graph?limit=300`;
+      url = `/api/admin/documents/${encodeURIComponent(documentFilter)}/graph?limit=${limit}`;
     } else {
       // Use general graph endpoint
-      const params = new URLSearchParams({ limit: '300' });
+      const params = new URLSearchParams({ limit: String(limit) });
       if (selectedLayer !== 'all') {
         params.set('layer', selectedLayer.toLowerCase());
       }
@@ -79,7 +80,7 @@ export function KnowledgeGraphViewer({ initialData, documentFilter, hideControls
         setGraphData({ nodes: [], edges: [] }); // Set empty data on error
         setLoading(false);
       });
-  }, [initialData, selectedLayer, documentFilter]);
+  }, [initialData, selectedLayer, documentFilter, limit]);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -293,6 +294,8 @@ export function KnowledgeGraphViewer({ initialData, documentFilter, hideControls
             }}
             nodeCount={graphData?.nodes?.length ?? 0}
             edgeCount={graphData?.edges?.length ?? 0}
+            limit={limit}
+            onLimitChange={setLimit}
           />
         )}
         {hideControls && graphData?.nodes?.length !== undefined && (

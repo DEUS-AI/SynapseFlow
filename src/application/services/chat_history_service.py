@@ -584,8 +584,12 @@ class ChatHistoryService:
                     logger.info(f"Generated intent-based title: '{title}'")
 
                     # Update session title
-                    await self.memory.update_session_title(session_id, title)
-                    return title
+                    success = await self.memory.update_session_title(session_id, title)
+                    if success:
+                        return title
+                    else:
+                        logger.warning(f"Failed to persist intent-based title for session {session_id}")
+                        return None
 
             except Exception as e:
                 logger.warning(f"Intent-based title generation failed: {e}")
@@ -618,8 +622,12 @@ class ChatHistoryService:
                 logger.info(f"Generated LLM-based title: '{title}'")
 
                 # Update session title
-                await self.memory.update_session_title(session_id, title)
-                return title
+                success = await self.memory.update_session_title(session_id, title)
+                if success:
+                    return title
+                else:
+                    logger.warning(f"Failed to persist LLM-based title for session {session_id}")
+                    return None
 
             except Exception as e:
                 logger.error(f"LLM title generation failed: {e}")

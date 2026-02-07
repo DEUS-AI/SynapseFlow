@@ -586,7 +586,7 @@ class NeurosymbolicQueryService:
             # Query backend for entities in this layer
             if hasattr(self.backend, "list_entities_by_layer"):
                 layer_entities = await self.backend.list_entities_by_layer(
-                    layer=layer.value,
+                    layer=layer,  # Pass enum directly, not layer.value
                     limit=20,
                 )
                 # Filter by search terms

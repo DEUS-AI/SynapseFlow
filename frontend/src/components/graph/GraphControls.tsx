@@ -10,6 +10,8 @@ interface GraphControlsProps {
   selectedLayer: LayerType;
   nodeCount: number;
   edgeCount: number;
+  limit: number;
+  onLimitChange: (limit: number) => void;
 }
 
 const layers: { id: LayerType; label: string; color: string; bgColor: string }[] = [
@@ -20,7 +22,9 @@ const layers: { id: LayerType; label: string; color: string; bgColor: string }[]
   { id: 'application', label: 'Application', color: 'bg-purple-600', bgColor: 'bg-purple-100' },
 ];
 
-export function GraphControls({ onLayoutChange, onReset, onLayerChange, selectedLayer, nodeCount, edgeCount }: GraphControlsProps) {
+const limitOptions = [50, 100, 200, 300, 500, 1000];
+
+export function GraphControls({ onLayoutChange, onReset, onLayerChange, selectedLayer, nodeCount, edgeCount, limit, onLimitChange }: GraphControlsProps) {
   return (
     <>
       {/* Main controls panel */}
@@ -39,6 +43,21 @@ export function GraphControls({ onLayoutChange, onReset, onLayerChange, selected
         </div>
 
         <div className="pt-2 border-t border-slate-600 space-y-2">
+          <div className="space-y-1">
+            <label className="text-xs text-gray-400">Query Limit</label>
+            <select
+              value={limit}
+              onChange={(e) => onLimitChange(Number(e.target.value))}
+              className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 text-gray-200 text-sm rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {limitOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt} nodes
+                </option>
+              ))}
+            </select>
+          </div>
+
           <Button
             variant="outline"
             size="sm"

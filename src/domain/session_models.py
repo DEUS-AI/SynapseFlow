@@ -127,9 +127,15 @@ class Message:
     # Optional metadata
     patient_id: Optional[str] = None
     confidence: Optional[float] = None
-    sources: List[str] = field(default_factory=list)
+    sources: List[Dict[str, Any]] = field(default_factory=list)  # Array of source objects
     intent: Optional[str] = None
     urgency: Optional[str] = None
+
+    # Additional metadata for response attribution
+    reasoning_trail: List[str] = field(default_factory=list)
+    related_concepts: List[str] = field(default_factory=list)
+    response_id: Optional[str] = None  # For feedback tracking
+    query_time: Optional[float] = None  # Response generation time in seconds
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -143,7 +149,11 @@ class Message:
             "confidence": self.confidence,
             "sources": self.sources,
             "intent": self.intent,
-            "urgency": self.urgency
+            "urgency": self.urgency,
+            "reasoning_trail": self.reasoning_trail,
+            "related_concepts": self.related_concepts,
+            "response_id": self.response_id,
+            "query_time": self.query_time
         }
 
     @classmethod
@@ -158,6 +168,14 @@ class Message:
         # Handle missing session_id gracefully
         session_id = data.get("session_id") or data.get("session") or "unknown"
 
+        # Parse sources - handle both string arrays and object arrays
+        raw_sources = data.get("sources", [])
+        if raw_sources and isinstance(raw_sources[0], str):
+            # Convert string sources to object format for consistency
+            sources = [{"type": "KnowledgeGraph", "name": s} for s in raw_sources]
+        else:
+            sources = raw_sources if raw_sources else []
+
         return cls(
             id=msg_id,
             session_id=session_id,
@@ -166,9 +184,13 @@ class Message:
             timestamp=datetime.fromisoformat(data["timestamp"]) if data.get("timestamp") else datetime.now(),
             patient_id=data.get("patient_id"),
             confidence=data.get("confidence"),
-            sources=data.get("sources", []),
+            sources=sources,
             intent=data.get("intent"),
-            urgency=data.get("urgency")
+            urgency=data.get("urgency"),
+            reasoning_trail=data.get("reasoning_trail", []),
+            related_concepts=data.get("related_concepts", []),
+            response_id=data.get("response_id"),
+            query_time=data.get("query_time")
         )
 
     def is_user_message(self) -> bool:
