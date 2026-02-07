@@ -73,6 +73,11 @@ class ChatResponse:
     related_concepts: List[str]
     reasoning_trail: List[str]
     query_time_seconds: float
+    # Phase 6: Enhanced metadata from Crystallization Pipeline
+    medical_alerts: List[Dict[str, Any]] = field(default_factory=list)
+    routing: Optional[Dict[str, Any]] = None
+    temporal_context: Optional[Dict[str, Any]] = None
+    entities: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class IntelligentChatService:
@@ -440,13 +445,50 @@ Answer:"""
             except Exception as e:
                 logger.error(f"Failed to store conversation: {e}")
 
+        # Phase 6: Extract medical alerts from reasoning result
+        medical_alerts = []
+        reasoning_inferences = reasoning_result.get("inferences", [])
+        for inference in reasoning_inferences:
+            if inference.get("severity") in ("critical", "high", "medium"):
+                medical_alerts.append({
+                    "severity": inference.get("severity", "MODERATE").upper(),
+                    "category": self._infer_alert_category(inference.get("type", "")),
+                    "message": inference.get("reason") or inference.get("message", "Medical alert"),
+                    "recommendation": inference.get("recommendation"),
+                    "triggered_by": inference.get("triggered_by", []),
+                    "rule_id": inference.get("rule_id"),
+                })
+
+        # Phase 6: Extract routing info if available
+        routing_info = reasoning_result.get("routing")
+
+        # Phase 6: Extract temporal context if available
+        temporal_info = reasoning_result.get("temporal_context")
+
+        # Phase 6: Extract entities with metadata
+        entity_list = []
+        for entity in medical_context.get("entities", []):
+            if isinstance(entity, dict):
+                entity_list.append({
+                    "id": entity.get("id"),
+                    "name": entity.get("name"),
+                    "entity_type": entity.get("entity_type") or entity.get("type"),
+                    "dikw_layer": entity.get("dikw_layer"),
+                    "temporal_score": entity.get("temporal_score"),
+                    "last_observed": entity.get("last_observed"),
+                })
+
         return ChatResponse(
             answer=answer,
             confidence=confidence,
             sources=sources,
             related_concepts=related_concepts,
             reasoning_trail=reasoning_result.get("provenance", []),
-            query_time_seconds=query_time
+            query_time_seconds=query_time,
+            medical_alerts=medical_alerts,
+            routing=routing_info,
+            temporal_context=temporal_info,
+            entities=entity_list,
         )
 
     async def _extract_entities(self, question: str) -> List[str]:
@@ -1202,3 +1244,22 @@ Patient message: """ + message
         logger.debug(f"Final confidence: {final_confidence:.2f} (base: 0.4)")
 
         return final_confidence
+
+    def _infer_alert_category(self, inference_type: str) -> str:
+        """
+        Infer the alert category from the inference type.
+
+        Maps inference types to alert categories for frontend display.
+        """
+        type_lower = inference_type.lower()
+
+        if "drug" in type_lower or "interaction" in type_lower:
+            return "drug_interaction"
+        elif "contraindication" in type_lower:
+            return "contraindication"
+        elif "allergy" in type_lower or "allergic" in type_lower:
+            return "allergy"
+        elif "symptom" in type_lower or "pattern" in type_lower:
+            return "symptom_pattern"
+        else:
+            return "contraindication"  # Default fallback

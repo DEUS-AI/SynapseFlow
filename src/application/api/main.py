@@ -222,20 +222,30 @@ async def chat_websocket_endpoint(
                 )
 
                 # Send response back with response_id for feedback
-                await manager.send_personal_message(
-                    {
-                        "type": "message",
-                        "role": "assistant",
-                        "content": response.answer,
-                        "confidence": response.confidence,
-                        "sources": [{"type": s.get("type", "KnowledgeGraph"), "name": s.get("name", "")} for s in response.sources],
-                        "reasoning_trail": response.reasoning_trail,
-                        "related_concepts": response.related_concepts,
-                        "query_time": response.query_time_seconds,
-                        "response_id": response_id  # Include for feedback tracking
-                    },
-                    client_id
-                )
+                # Phase 6: Include enhanced metadata from Crystallization Pipeline
+                ws_response = {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": response.answer,
+                    "confidence": response.confidence,
+                    "sources": [{"type": s.get("type", "KnowledgeGraph"), "name": s.get("name", "")} for s in response.sources],
+                    "reasoning_trail": response.reasoning_trail,
+                    "related_concepts": response.related_concepts,
+                    "query_time": response.query_time_seconds,
+                    "response_id": response_id,  # Include for feedback tracking
+                }
+
+                # Add Phase 6 enhanced fields if available
+                if hasattr(response, 'medical_alerts') and response.medical_alerts:
+                    ws_response["medical_alerts"] = response.medical_alerts
+                if hasattr(response, 'routing') and response.routing:
+                    ws_response["routing"] = response.routing
+                if hasattr(response, 'temporal_context') and response.temporal_context:
+                    ws_response["temporal_context"] = response.temporal_context
+                if hasattr(response, 'entities') and response.entities:
+                    ws_response["entities"] = response.entities
+
+                await manager.send_personal_message(ws_response, client_id)
 
                 # Auto-generate title after 3rd message if still "New Conversation"
                 try:

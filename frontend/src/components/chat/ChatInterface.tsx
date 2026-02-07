@@ -114,9 +114,15 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
             reasoning_trail: data.reasoning_trail,
             related_concepts: data.related_concepts,
             query: lastUserQuery.current,
+            // Phase 6: Enhanced metadata from Crystallization Pipeline
+            medical_alerts: data.medical_alerts,
+            routing: data.routing,
+            temporal_context: data.temporal_context,
+            entities: data.entities,
           },
         ]);
 
+        // Check for safety warnings from reasoning trail (legacy)
         const warnings = data.reasoning_trail?.filter(
           (trail) =>
             trail.toLowerCase().includes('contraindication') ||
@@ -124,8 +130,14 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
             trail.toLowerCase().includes('allerg')
         ) || [];
 
-        if (warnings.length > 0) {
-          setSafetyWarnings(warnings);
+        // Also check for critical/high medical alerts
+        const criticalAlerts = data.medical_alerts?.filter(
+          (alert) => alert.severity === 'CRITICAL' || alert.severity === 'HIGH'
+        ) || [];
+
+        if (warnings.length > 0 || criticalAlerts.length > 0) {
+          const alertMessages = criticalAlerts.map(a => `${a.severity}: ${a.message}`);
+          setSafetyWarnings([...warnings, ...alertMessages]);
         }
 
         setIsThinking(false);
