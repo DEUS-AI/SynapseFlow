@@ -16,12 +16,14 @@ from enum import Enum as PyEnum
 
 from .kg_router import router as kg_router
 from .document_router import router as document_router
+from .crystallization_router import router as crystallization_router
 from .dependencies import (
     get_chat_service,
     get_patient_memory,
     get_kg_backend,
     get_event_bus,
     initialize_layer_services,
+    initialize_crystallization_pipeline,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,7 @@ app.add_middleware(
 # Include routers
 app.include_router(kg_router)
 app.include_router(document_router)
+app.include_router(crystallization_router)
 
 
 # ========================================
@@ -62,6 +65,14 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Failed to initialize layer services: {e}")
         # Don't fail startup - allow API to run without auto-promotion
+
+    # Initialize crystallization pipeline (Graphiti → Neo4j DIKW)
+    try:
+        await initialize_crystallization_pipeline()
+        logger.info("✅ Crystallization pipeline initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
+        # Don't fail startup - crystallization is optional
 
 
 # ========================================

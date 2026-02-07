@@ -24,6 +24,17 @@ _neurosymbolic_service_instance = None
 _layer_transition_service = None
 _promotion_scanner_job = None
 
+# Crystallization pipeline services
+_crystallization_service = None
+_promotion_gate = None
+_entity_resolver = None
+
+# Temporal scoring service
+_temporal_scoring_service = None
+
+# DIKW Router
+_dikw_router_instance = None
+
 # Agent instances
 _data_architect_agent = None
 
@@ -58,6 +69,77 @@ async def get_patient_memory():
         _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
     return _patient_memory_instance
 
+async def get_temporal_scoring_service():
+    """
+    Get the TemporalScoringService instance.
+
+    This service provides entity-type specific temporal decay scoring,
+    replacing the simple 7-day binary filter with exponential decay functions.
+    """
+    global _temporal_scoring_service
+
+    if _temporal_scoring_service is None:
+        from application.services.temporal_scoring import (
+            TemporalScoringService,
+            TemporalScoringConfig,
+        )
+        from domain.temporal_models import TemporalWindow
+
+        # Configure temporal scoring from environment
+        frequency_weight = float(os.getenv("TEMPORAL_SCORING_FREQUENCY_WEIGHT", "0.3"))
+        min_threshold = float(os.getenv("TEMPORAL_SCORING_MIN_THRESHOLD", "0.05"))
+        default_window = os.getenv("TEMPORAL_SCORING_DEFAULT_WINDOW", "short_term").lower()
+
+        window_map = {
+            "immediate": TemporalWindow.IMMEDIATE,
+            "recent": TemporalWindow.RECENT,
+            "short_term": TemporalWindow.SHORT_TERM,
+            "medium_term": TemporalWindow.MEDIUM_TERM,
+            "long_term": TemporalWindow.LONG_TERM,
+            "historical": TemporalWindow.HISTORICAL,
+        }
+
+        config = TemporalScoringConfig(
+            frequency_weight=frequency_weight,
+            min_relevance_threshold=min_threshold,
+            default_window=window_map.get(default_window, TemporalWindow.SHORT_TERM),
+        )
+
+        _temporal_scoring_service = TemporalScoringService(config=config)
+
+        print(f"✅ TemporalScoringService initialized (frequency_weight={frequency_weight})")
+
+    return _temporal_scoring_service
+
+
+async def get_dikw_router():
+    """
+    Get the DIKWRouter instance.
+
+    This router classifies query intent and routes to appropriate
+    DIKW layers (FACTUAL→SEMANTIC, INFERENTIAL→REASONING, etc.).
+    """
+    global _dikw_router_instance
+
+    if _dikw_router_instance is None:
+        from application.services.dikw_router import DIKWRouter, DIKWRouterConfig
+
+        # Configure router from environment
+        enable_fallback = os.getenv("DIKW_ROUTER_ENABLE_FALLBACK", "true").lower() == "true"
+        max_fallback_depth = int(os.getenv("DIKW_ROUTER_MAX_FALLBACK_DEPTH", "2"))
+
+        config = DIKWRouterConfig(
+            enable_fallback=enable_fallback,
+            max_fallback_depth=max_fallback_depth,
+        )
+
+        _dikw_router_instance = DIKWRouter(config=config)
+
+        print(f"✅ DIKWRouter initialized (fallback={enable_fallback})")
+
+    return _dikw_router_instance
+
+
 async def get_neurosymbolic_service():
     """Get the NeurosymbolicQueryService instance."""
     global _neurosymbolic_service_instance
@@ -71,13 +153,25 @@ async def get_neurosymbolic_service():
         reasoning_engine = ReasoningEngine(backend=backend)
         confidence_propagator = CrossLayerConfidencePropagation()
 
+        # Get temporal scoring service if enabled
+        enable_temporal = os.getenv("ENABLE_TEMPORAL_SCORING", "true").lower() == "true"
+        temporal_scoring = await get_temporal_scoring_service() if enable_temporal else None
+
+        # Get DIKW router if enabled
+        enable_intent_routing = os.getenv("ENABLE_INTENT_ROUTING", "true").lower() == "true"
+        dikw_router = await get_dikw_router() if enable_intent_routing else None
+
         _neurosymbolic_service_instance = NeurosymbolicQueryService(
             backend=backend,
             reasoning_engine=reasoning_engine,
             confidence_propagator=confidence_propagator,
+            temporal_scoring=temporal_scoring,
+            dikw_router=dikw_router,
+            enable_temporal_scoring=enable_temporal,
+            enable_intent_routing=enable_intent_routing,
         )
 
-        print("✅ NeurosymbolicQueryService initialized")
+        print(f"✅ NeurosymbolicQueryService initialized (temporal={enable_temporal}, intent_routing={enable_intent_routing})")
 
     return _neurosymbolic_service_instance
 
@@ -271,3 +365,83 @@ async def get_data_architect_agent():
         print("✅ DataArchitectAgent initialized")
 
     return _data_architect_agent
+
+
+# ========================================
+# Crystallization Pipeline Dependencies
+# ========================================
+
+async def get_crystallization_service():
+    """
+    Get the CrystallizationService instance.
+
+    This service handles the transfer of entities from Graphiti/FalkorDB
+    (episodic memory) to Neo4j (DIKW knowledge graph).
+    """
+    global _crystallization_service, _promotion_gate, _entity_resolver
+
+    # Check if crystallization is enabled
+    if not os.getenv("ENABLE_CRYSTALLIZATION", "").lower() in ("true", "1", "yes"):
+        return None
+
+    if _crystallization_service is None:
+        from composition_root import bootstrap_crystallization_pipeline
+
+        backend = await get_kg_backend()
+        event_bus = await get_event_bus()
+
+        _crystallization_service, _promotion_gate, _entity_resolver = (
+            await bootstrap_crystallization_pipeline(
+                neo4j_backend=backend,
+                event_bus=event_bus,
+            )
+        )
+
+    return _crystallization_service
+
+
+async def get_promotion_gate():
+    """
+    Get the PromotionGate instance.
+
+    This service validates entity promotions between DIKW layers
+    with medical-domain specific criteria.
+    """
+    global _promotion_gate
+
+    # Ensure crystallization services are initialized
+    if _promotion_gate is None:
+        await get_crystallization_service()
+
+    return _promotion_gate
+
+
+async def get_entity_resolver():
+    """
+    Get the EntityResolver instance.
+
+    This service handles cross-database entity deduplication
+    between FalkorDB and Neo4j.
+    """
+    global _entity_resolver
+
+    # Ensure crystallization services are initialized
+    if _entity_resolver is None:
+        await get_crystallization_service()
+
+    return _entity_resolver
+
+
+async def initialize_crystallization_pipeline():
+    """
+    Initialize the crystallization pipeline on startup.
+
+    Call this from the FastAPI startup event to ensure
+    the crystallization service is active.
+    """
+    if os.getenv("ENABLE_CRYSTALLIZATION", "").lower() in ("true", "1", "yes"):
+        crystallization = await get_crystallization_service()
+        if crystallization:
+            print("✅ Crystallization pipeline initialized")
+        else:
+            print("⚠️ Crystallization pipeline failed to initialize")

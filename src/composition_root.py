@@ -314,13 +314,16 @@ async def bootstrap_patient_memory():
         raise
 
 
-async def bootstrap_episodic_memory():
+async def bootstrap_episodic_memory(event_bus: Optional[EventBus] = None):
     """Initialize Graphiti-based episodic memory service with FalkorDB backend.
 
     This provides episodic memory for conversations, separate from the 3-layer
     memory architecture (Redis + Mem0 + Neo4j). The episodic memory uses:
     - FalkorDB: Episodic graph storage
     - Graphiti: Episode processing, entity extraction, edge inference
+
+    Args:
+        event_bus: Optional EventBus for emitting episode_added events
 
     Returns:
         EpisodicMemoryService or None if initialization fails
@@ -346,6 +349,11 @@ async def bootstrap_episodic_memory():
             openai_api_key=os.getenv("OPENAI_API_KEY"),
         )
 
+        # Inject event bus if provided (for crystallization pipeline)
+        if event_bus:
+            episodic_memory.event_bus = event_bus
+            print("  ✅ Event bus injected for crystallization pipeline")
+
         print("✅ Episodic Memory Service initialized (FalkorDB + Graphiti)")
         return episodic_memory
 
@@ -358,6 +366,110 @@ async def bootstrap_episodic_memory():
         print(f"⚠️  Failed to initialize Episodic Memory Service: {e}")
         print("   Continuing without episodic memory")
         return None
+
+
+async def bootstrap_crystallization_pipeline(
+    neo4j_backend: KnowledgeGraphBackend,
+    event_bus: EventBus,
+    graphiti_client: Optional[Graphiti] = None,
+):
+    """Initialize the Crystallization Pipeline for Graphiti → Neo4j DIKW transfer.
+
+    This pipeline transfers knowledge from episodic memory (Graphiti/FalkorDB)
+    to the persistent DIKW Knowledge Graph (Neo4j), enabling entities to be
+    promoted through the DIKW hierarchy.
+
+    Components:
+    - EntityResolver: Cross-database deduplication
+    - CrystallizationService: Graphiti → Neo4j entity transfer
+    - PromotionGate: Medical-domain validation for layer transitions
+
+    Args:
+        neo4j_backend: Neo4j backend for DIKW knowledge graph
+        event_bus: EventBus for event-driven crystallization
+        graphiti_client: Optional Graphiti client for direct FalkorDB queries
+
+    Returns:
+        Tuple of (CrystallizationService, PromotionGate, EntityResolver) or (None, None, None)
+    """
+    import os
+    from application.services.feature_flag_service import is_flag_enabled
+
+    # Check if crystallization is enabled
+    if not os.getenv("ENABLE_CRYSTALLIZATION", "").lower() in ("true", "1", "yes"):
+        print("ℹ️  Crystallization pipeline not enabled (set ENABLE_CRYSTALLIZATION=true to enable)")
+        return None, None, None
+
+    print("🔄 Initializing Crystallization Pipeline...")
+
+    try:
+        from application.services.entity_resolver import EntityResolver
+        from application.services.crystallization_service import (
+            CrystallizationService,
+            CrystallizationConfig,
+            CrystallizationMode,
+        )
+        from application.services.promotion_gate import PromotionGate, PromotionGateConfig
+
+        # Create EntityResolver
+        entity_resolver = EntityResolver(
+            backend=neo4j_backend,
+            fuzzy_threshold=float(os.getenv("ENTITY_RESOLVER_FUZZY_THRESHOLD", "0.85")),
+        )
+        print("  ✅ EntityResolver initialized")
+
+        # Create PromotionGate with config
+        promotion_config = PromotionGateConfig()
+        promotion_gate = PromotionGate(
+            neo4j_backend=neo4j_backend,
+            config=promotion_config,
+        )
+        print("  ✅ PromotionGate initialized")
+
+        # Create CrystallizationService
+        crystallization_mode = os.getenv("CRYSTALLIZATION_MODE", "hybrid").lower()
+        mode_map = {
+            "event_driven": CrystallizationMode.EVENT_DRIVEN,
+            "batch": CrystallizationMode.BATCH,
+            "hybrid": CrystallizationMode.HYBRID,
+        }
+
+        crystallization_config = CrystallizationConfig(
+            mode=mode_map.get(crystallization_mode, CrystallizationMode.HYBRID),
+            batch_interval_minutes=int(os.getenv("CRYSTALLIZATION_BATCH_INTERVAL", "5")),
+            batch_threshold=int(os.getenv("CRYSTALLIZATION_BATCH_THRESHOLD", "10")),
+            enable_auto_promotion_perception_semantic=os.getenv(
+                "ENABLE_AUTO_PROMOTION_PERCEPTION_SEMANTIC", "true"
+            ).lower() in ("true", "1", "yes"),
+            enable_auto_promotion_semantic_reasoning=os.getenv(
+                "ENABLE_AUTO_PROMOTION_SEMANTIC_REASONING", "false"
+            ).lower() in ("true", "1", "yes"),
+        )
+
+        crystallization_service = CrystallizationService(
+            neo4j_backend=neo4j_backend,
+            entity_resolver=entity_resolver,
+            event_bus=event_bus,
+            graphiti_client=graphiti_client,
+            config=crystallization_config,
+        )
+
+        # Start the crystallization service
+        await crystallization_service.start()
+        print(f"  ✅ CrystallizationService started (mode: {crystallization_mode})")
+
+        print("✅ Crystallization Pipeline initialized")
+        return crystallization_service, promotion_gate, entity_resolver
+
+    except ImportError as e:
+        print(f"⚠️  Crystallization dependencies not available: {e}")
+        return None, None, None
+
+    except Exception as e:
+        print(f"⚠️  Failed to initialize Crystallization Pipeline: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None, None
 
 
 async def bootstrap_postgres_repositories():
