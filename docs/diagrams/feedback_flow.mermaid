@@ -1,0 +1,90 @@
+%% RLHF Feedback Collection & Training Pipeline
+%% Render with: https://mermaid.live or in GitHub/Notion
+
+flowchart TB
+    subgraph Collection["1. Feedback Collection"]
+        A[User Chat Interface] --> B{Feedback Type}
+        B -->|Thumbs Up/Down| C[Quick Rating]
+        B -->|Correction| D[Correction Modal]
+        C --> E[POST /api/feedback/thumbs]
+        D --> F[POST /api/feedback]
+    end
+
+    subgraph Storage["2. Storage & Attribution"]
+        E --> G[FeedbackTracerService]
+        F --> G
+        G --> H[(Neo4j: UserFeedback Node)]
+        G --> I[Link to Entities Involved]
+        G --> J[Track Layers Traversed]
+    end
+
+    subgraph Processing["3. Feedback Processing"]
+        H --> K{Has Correction?}
+        K -->|Yes| L[Create Preference Pair]
+        K -->|No| M[Rating Only]
+
+        L --> N[Chosen: User Correction]
+        L --> O[Rejected: Original Response]
+
+        M --> P{Rating <= 2?}
+        P -->|Yes| Q[Reduce Entity Confidence]
+        P -->|No| R[Boost Entity Confidence]
+
+        Q --> S{Negative Count > 3?}
+        S -->|Yes| T[Demote Layer]
+    end
+
+    subgraph Extraction["4. Training Data Extraction"]
+        H --> U[RLHFDataExtractor]
+        U --> V[Extract from Corrections]
+        U --> W[Extract from Rating Comparisons]
+        U --> X[Extract High-Rated for SFT]
+
+        V --> Y[Preference Pairs]
+        W --> Y
+        X --> Z[SFT Examples]
+    end
+
+    subgraph Export["5. Export & Formatting"]
+        Y --> AA[TrainingDataFormatter]
+        Z --> AA
+
+        AA --> AB[DPO Format]
+        AA --> AC[SFT Format]
+        AA --> AD[Alpaca Format]
+        AA --> AE[ShareGPT Format]
+        AA --> AF[OpenAI Format]
+
+        AB --> AG[GET /api/feedback/export]
+        AC --> AG
+        AD --> AG
+        AE --> AG
+        AF --> AG
+    end
+
+    subgraph Training["6. Model Retraining"]
+        AG --> AH[Download JSON]
+        AH --> AI{Format?}
+
+        AI -->|DPO| AJ[TRL DPOTrainer]
+        AI -->|SFT| AK[Transformers Trainer]
+        AI -->|OpenAI| AL[OpenAI Fine-tune API]
+
+        AJ --> AM[Fine-tuned Model]
+        AK --> AM
+        AL --> AM
+    end
+
+    subgraph Deploy["7. Deployment Loop"]
+        AM --> AN[Deploy Updated Model]
+        AN --> AO[Continue Collecting Feedback]
+        AO --> A
+    end
+
+    style Collection fill:#e1f5fe
+    style Storage fill:#f3e5f5
+    style Processing fill:#fff3e0
+    style Extraction fill:#e8f5e9
+    style Export fill:#fce4ec
+    style Training fill:#e3f2fd
+    style Deploy fill:#f1f8e9

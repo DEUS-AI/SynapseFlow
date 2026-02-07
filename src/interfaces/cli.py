@@ -494,5 +494,198 @@ def create_template(
     typer.echo(f"🔧 Next steps: Edit the template with domain-specific information")
 
 
+@app.command("export-rlhf")
+def export_rlhf(
+    output: str = typer.Option("training_data", "--output", "-o", help="Output file path (without extension)"),
+    format: str = typer.Option("dpo", "--format", "-f", help="Output format: dpo, sft, alpaca, sharegpt, openai, jsonl"),
+    layer: str = typer.Option(None, "--layer", "-l", help="Filter by layer: PERCEPTION, SEMANTIC, REASONING, APPLICATION"),
+    min_rating_gap: float = typer.Option(2.0, "--min-gap", help="Minimum rating gap for preference pairs"),
+    include_metadata: bool = typer.Option(False, "--metadata", help="Include metadata in output"),
+    split: bool = typer.Option(False, "--split", help="Split into train/val/test files"),
+):
+    """Export RLHF training data from feedback history.
+
+    Extracts preference pairs and SFT examples from user feedback
+    for fine-tuning language models using DPO, RLHF, or SFT.
+
+    Examples:
+        # Export DPO pairs
+        python -m src.interfaces.cli export-rlhf --format dpo --output dpo_pairs
+
+        # Export layer-specific failures
+        python -m src.interfaces.cli export-rlhf --layer SEMANTIC --format sft
+
+        # Export with train/val/test split
+        python -m src.interfaces.cli export-rlhf --format alpaca --split
+    """
+    from pathlib import Path
+
+    async def run_export():
+        from application.services.rlhf_data_extractor import RLHFDataExtractor, TrainingDataFormat
+        from application.formatters import TrainingDataFormatter, OutputFormat, export_to_file, FormatterConfig
+
+        # Initialize backend
+        kg_backend, _ = await bootstrap_knowledge_management()
+
+        # Create extractor
+        extractor = RLHFDataExtractor(
+            backend=kg_backend,
+            min_rating_gap=min_rating_gap,
+        )
+
+        # Extract data
+        typer.echo(f"📊 Extracting RLHF data...")
+        result = await extractor.extract_all(layer_filter=layer)
+
+        # Configure formatter
+        config = FormatterConfig(
+            include_metadata=include_metadata,
+            include_system_prompt=True,
+        )
+        formatter = TrainingDataFormatter(config)
+
+        # Map format string to enum
+        format_map = {
+            "dpo": OutputFormat.DPO,
+            "sft": OutputFormat.SFT,
+            "alpaca": OutputFormat.ALPACA,
+            "sharegpt": OutputFormat.SHAREGPT,
+            "openai": OutputFormat.OPENAI,
+            "jsonl": OutputFormat.JSONL,
+        }
+        output_format = format_map.get(format.lower(), OutputFormat.DPO)
+
+        # Format data
+        formatted_pairs = []
+        formatted_sft = []
+
+        if result.preference_pairs:
+            pairs_data = [p.to_dict() for p in result.preference_pairs]
+            if output_format == OutputFormat.DPO:
+                formatted_pairs = formatter.format_dpo(pairs_data)
+            elif output_format == OutputFormat.OPENAI:
+                formatted_pairs = formatter.format_dpo_openai(pairs_data)
+            else:
+                formatted_pairs = formatter.format_dpo(pairs_data)
+
+        if result.sft_examples:
+            sft_data = [{"instruction": e.instruction, "input": e.input, "output": e.output,
+                         "rating": e.rating, "source": e.source} for e in result.sft_examples]
+            if output_format == OutputFormat.SFT:
+                formatted_sft = formatter.format_sft(sft_data)
+            elif output_format == OutputFormat.ALPACA:
+                formatted_sft = formatter.format_alpaca(sft_data)
+            elif output_format == OutputFormat.SHAREGPT:
+                formatted_sft = formatter.format_sharegpt(sft_data)
+            elif output_format == OutputFormat.OPENAI:
+                formatted_sft = formatter.format_openai(sft_data)
+            else:
+                formatted_sft = formatter.format_alpaca(sft_data)
+
+        return result, formatted_pairs, formatted_sft, output_format
+
+    result, formatted_pairs, formatted_sft, output_format = asyncio.run(run_export())
+
+    # Display statistics
+    typer.echo(f"\n📈 Extraction Statistics:")
+    typer.echo(f"   Preference pairs: {len(result.preference_pairs)}")
+    typer.echo(f"   SFT examples: {len(result.sft_examples)}")
+
+    if result.layer_analysis:
+        typer.echo(f"\n📊 Layer Analysis:")
+        for layer_name, analysis in result.layer_analysis.items():
+            typer.echo(f"   {layer_name}: avg_rating={analysis.average_rating:.2f}, negative_rate={analysis.negative_rate:.1%}")
+
+    # Export files
+    from pathlib import Path
+    from application.formatters import export_to_file, OutputFormat
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if split:
+        from application.formatters import TrainingDataFormatter
+        splitter = TrainingDataFormatter()
+
+        # Split and export preference pairs
+        if formatted_pairs:
+            splits = splitter.split_dataset(formatted_pairs)
+            for split_name, data in splits.items():
+                if data:
+                    file_path = f"{output}_pairs_{split_name}.jsonl"
+                    export_to_file(data, file_path, output_format)
+                    typer.echo(f"   ✅ {file_path} ({len(data)} records)")
+
+        # Split and export SFT examples
+        if formatted_sft:
+            splits = splitter.split_dataset(formatted_sft)
+            for split_name, data in splits.items():
+                if data:
+                    file_path = f"{output}_sft_{split_name}.jsonl"
+                    export_to_file(data, file_path, output_format)
+                    typer.echo(f"   ✅ {file_path} ({len(data)} records)")
+    else:
+        # Export without split
+        if formatted_pairs:
+            pairs_file = f"{output}_pairs.jsonl"
+            export_to_file(formatted_pairs, pairs_file, output_format)
+            typer.echo(f"\n✅ Preference pairs exported: {pairs_file}")
+
+        if formatted_sft:
+            sft_file = f"{output}_sft.jsonl"
+            export_to_file(formatted_sft, sft_file, output_format)
+            typer.echo(f"✅ SFT examples exported: {sft_file}")
+
+    # Show suggestions
+    if result.layer_analysis:
+        typer.echo(f"\n💡 Improvement Suggestions:")
+        for layer_name, analysis in result.layer_analysis.items():
+            if analysis.improvement_suggestions:
+                typer.echo(f"   {layer_name}:")
+                for suggestion in analysis.improvement_suggestions[:2]:
+                    typer.echo(f"     • {suggestion}")
+
+
+@app.command("rlhf-stats")
+def rlhf_stats():
+    """Show RLHF feedback statistics."""
+
+    async def get_stats():
+        from application.services.feedback_tracer import FeedbackTracerService
+        from application.event_bus import EventBus
+
+        kg_backend, _ = await bootstrap_knowledge_management()
+        event_bus = EventBus()
+
+        service = FeedbackTracerService(backend=kg_backend, event_bus=event_bus)
+        stats = await service.get_feedback_statistics()
+
+        return stats
+
+    stats = asyncio.run(get_stats())
+
+    typer.echo("\n📊 RLHF Feedback Statistics\n")
+    typer.echo(f"Total feedbacks: {stats.total_feedbacks}")
+    typer.echo(f"Average rating: {stats.average_rating:.2f}")
+
+    typer.echo(f"\nRating Distribution:")
+    for rating, count in sorted(stats.rating_distribution.items()):
+        bar = "█" * count
+        typer.echo(f"  {rating}★: {bar} ({count})")
+
+    typer.echo(f"\nFeedback Types:")
+    for ftype, count in stats.feedback_type_distribution.items():
+        typer.echo(f"  {ftype}: {count}")
+
+    if stats.layer_performance:
+        typer.echo(f"\nLayer Performance:")
+        for layer, perf in stats.layer_performance.items():
+            typer.echo(f"  {layer}: avg={perf['avg_rating']:.2f}, negative_rate={perf['negative_rate']:.1%}")
+
+    if stats.recent_trends.get("trend") != "insufficient_data":
+        typer.echo(f"\nRecent Trend: {stats.recent_trends['trend']}")
+        typer.echo(f"  Change: {stats.recent_trends.get('change', 0):+.2f}")
+
+
 if __name__ == "__main__":
     app()

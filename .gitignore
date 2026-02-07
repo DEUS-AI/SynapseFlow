@@ -9,5 +9,49 @@ tests/__pycache__/
 
 # Environment variables
 .env
+.env.*
 
-# ... (rest of the file is the same) .env
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.astro/
+.vite/
+
+# Data files (user uploads)
+PDFs/
+markdown_output/
+
+# Logs
+*.log
+backend.log
+
+# Local config
+config/
+
+# Database files
+*.db
+*.sqlite
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp

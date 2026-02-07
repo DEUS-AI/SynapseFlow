@@ -263,9 +263,16 @@ Answer:"""
                 intent = await self.intent_service.classify(question, memory_context)
                 logger.info(f"Intent classified: {intent.intent_type.value} (confidence: {intent.confidence:.2f})")
 
-                # Handle non-medical intents directly
-                if intent.intent_type in [IntentType.GREETING, IntentType.GREETING_RETURN,
-                                         IntentType.ACKNOWLEDGMENT, IntentType.FAREWELL]:
+                # Check if we've already exchanged messages in this session
+                # If so, treat follow-up small talk as general inquiry instead of new greeting
+                already_greeted = len(conversation_history) > 0 if conversation_history else False
+
+                is_greeting_intent = intent.intent_type in [IntentType.GREETING, IntentType.GREETING_RETURN]
+                is_simple_intent = intent.intent_type in [IntentType.ACKNOWLEDGMENT, IntentType.FAREWELL]
+
+                # Handle greetings ONLY if we haven't already exchanged messages
+                # Otherwise, treat as general conversation that should flow naturally
+                if (is_greeting_intent and not already_greeted) or is_simple_intent:
                     # Generate personalized response without knowledge graph query
                     response_text = await self.response_modulator.generate_response(
                         user_message=question,
@@ -282,6 +289,11 @@ Answer:"""
                         reasoning_trail=[f"Intent: {intent.intent_type.value}"],
                         query_time_seconds=query_time
                     )
+                elif is_greeting_intent and already_greeted:
+                    # We've already greeted - treat follow-up small talk as general conversation
+                    # This allows natural conversation flow with "how are you", "what can you help with" etc.
+                    logger.info(f"Follow-up small talk detected after {len(conversation_history)} messages, treating as general inquiry")
+                    intent.requires_medical_knowledge = True  # Process through normal flow
 
             except Exception as e:
                 logger.error(f"Conversational layer error: {e}", exc_info=True)
@@ -353,9 +365,14 @@ Answer:"""
         )
         related_concepts = self._find_related_concepts(entities, medical_context)
 
-        # Calculate confidence
+        # Calculate confidence based on actual data found
         confidence = self._calculate_confidence(
-            answer, reasoning_result, validation_result
+            answer=answer,
+            reasoning_result=reasoning_result,
+            validation_result=validation_result,
+            medical_context=medical_context,
+            document_chunks=document_chunks,
+            sources=sources
         )
 
         # === PHASE 6: Response Modulation ===
@@ -864,12 +881,24 @@ Patient message: """ + message
 
         # Generate answer
         try:
+            # Build messages array with conversation history for better context
+            messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+
+            # Add conversation history as actual messages (last 8 to leave room for current)
+            if conversation_history:
+                for msg in conversation_history[-8:]:
+                    # Map role correctly (user/assistant)
+                    role = "user" if msg.role.lower() == "user" else "assistant"
+                    # Include full content for conversation flow
+                    content = msg.content[:800] if len(msg.content) > 800 else msg.content
+                    messages.append({"role": role, "content": content})
+
+            # Add current question with context
+            messages.append({"role": "user", "content": prompt})
+
             response = await self.openai_client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": self.SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt}
-                ],
+                messages=messages,
                 temperature=0.7,
                 max_tokens=800
             )
@@ -965,14 +994,22 @@ Patient message: """ + message
         return "\n".join(lines)
 
     def _format_conversation_history(self, history: List[Message]) -> str:
-        """Format conversation history for prompt."""
+        """Format conversation history for prompt.
+
+        Uses last 10 messages with up to 500 chars each for better context retention.
+        """
         if not history:
             return "No previous conversation."
 
         lines = []
-        for msg in history[-3:]:  # Last 3 messages
+        # Use last 10 messages for better context continuity
+        for msg in history[-10:]:
             role = msg.role.upper()
-            lines.append(f"{role}: {msg.content[:200]}")
+            # Use 500 chars to preserve more context per message
+            content = msg.content[:500]
+            if len(msg.content) > 500:
+                content += "..."
+            lines.append(f"{role}: {content}")
 
         return "\n".join(lines)
 
@@ -987,18 +1024,27 @@ Patient message: """ + message
         sources = []
         seen = set()
 
-        # Medical sources
+        # Medical sources - check both 'source' and 'source_document' fields
         for entity in medical_context.get("entities", []):
-            source = entity.get("source")
+            source = entity.get("source") or entity.get("source_document")
             if source and source not in seen:
-                sources.append({"type": "PDF", "name": source})
+                # Determine source type based on extension or content
+                source_type = "PDF" if source.lower().endswith(".pdf") else "KnowledgeGraph"
+                sources.append({"type": source_type, "name": source})
                 seen.add(source)
 
-        # Document sources
+        # Document sources from chunks
         for chunk in document_chunks:
-            source = chunk.get("source")
+            source = chunk.get("source") or chunk.get("source_document") or chunk.get("document_id")
             if source and source not in seen:
                 sources.append({"type": "Document", "name": source})
+                seen.add(source)
+
+        # Cross-link sources
+        for link in cross_links:
+            source = link.get("source_document") or link.get("source")
+            if source and source not in seen:
+                sources.append({"type": "KnowledgeGraph", "name": source})
                 seen.add(source)
 
         # Data sources
@@ -1034,35 +1080,77 @@ Patient message: """ + message
         self,
         answer: str,
         reasoning_result: Dict[str, Any],
-        validation_result: Dict[str, Any]
+        validation_result: Dict[str, Any],
+        medical_context: Optional[Dict[str, Any]] = None,
+        document_chunks: Optional[List[Dict[str, Any]]] = None,
+        sources: Optional[List[Dict[str, str]]] = None
     ) -> float:
-        """Calculate overall confidence score for the answer."""
-        # Extract confidence from reasoning inferences
-        base_confidence = 0.5
+        """
+        Calculate overall confidence score for the answer.
 
-        # Look for confidence_score inference from reasoning
+        Confidence is based on actual data availability:
+        - Base: 0.4 (no data)
+        - Medical entities found: +0.15-0.25
+        - Document chunks found: +0.15-0.25
+        - Source documents: +0.05-0.15
+        - Answer quality: +0.05
+        - Validation: -20% if failed
+        """
+        # Start with low base - we need actual data to boost confidence
+        base_confidence = 0.4
+
+        # === Data-based confidence boosts ===
+
+        # Boost for medical context entities found
+        if medical_context:
+            entity_count = len(medical_context.get("entities", []))
+            relationship_count = len(medical_context.get("relationships", []))
+
+            if entity_count > 0:
+                # Scale boost: 1 entity = +0.15, 3+ entities = +0.25
+                entity_boost = min(0.25, 0.15 + (entity_count - 1) * 0.05)
+                base_confidence += entity_boost
+                logger.debug(f"Confidence boost from {entity_count} entities: +{entity_boost:.2f}")
+
+            if relationship_count > 0:
+                # Additional boost for relationships
+                rel_boost = min(0.05, relationship_count * 0.02)
+                base_confidence += rel_boost
+
+        # Boost for document chunks retrieved (RAG)
+        if document_chunks:
+            chunk_count = len(document_chunks)
+            if chunk_count > 0:
+                # Scale boost: 1 chunk = +0.15, 3+ chunks = +0.25
+                chunk_boost = min(0.25, 0.15 + (chunk_count - 1) * 0.05)
+                base_confidence += chunk_boost
+                logger.debug(f"Confidence boost from {chunk_count} document chunks: +{chunk_boost:.2f}")
+
+        # Boost for verified sources
+        if sources:
+            source_count = len(sources)
+            if source_count > 0:
+                # PDF sources are more reliable
+                pdf_sources = sum(1 for s in sources if s.get("type") == "PDF")
+                source_boost = min(0.15, source_count * 0.03 + pdf_sources * 0.02)
+                base_confidence += source_boost
+                logger.debug(f"Confidence boost from {source_count} sources ({pdf_sources} PDFs): +{source_boost:.2f}")
+
+        # === Legacy reasoning-based adjustments ===
+
+        # Check for explicit confidence from reasoning engine
         inferences = reasoning_result.get("inferences", [])
         for inference in inferences:
             if inference.get("type") == "confidence_score":
-                base_confidence = inference.get("score", 0.5)
+                # Blend reasoning confidence with data-based confidence
+                reasoning_conf = inference.get("score", 0.5)
+                base_confidence = (base_confidence + reasoning_conf) / 2
                 break
 
-        # If no confidence_score found, check for data_availability_assessment
-        if base_confidence == 0.5:
-            for inference in inferences:
-                if inference.get("type") == "data_availability_assessment":
-                    base_confidence = inference.get("score", 0.5)
-                    break
-
-        # Start with reasoning-based confidence
+        # Start with computed base
         confidence = base_confidence
 
-        # Boost if answer contains specific source citations
-        source_count = answer.count("[Source:")
-        if source_count > 0:
-            confidence += min(0.15, source_count * 0.05)  # Up to +0.15 for multiple sources
-
-        # Boost if answer is detailed (longer answers often more comprehensive)
+        # Boost if answer is detailed
         if len(answer) > 500:
             confidence += 0.05
 
@@ -1070,18 +1158,20 @@ Patient message: """ + message
         if not validation_result.get("valid"):
             confidence *= 0.8
 
-        # Penalize if reasoning had issues (check provenance)
+        # Check provenance for additional adjustments
         provenance = reasoning_result.get("provenance", [])
         if provenance and len(provenance) > 0:
-            # Check if reasoning was successful (has actual steps)
             if isinstance(provenance[0], str) and "unavailable" in provenance[0].lower():
-                confidence *= 0.9  # Slight penalty for reasoning fallback
-            elif isinstance(provenance[0], dict) and provenance[0].get("type") == "neural":
-                # Boost for neural reasoning applied
-                confidence += 0.02
-            elif isinstance(provenance[0], dict) and provenance[0].get("type") == "symbolic":
-                # Boost for symbolic reasoning applied
-                confidence += 0.03
+                confidence *= 0.95  # Slight penalty for reasoning fallback
+            elif isinstance(provenance[0], dict):
+                prov_type = provenance[0].get("type")
+                if prov_type == "neural":
+                    confidence += 0.02
+                elif prov_type == "symbolic":
+                    confidence += 0.03
 
         # Clamp to [0.0, 1.0]
-        return max(0.0, min(1.0, confidence))
+        final_confidence = max(0.0, min(1.0, confidence))
+        logger.debug(f"Final confidence: {final_confidence:.2f} (base: 0.4)")
+
+        return final_confidence

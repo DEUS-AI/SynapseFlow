@@ -1,16 +1,23 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
+import node from '@astrojs/node';
 
 // https://astro.build/config
 export default defineConfig({
   integrations: [react(), tailwind()],
-  output: 'static',
+  output: 'hybrid',
+  adapter: node({
+    mode: 'standalone',
+  }),
   server: {
     port: 4321, // Changed from 3000 to avoid conflict with FalkorDB
     host: true,
   },
   vite: {
+    optimizeDeps: {
+      include: ['react-markdown', 'remark-parse', 'unified'],
+    },
     server: {
       proxy: {
         '/api': {

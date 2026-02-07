@@ -7,7 +7,7 @@ Requires-Python: >=3.9,<3.12
 License-File: LICENSE
 Requires-Dist: neo4j
 Requires-Dist: fastapi
-Requires-Dist: uvicorn
+Requires-Dist: uvicorn[standard]
 Requires-Dist: httpx
 Requires-Dist: pytest-httpx
 Requires-Dist: python-dotenv
@@ -46,6 +46,9 @@ Requires-Dist: qdrant-client>=1.7.0
 Requires-Dist: redis>=5.0.0
 Requires-Dist: rank-bm25>=0.2.0
 Requires-Dist: python-multipart>=0.0.21
+Requires-Dist: sqlalchemy[asyncio]>=2.0.0
+Requires-Dist: asyncpg>=0.29.0
+Requires-Dist: psycopg2-binary>=2.9.0
 Provides-Extra: develop
 Requires-Dist: ruff>=0.1.0; extra == "develop"
 Requires-Dist: black>=23.0.0; extra == "develop"

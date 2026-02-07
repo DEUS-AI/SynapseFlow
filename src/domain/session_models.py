@@ -72,10 +72,19 @@ class SessionMetadata:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SessionMetadata":
-        """Create from dictionary."""
+        """Create from dictionary.
+
+        Handles missing fields gracefully with sensible defaults.
+        """
+        # Handle different session_id field names
+        session_id = data.get("session_id") or data.get("id") or "unknown"
+
+        # Handle different patient_id field names
+        patient_id = data.get("patient_id") or data.get("patient") or "unknown"
+
         return cls(
-            session_id=data["session_id"],
-            patient_id=data["patient_id"],
+            session_id=session_id,
+            patient_id=patient_id,
             title=data.get("title"),
             started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else datetime.now(),
             ended_at=datetime.fromisoformat(data["ended_at"]) if data.get("ended_at") else None,
@@ -139,12 +148,21 @@ class Message:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Message":
-        """Create from dictionary."""
+        """Create from dictionary.
+
+        Handles missing fields gracefully with sensible defaults.
+        """
+        # Handle different id field names
+        msg_id = data.get("id") or data.get("message_id") or f"msg-{hash(data.get('content', ''))}"
+
+        # Handle missing session_id gracefully
+        session_id = data.get("session_id") or data.get("session") or "unknown"
+
         return cls(
-            id=data["id"],
-            session_id=data["session_id"],
-            role=data["role"],
-            content=data["content"],
+            id=msg_id,
+            session_id=session_id,
+            role=data.get("role", "user"),
+            content=data.get("content", ""),
             timestamp=datetime.fromisoformat(data["timestamp"]) if data.get("timestamp") else datetime.now(),
             patient_id=data.get("patient_id"),
             confidence=data.get("confidence"),

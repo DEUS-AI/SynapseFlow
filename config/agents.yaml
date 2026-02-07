@@ -1,0 +1,84 @@
+# Agent Infrastructure Configuration
+# This file configures how agents communicate and discover each other.
+
+# Deployment mode: "local" (in-process) or "distributed" (isolated containers)
+deployment_mode: local
+
+# Event Bus Configuration
+event_bus:
+  # Options: "memory" | "rabbitmq"
+  type: memory
+
+  # RabbitMQ settings (only used when type: rabbitmq)
+  rabbitmq:
+    url: amqp://guest:guest@localhost:5672/
+    exchange_name: knowledge_events
+    queue_prefix: kg_
+    max_retries: 3
+    retry_delay: 1.0
+
+# Communication Channel Configuration
+communication_channel:
+  # Options: "memory" | "a2a" | "rabbitmq"
+  type: memory
+
+  # A2A settings (only used when type: a2a)
+  a2a:
+    # Base URL for agent-to-agent HTTP communication
+    base_url: http://localhost:8000
+
+  # RabbitMQ settings (only used when type: rabbitmq)
+  rabbitmq:
+    url: amqp://guest:guest@localhost:5672/
+    queue_prefix: agent_msg_
+
+# Agent Discovery Configuration
+discovery:
+  # Options: "local" | "neo4j"
+  type: local
+
+  # Neo4j discovery settings
+  neo4j:
+    uri: bolt://localhost:7687
+    username: neo4j
+    password: password
+
+  # Health check settings
+  heartbeat_interval_seconds: 30
+  stale_threshold_seconds: 300
+
+# Agent-specific configurations
+agents:
+  knowledge_manager:
+    enabled: true
+    # Override base URL for A2A when running in isolated container
+    url: http://localhost:8001
+    capabilities:
+      - knowledge_graph_query
+      - entity_resolution
+      - layer_promotion
+      - reasoning
+
+  data_architect:
+    enabled: true
+    url: http://localhost:8002
+    capabilities:
+      - domain_modeling
+      - dda_processing
+      - schema_design
+
+  data_engineer:
+    enabled: true
+    url: http://localhost:8003
+    capabilities:
+      - data_pipeline
+      - metadata_generation
+      - kg_operations
+
+  medical_assistant:
+    enabled: true
+    url: http://localhost:8004
+    capabilities:
+      - patient_interaction
+      - medical_reasoning
+      - memory_management

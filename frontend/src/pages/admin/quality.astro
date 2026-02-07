@@ -1,0 +1,12 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { QualityDashboard } from '../../components/admin/QualityDashboard';
+---
+
+<BaseLayout title="Quality Metrics">
+  <div class="min-h-screen bg-slate-900">
+    <div class="p-6 max-w-7xl mx-auto">
+      <QualityDashboard client:load />
+    </div>
+  </div>
+</BaseLayout>

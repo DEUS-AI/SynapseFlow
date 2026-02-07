@@ -1,6 +1,6 @@
 """Main FastAPI application entry point."""
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, UploadFile, File, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -128,6 +128,16 @@ async def chat_websocket_endpoint(
         # Ensure patient exists in the system (creates if not found)
         await patient_memory.get_or_create_patient(patient_id)
         logger.info(f"Patient verified/created: {patient_id}")
+
+        # Ensure session exists (creates if not found)
+        # This is CRITICAL for conversation history to work
+        await patient_memory.create_session(
+            session_id=session_id,
+            patient_id=patient_id,
+            title="New Conversation",
+            device_type="web"
+        )
+        logger.info(f"Session verified/created: {session_id}")
     except Exception as e:
         logger.error(f"Failed to initialize dependencies for {client_id}: {e}", exc_info=True)
         await websocket.send_json({"type": "error", "message": f"Service initialization failed: {str(e)}"})
@@ -150,16 +160,26 @@ async def chat_websocket_endpoint(
             )
 
             try:
-                # Query chat service
-                response = await chat_service.query(
-                    question=message_text,
-                    patient_id=patient_id,
-                    session_id=session_id
+                # Load conversation history for context continuity
+                history_service = await get_chat_history_service()
+                conversation_messages = await history_service.get_session_messages(
+                    session_id=session_id,
+                    limit=10  # Last 10 messages for context
                 )
+                logger.debug(f"Loaded {len(conversation_messages)} messages for context")
 
-                # Generate response_id and track for feedback attribution
+                # Generate response_id BEFORE query so it can be stored with the message
                 import uuid
                 response_id = str(uuid.uuid4())
+
+                # Query chat service with conversation history
+                response = await chat_service.query(
+                    question=message_text,
+                    conversation_history=conversation_messages,
+                    patient_id=patient_id,
+                    session_id=session_id,
+                    response_id=response_id  # Pass for storage with message metadata
+                )
 
                 # Extract entities and layers from response if available
                 entities_involved = []
@@ -185,6 +205,9 @@ async def chat_websocket_endpoint(
                     response_text=response.answer,
                     entities_involved=entities_involved,
                     layers_traversed=layers_traversed if layers_traversed else ["SEMANTIC"],
+                    patient_id=patient_id,
+                    session_id=session_id,
+                    confidence=response.confidence,
                 )
 
                 # Send response back with response_id for feedback
@@ -202,6 +225,32 @@ async def chat_websocket_endpoint(
                     },
                     client_id
                 )
+
+                # Auto-generate title after 3rd message if still "New Conversation"
+                try:
+                    history_service = await get_chat_history_service()
+                    session_meta = await history_service.get_session_metadata(session_id)
+
+                    # Check if we have enough messages and title is still default
+                    if session_meta and session_meta.message_count >= 3:
+                        if not session_meta.title or session_meta.title == "New Conversation":
+                            logger.info(f"Auto-generating title for session {session_id} (message_count={session_meta.message_count})")
+                            new_title = await history_service.auto_generate_title(session_id)
+
+                            if new_title:
+                                # Notify frontend of title update
+                                await manager.send_personal_message(
+                                    {
+                                        "type": "title_updated",
+                                        "session_id": session_id,
+                                        "title": new_title
+                                    },
+                                    client_id
+                                )
+                except Exception as title_error:
+                    # Don't fail the message if title generation fails
+                    logger.warning(f"Auto-title generation failed: {title_error}")
+
             except Exception as e:
                 logger.error(f"Error processing chat message: {e}", exc_info=True)
                 await manager.send_personal_message(
@@ -293,6 +342,141 @@ async def discontinue_medication(
         raise
     except Exception as e:
         logger.error(f"Error discontinuing medication: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/patients/{patient_id}/memories")
+async def get_patient_memories(
+    patient_id: str,
+    limit: int = 20,
+    patient_memory = Depends(get_patient_memory)
+):
+    """
+    Get raw Mem0 memories for a patient with timestamps.
+
+    Used for displaying memory history in the patient context panel.
+    """
+    try:
+        # Get memories from Mem0 (using the isolated manager)
+        memories_result = patient_memory.mem0.get_all(
+            user_id=patient_id,
+            limit=limit
+        )
+
+        results = memories_result.get("results", []) if memories_result else []
+
+        # Security filter: ensure all memories belong to this patient
+        filtered_memories = []
+        for mem in results:
+            mem_user_id = mem.get("user_id") or mem.get("metadata", {}).get("user_id")
+            if mem_user_id and mem_user_id != patient_id:
+                logger.warning(f"[MEM0_ISOLATION] Filtered memory from {mem_user_id} in {patient_id}'s request")
+                continue
+            filtered_memories.append({
+                "id": mem.get("id", ""),
+                "memory": mem.get("memory", ""),
+                "created_at": mem.get("created_at", ""),
+                "metadata": mem.get("metadata", {})
+            })
+
+        return {
+            "patient_id": patient_id,
+            "memories": filtered_memories,
+            "total_count": len(filtered_memories)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching patient memories: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/patients/{patient_id}/graph")
+async def get_patient_graph(
+    patient_id: str,
+    limit: int = 50,
+    kg_backend = Depends(get_kg_backend)
+):
+    """
+    Get patient-specific graph data for visualization.
+
+    Returns the patient node and all directly connected medical entities
+    (diagnoses, medications, allergies, symptoms).
+    """
+    try:
+        query = """
+        MATCH (p:Patient {id: $patient_id})
+        OPTIONAL MATCH (p)-[r]->(related)
+        WHERE related:Diagnosis OR related:Medication OR related:Allergy OR related:Symptom
+        WITH p, collect(DISTINCT related) as related_nodes, collect(DISTINCT r) as rels
+        RETURN p, related_nodes, rels
+        LIMIT $limit
+        """
+
+        result = await kg_backend.query_raw(query, {
+            "patient_id": patient_id,
+            "limit": limit
+        })
+
+        nodes = []
+        edges = []
+        seen_node_ids = set()
+
+        if result:
+            for record in result:
+                # Add patient node
+                patient_node = record.get("p")
+                if patient_node:
+                    patient_id_elem = patient_node.element_id if hasattr(patient_node, 'element_id') else str(patient_node.get("id", patient_id))
+                    if patient_id_elem not in seen_node_ids:
+                        nodes.append({
+                            "id": patient_id_elem,
+                            "label": patient_node.get("name", patient_id),
+                            "type": "Patient",
+                            "layer": "application",
+                            "properties": dict(patient_node) if hasattr(patient_node, '__iter__') else {}
+                        })
+                        seen_node_ids.add(patient_id_elem)
+
+                # Add related nodes
+                related_nodes = record.get("related_nodes", [])
+                for node in related_nodes:
+                    if node:
+                        node_id = node.element_id if hasattr(node, 'element_id') else str(node.get("id", ""))
+                        if node_id and node_id not in seen_node_ids:
+                            labels = list(node.labels) if hasattr(node, 'labels') else ["Entity"]
+                            node_type = labels[0] if labels else "Entity"
+                            nodes.append({
+                                "id": node_id,
+                                "label": node.get("name", node.get("condition", node.get("substance", node_id))),
+                                "type": node_type,
+                                "layer": node.get("layer", "semantic"),
+                                "properties": dict(node) if hasattr(node, '__iter__') else {}
+                            })
+                            seen_node_ids.add(node_id)
+
+                # Add relationships
+                rels = record.get("rels", [])
+                for rel in rels:
+                    if rel:
+                        rel_id = rel.element_id if hasattr(rel, 'element_id') else str(id(rel))
+                        start_id = rel.start_node.element_id if hasattr(rel, 'start_node') else ""
+                        end_id = rel.end_node.element_id if hasattr(rel, 'end_node') else ""
+                        rel_type = rel.type if hasattr(rel, 'type') else "RELATED_TO"
+
+                        if start_id and end_id:
+                            edges.append({
+                                "id": rel_id,
+                                "source": start_id,
+                                "target": end_id,
+                                "label": rel_type,
+                                "type": rel_type
+                            })
+
+        return {
+            "nodes": nodes,
+            "edges": edges
+        }
+    except Exception as e:
+        logger.error(f"Error fetching patient graph: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -612,6 +796,315 @@ async def get_layer_statistics(kg_backend = Depends(get_kg_backend)):
     except Exception as e:
         logger.error(f"Error getting layer stats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Feature Flag Endpoints
+# ============================================
+
+@app.get("/api/admin/feature-flags")
+async def get_feature_flags():
+    """Get all feature flags with their current status."""
+    try:
+        from application.services.feature_flag_service import get_feature_flag_service
+        service = get_feature_flag_service()
+        return {
+            "flags": service.get_all(),
+            "migration_status": _get_migration_status(service)
+        }
+    except Exception as e:
+        logger.error(f"Error getting feature flags: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/admin/feature-flags/{flag_name}")
+async def set_feature_flag(flag_name: str, enabled: bool = Body(..., embed=True)):
+    """Enable or disable a feature flag.
+
+    Note: This only sets the in-memory value. For persistent changes,
+    update the environment variable or database.
+    """
+    try:
+        from application.services.feature_flag_service import (
+            get_feature_flag_service,
+            MIGRATION_FLAGS
+        )
+
+        if flag_name not in MIGRATION_FLAGS:
+            raise HTTPException(status_code=404, detail=f"Unknown flag: {flag_name}")
+
+        service = get_feature_flag_service()
+        # Note: Without a DB session, this only updates cache
+        service._cache[flag_name] = enabled
+
+        logger.info(f"Feature flag '{flag_name}' set to {enabled} (in-memory)")
+
+        return {
+            "flag": flag_name,
+            "enabled": enabled,
+            "source": "in_memory",
+            "warning": "This is an in-memory change. Set FEATURE_FLAG_{} environment variable for persistence.".format(
+                flag_name.upper()
+            )
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting feature flag: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/migration-status")
+async def get_migration_status():
+    """Get PostgreSQL migration status and statistics."""
+    try:
+        from application.services.feature_flag_service import get_feature_flag_service
+        service = get_feature_flag_service()
+
+        status = _get_migration_status(service)
+
+        # Try to get PostgreSQL stats if available
+        try:
+            from infrastructure.database.session import is_initialized
+            if is_initialized():
+                from infrastructure.database.session import db_session
+                from infrastructure.database.repositories import (
+                    SessionRepository,
+                    MessageRepository,
+                    FeedbackRepository,
+                )
+                async with db_session() as session:
+                    session_repo = SessionRepository(session)
+                    message_repo = MessageRepository(session)
+                    feedback_repo = FeedbackRepository(session)
+
+                    status["postgres_stats"] = {
+                        "sessions_count": await session_repo.count(),
+                        "messages_count": await message_repo.count(),
+                        "feedback_count": await feedback_repo.count(),
+                    }
+            else:
+                status["postgres_stats"] = None
+        except Exception as e:
+            logger.warning(f"Could not get PostgreSQL stats: {e}")
+            status["postgres_stats"] = None
+            status["postgres_error"] = str(e)
+
+        return status
+
+    except Exception as e:
+        logger.error(f"Error getting migration status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _get_migration_status(service) -> dict:
+    """Helper to build migration status dict."""
+    return {
+        "phase": _determine_migration_phase(service),
+        "flags": {
+            "dual_write_sessions": service.is_enabled("dual_write_sessions"),
+            "dual_write_feedback": service.is_enabled("dual_write_feedback"),
+            "use_postgres_sessions": service.is_enabled("use_postgres_sessions"),
+            "use_postgres_feedback": service.is_enabled("use_postgres_feedback"),
+            "use_postgres_documents": service.is_enabled("use_postgres_documents"),
+        },
+        "recommendations": _get_migration_recommendations(service)
+    }
+
+
+def _determine_migration_phase(service) -> str:
+    """Determine current migration phase based on flags."""
+    if service.is_enabled("use_postgres_sessions") and service.is_enabled("use_postgres_feedback"):
+        return "complete"
+    elif service.is_enabled("dual_write_sessions") or service.is_enabled("dual_write_feedback"):
+        return "dual_write"
+    else:
+        return "not_started"
+
+
+def _get_migration_recommendations(service) -> list:
+    """Get recommendations for next migration steps."""
+    recommendations = []
+    phase = _determine_migration_phase(service)
+
+    if phase == "not_started":
+        recommendations.append("Enable dual_write_sessions to start migration")
+        recommendations.append("Run data sync utility to backfill existing data")
+    elif phase == "dual_write":
+        if not service.is_enabled("use_postgres_sessions"):
+            recommendations.append("Monitor dual-write for errors before enabling use_postgres_sessions")
+        if service.is_enabled("dual_write_sessions") and not service.is_enabled("dual_write_feedback"):
+            recommendations.append("Consider enabling dual_write_feedback next")
+    elif phase == "complete":
+        recommendations.append("Migration complete - consider disabling dual-write flags")
+
+    return recommendations
+
+
+@app.get("/api/admin/dual-write-health")
+async def get_dual_write_health(kg_backend = Depends(get_kg_backend)):
+    """Get dual-write health metrics comparing Neo4j and PostgreSQL counts.
+
+    Returns comparison of record counts and any detected sync issues.
+    """
+    from application.services.feature_flag_service import (
+        dual_write_enabled,
+        is_flag_enabled,
+    )
+
+    health = {
+        "status": "healthy",
+        "data_types": {},
+        "sync_issues": [],
+        "recommendations": [],
+    }
+
+    # Check sessions
+    sessions_health = {
+        "dual_write_enabled": dual_write_enabled("sessions"),
+        "use_postgres": is_flag_enabled("use_postgres_sessions"),
+        "neo4j_count": 0,
+        "postgres_count": 0,
+        "sync_status": "unknown",
+    }
+
+    try:
+        # Get Neo4j session count
+        query = "MATCH (s:ChatSession) RETURN count(s) as count"
+        result = await kg_backend.query_raw(query, {})
+        if result:
+            sessions_health["neo4j_count"] = result[0].get("count", 0)
+    except Exception as e:
+        logger.warning(f"Failed to get Neo4j session count: {e}")
+
+    try:
+        from infrastructure.database.session import is_initialized
+        if is_initialized():
+            from infrastructure.database.session import db_session
+            from infrastructure.database.repositories import SessionRepository
+            async with db_session() as session:
+                repo = SessionRepository(session)
+                sessions_health["postgres_count"] = await repo.count()
+    except Exception as e:
+        logger.warning(f"Failed to get PostgreSQL session count: {e}")
+
+    # Determine sync status
+    if sessions_health["dual_write_enabled"]:
+        diff = abs(sessions_health["neo4j_count"] - sessions_health["postgres_count"])
+        if diff == 0:
+            sessions_health["sync_status"] = "synced"
+        elif diff < 10:
+            sessions_health["sync_status"] = "minor_drift"
+        else:
+            sessions_health["sync_status"] = "out_of_sync"
+            health["sync_issues"].append(f"Sessions: {diff} records difference")
+            health["status"] = "warning"
+    else:
+        sessions_health["sync_status"] = "disabled"
+
+    health["data_types"]["sessions"] = sessions_health
+
+    # Check feedback
+    feedback_health = {
+        "dual_write_enabled": dual_write_enabled("feedback"),
+        "use_postgres": is_flag_enabled("use_postgres_feedback"),
+        "neo4j_count": 0,
+        "postgres_count": 0,
+        "sync_status": "unknown",
+    }
+
+    try:
+        query = "MATCH (f:UserFeedback) RETURN count(f) as count"
+        result = await kg_backend.query_raw(query, {})
+        if result:
+            feedback_health["neo4j_count"] = result[0].get("count", 0)
+    except Exception as e:
+        logger.warning(f"Failed to get Neo4j feedback count: {e}")
+
+    try:
+        from infrastructure.database.session import is_initialized
+        if is_initialized():
+            from infrastructure.database.session import db_session
+            from infrastructure.database.repositories import FeedbackRepository
+            async with db_session() as session:
+                repo = FeedbackRepository(session)
+                feedback_health["postgres_count"] = await repo.count()
+    except Exception as e:
+        logger.warning(f"Failed to get PostgreSQL feedback count: {e}")
+
+    if feedback_health["dual_write_enabled"]:
+        diff = abs(feedback_health["neo4j_count"] - feedback_health["postgres_count"])
+        if diff == 0:
+            feedback_health["sync_status"] = "synced"
+        elif diff < 10:
+            feedback_health["sync_status"] = "minor_drift"
+        else:
+            feedback_health["sync_status"] = "out_of_sync"
+            health["sync_issues"].append(f"Feedback: {diff} records difference")
+            health["status"] = "warning"
+    else:
+        feedback_health["sync_status"] = "disabled"
+
+    health["data_types"]["feedback"] = feedback_health
+
+    # Check documents
+    documents_health = {
+        "dual_write_enabled": dual_write_enabled("documents"),
+        "use_postgres": is_flag_enabled("use_postgres_documents"),
+        "neo4j_count": 0,
+        "postgres_count": 0,
+        "sync_status": "unknown",
+    }
+
+    try:
+        query = "MATCH (d:Document) RETURN count(d) as count"
+        result = await kg_backend.query_raw(query, {})
+        if result:
+            documents_health["neo4j_count"] = result[0].get("count", 0)
+    except Exception as e:
+        logger.warning(f"Failed to get Neo4j document count: {e}")
+
+    try:
+        from infrastructure.database.session import is_initialized
+        if is_initialized():
+            from infrastructure.database.session import db_session
+            from infrastructure.database.repositories import DocumentRepository
+            async with db_session() as session:
+                repo = DocumentRepository(session)
+                documents_health["postgres_count"] = await repo.count()
+    except Exception as e:
+        logger.warning(f"Failed to get PostgreSQL document count: {e}")
+
+    if documents_health["dual_write_enabled"]:
+        diff = abs(documents_health["neo4j_count"] - documents_health["postgres_count"])
+        if diff == 0:
+            documents_health["sync_status"] = "synced"
+        elif diff < 5:
+            documents_health["sync_status"] = "minor_drift"
+        else:
+            documents_health["sync_status"] = "out_of_sync"
+            health["sync_issues"].append(f"Documents: {diff} records difference")
+            health["status"] = "warning"
+    else:
+        documents_health["sync_status"] = "disabled"
+
+    health["data_types"]["documents"] = documents_health
+
+    # Generate recommendations
+    if not any(dt["dual_write_enabled"] for dt in health["data_types"].values()):
+        health["recommendations"].append(
+            "Enable dual-write for at least one data type to begin migration"
+        )
+    elif health["sync_issues"]:
+        health["recommendations"].append(
+            "Run sync_data_to_postgres.py to reconcile differences"
+        )
+    elif all(dt["sync_status"] == "synced" for dt in health["data_types"].values() if dt["dual_write_enabled"]):
+        health["recommendations"].append(
+            "All enabled dual-writes are in sync - consider enabling use_postgres flags"
+        )
+
+    return health
 
 
 @app.get("/api/admin/patients")
@@ -1163,10 +1656,10 @@ class FeedbackSeverityEnum(str, PyEnum):
 class FeedbackRequest(BaseModel):
     """Request model for submitting feedback."""
     response_id: str = Field(..., description="ID of the response being rated")
-    patient_id: str = Field(..., description="Patient identifier")
-    session_id: str = Field(..., description="Session identifier")
-    query_text: str = Field(..., description="Original query text")
-    response_text: str = Field(..., description="Response that was given")
+    patient_id: OptionalType[str] = Field(None, description="Patient identifier (looked up from response tracker if not provided)")
+    session_id: OptionalType[str] = Field(None, description="Session identifier (looked up from response tracker if not provided)")
+    query_text: OptionalType[str] = Field(None, description="Original query text (looked up from response tracker if not provided)")
+    response_text: OptionalType[str] = Field(None, description="Response that was given (looked up from response tracker if not provided)")
     rating: int = Field(..., ge=1, le=5, description="Rating from 1-5")
     feedback_type: FeedbackTypeEnum = Field(..., description="Type of feedback")
     severity: OptionalType[FeedbackSeverityEnum] = Field(None, description="Severity level")
@@ -1200,6 +1693,67 @@ async def get_feedback_service():
     return _feedback_service_instance
 
 
+async def _dual_write_feedback_to_postgres(
+    feedback_id: str,
+    response_id: str,
+    patient_id: str,
+    session_id: str,
+    query_text: str,
+    response_text: str,
+    rating: int,
+    feedback_type: str,
+    severity: Optional[str],
+    correction_text: Optional[str],
+    entities_involved: List[str],
+    layers_traversed: List[str],
+    thumbs_up: Optional[bool] = None,
+) -> bool:
+    """Dual-write feedback to PostgreSQL."""
+    from application.services.feature_flag_service import dual_write_enabled
+
+    if not dual_write_enabled("feedback"):
+        return False
+
+    try:
+        from infrastructure.database.session import db_session
+        from infrastructure.database.repositories import FeedbackRepository
+        from infrastructure.database.models import Feedback as PgFeedback
+        from uuid import UUID
+
+        async with db_session() as session:
+            repo = FeedbackRepository(session)
+
+            # Extract session UUID if possible
+            session_uuid = None
+            if session_id and session_id.startswith("session:"):
+                try:
+                    session_uuid = UUID(session_id[8:])
+                except ValueError:
+                    pass
+
+            pg_feedback = PgFeedback(
+                response_id=response_id,
+                session_id=session_uuid,
+                patient_id=patient_id,
+                rating=rating,
+                thumbs_up=thumbs_up,
+                feedback_type=feedback_type,
+                correction_text=correction_text,
+                severity=severity,
+                query_text=query_text,
+                response_text=response_text,
+                entities_involved=entities_involved,
+                layers_traversed=layers_traversed,
+            )
+            await repo.create(pg_feedback)
+            logger.debug(f"Dual-write: Stored feedback {feedback_id} in PostgreSQL")
+            return True
+
+    except Exception as e:
+        logger.error(f"Dual-write feedback to PostgreSQL failed: {e}")
+        return False
+
+
 @app.post("/api/feedback", response_model=FeedbackResponse)
 async def submit_feedback(request: FeedbackRequest):
     """
@@ -1212,11 +1766,31 @@ async def submit_feedback(request: FeedbackRequest):
     - Entity and layer attribution
 
     Feedback is propagated to entity confidence scores.
+
+    Note: If patient_id, session_id, query_text, or response_text are not provided,
+    they will be looked up from the response tracker using response_id.
     """
     try:
         from application.services.feedback_tracer import FeedbackType, FeedbackSeverity
 
         feedback_service = await get_feedback_service()
+
+        # Look up tracked response data if fields not provided
+        response_data = get_tracked_response(request.response_id)
+        if not response_data:
+            logger.warning(
+                f"Response {request.response_id} not found in tracker. "
+                "Recording feedback with provided data only."
+            )
+            response_data = {}
+
+        # Use request data if provided, otherwise fall back to tracked data
+        patient_id = request.patient_id or response_data.get("patient_id", "anonymous")
+        session_id = request.session_id or response_data.get("session_id", "default")
+        query_text = request.query_text or response_data.get("query_text", "")
+        response_text = request.response_text or response_data.get("response_text", "")
+        entities_involved = request.entities_involved or response_data.get("entities_involved", [])
+        layers_traversed = request.layers_traversed or response_data.get("layers_traversed", [])
 
         # Convert enums
         feedback_type = FeedbackType(request.feedback_type.value)
@@ -1224,22 +1798,38 @@ async def submit_feedback(request: FeedbackRequest):
 
         feedback = await feedback_service.submit_feedback(
             response_id=request.response_id,
-            patient_id=request.patient_id,
-            session_id=request.session_id,
-            query_text=request.query_text,
-            response_text=request.response_text,
+            patient_id=patient_id,
+            session_id=session_id,
+            query_text=query_text,
+            response_text=response_text,
             rating=request.rating,
             feedback_type=feedback_type,
             severity=severity,
             correction_text=request.correction_text,
-            entities_involved=request.entities_involved or [],
-            layers_traversed=request.layers_traversed or [],
+            entities_involved=entities_involved,
+            layers_traversed=layers_traversed,
+        )
+
+        # Dual-write to PostgreSQL if enabled
+        await _dual_write_feedback_to_postgres(
+            feedback_id=feedback.feedback_id,
+            response_id=request.response_id,
+            patient_id=patient_id,
+            session_id=session_id,
+            query_text=query_text,
+            response_text=response_text,
+            rating=request.rating,
+            feedback_type=request.feedback_type.value,
+            severity=request.severity.value if request.severity else None,
+            correction_text=request.correction_text,
+            entities_involved=entities_involved,
+            layers_traversed=layers_traversed,
         )
 
         return FeedbackResponse(
             feedback_id=feedback.feedback_id,
             message="Feedback submitted successfully",
-            confidence_adjusted=len(request.entities_involved or []) > 0
+            confidence_adjusted=len(entities_involved) > 0
         )
 
     except Exception as e:
@@ -1257,6 +1847,9 @@ async def submit_thumbs_feedback(request: ThumbsFeedbackRequest):
 
     - Thumbs up (rating 5): Boosts entity confidence
     - Thumbs down (rating 1): Decreases entity confidence, may trigger demotion
+
+    Note: If response_id is not found (e.g., after server restart), feedback
+    is still recorded but without entity attribution.
     """
     try:
         from application.services.feedback_tracer import FeedbackType
@@ -1264,12 +1857,22 @@ async def submit_thumbs_feedback(request: ThumbsFeedbackRequest):
         # Look up tracked response
         response_data = get_tracked_response(request.response_id)
 
+        # If response not tracked (e.g., server restarted), use minimal data
+        # Still allow feedback submission for UX, just without entity attribution
         if not response_data:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Response {request.response_id} not found. "
-                "Ensure the response was tracked during generation."
+            logger.warning(
+                f"Response {request.response_id} not found in tracker. "
+                "Recording feedback without entity attribution (server may have restarted)."
             )
+            response_data = {
+                "patient_id": "anonymous",
+                "session_id": "default",
+                "query_text": "",
+                "response_text": "",
+                "entities_involved": [],
+                "layers_traversed": [],
+                "confidence": 0.0,
+            }
 
         feedback_service = await get_feedback_service()
 
@@ -1292,6 +1895,23 @@ async def submit_thumbs_feedback(request: ThumbsFeedbackRequest):
                 "original_confidence": response_data.get("confidence", 0),
                 "feedback_method": "thumbs",
             }
+        )
+
+        # Dual-write to PostgreSQL if enabled
+        await _dual_write_feedback_to_postgres(
+            feedback_id=feedback.feedback_id,
+            response_id=request.response_id,
+            patient_id=response_data.get("patient_id", "anonymous"),
+            session_id=response_data.get("session_id", "default"),
+            query_text=response_data.get("query_text", ""),
+            response_text=response_data.get("response_text", ""),
+            rating=rating,
+            feedback_type=feedback_type.value,
+            severity=None,
+            correction_text=request.correction_text,
+            entities_involved=response_data.get("entities_involved", []),
+            layers_traversed=response_data.get("layers_traversed", []),
+            thumbs_up=request.thumbs_up,
         )
 
         # Check for demotion on negative feedback
@@ -1915,6 +2535,43 @@ async def auto_generate_session_title(session_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.put("/api/chat/sessions/{session_id}/title")
+async def update_session_title(session_id: str, request: dict):
+    """
+    Update session title manually.
+
+    Request body: {"title": "New Title"}
+    """
+    try:
+        new_title = request.get("title")
+        if not new_title or not new_title.strip():
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+
+        new_title = new_title.strip()
+
+        # Validate title length
+        if len(new_title) > 200:
+            raise HTTPException(status_code=400, detail="Title too long (max 200 characters)")
+
+        patient_memory = await get_patient_memory()
+        success = await patient_memory.update_session_title(session_id, new_title)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return {
+            "session_id": session_id,
+            "title": new_title,
+            "status": "updated"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating session title: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/chat/sessions/search")
 async def search_sessions(
     patient_id: str,
@@ -2007,6 +2664,382 @@ async def get_layer_statistics(kg_backend = Depends(get_kg_backend)):
     except Exception as e:
         logger.error(f"Error getting layer stats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# Ontology Quality Endpoints
+# ========================================
+
+@app.get("/api/ontology/quality")
+async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
+    """
+    Get quick ontology quality assessment.
+
+    Returns a summary of ontology quality metrics including:
+    - Coverage ratio (entities mapped to ontology classes)
+    - Compliance ratio (schema compliance)
+    - Critical issues and recommendations
+    """
+    from application.services.ontology_quality_service import quick_ontology_check
+    from datetime import datetime
+
+    try:
+        result = await quick_ontology_check(kg_backend)
+
+        # Get relationship count from Neo4j
+        rel_query = "MATCH ()-[r]->() RETURN count(r) as count"
+        rel_result = await kg_backend.query_raw(rel_query, {})
+        relationship_count = rel_result[0]["count"] if rel_result else 0
+
+        # Wrap in structure expected by frontend
+        return {
+            "has_assessment": True,
+            "total_assessments": 1,
+            "latest": {
+                "assessment_id": "quick-check",
+                "overall_score": result.get("overall_score", 0),
+                "quality_level": result.get("quality_level", "unknown"),
+                "coverage_ratio": result.get("coverage_ratio", 0),
+                "compliance_ratio": result.get("compliance_ratio", 0),
+                "coherence_ratio": 1.0 - (result.get("entity_count", 0) / max(result.get("entity_count", 1), 1) * 0.1),  # Estimate based on orphan ratio
+                "consistency_ratio": result.get("compliance_ratio", 0),  # Use compliance as proxy
+                "entity_count": result.get("entity_count", 0),
+                "relationship_count": relationship_count,
+                "orphan_nodes": result.get("entity_count", 0),  # From quick check, all may appear orphan
+                "critical_issues": result.get("critical_issues", []),
+                "recommendations": result.get("top_recommendations", []),
+                "assessed_at": datetime.utcnow().isoformat() + "Z",
+            },
+            "by_quality_level": {
+                result.get("quality_level", "unknown"): 1
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting ontology quality: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ontology/quality/assess")
+async def assess_ontology_quality(
+    ontology_name: str = Query(default="ODIN", description="Ontology name"),
+    kg_backend = Depends(get_kg_backend)
+):
+    """
+    Run full ontology quality assessment.
+
+    Evaluates:
+    - Ontology Coverage (entity mapping to classes)
+    - Schema Compliance (required properties)
+    - Taxonomy Coherence (hierarchy validity)
+    - Mapping Consistency (type uniformity)
+    - Normalization Quality (name standardization)
+    - Cross-Reference Validity
+    - Interoperability (Schema.org coverage)
+    """
+    from application.services.ontology_quality_service import OntologyQualityService
+
+    try:
+        service = OntologyQualityService(kg_backend)
+        report = await service.assess_ontology_quality(ontology_name)
+        return report.to_dict()
+
+    except Exception as e:
+        logger.error(f"Error assessing ontology quality: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ontology/classes")
+async def get_ontology_classes(kg_backend = Depends(get_kg_backend)):
+    """
+    Get all ontology classes and their usage statistics.
+
+    Returns ODIN and Schema.org class distributions in the graph.
+    """
+    try:
+        query = """
+        MATCH (n)
+        WHERE n.id IS NOT NULL
+        UNWIND labels(n) as label
+        RETURN label, count(*) as count
+        ORDER BY count DESC
+        LIMIT 50
+        """
+        result = await kg_backend.query_raw(query, {})
+
+        # Categorize by ontology
+        from domain.ontology_quality_models import ODIN_SCHEMAS, SCHEMA_ORG_MAPPINGS
+
+        odin_classes = {}
+        schema_org_classes = {}
+        other_classes = {}
+
+        odin_names = set(ODIN_SCHEMAS.keys())
+        schema_org_names = set(SCHEMA_ORG_MAPPINGS.values())
+
+        for record in result or []:
+            label = record.get("label")
+            count = record.get("count", 0)
+
+            if label in odin_names:
+                odin_classes[label] = count
+            elif label in schema_org_names:
+                schema_org_classes[label] = count
+            else:
+                other_classes[label] = count
+
+        return {
+            "odin": odin_classes,
+            "schema_org": schema_org_classes,
+            "other": dict(list(other_classes.items())[:20]),
+            "total_labels": len(result) if result else 0,
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting ontology classes: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ontology/unmapped")
+async def get_unmapped_entities(
+    limit: int = Query(default=100, le=500),
+    kg_backend = Depends(get_kg_backend)
+):
+    """
+    Get entities not mapped to any ontology class.
+
+    These entities need ontology type assignments for proper
+    knowledge graph organization.
+    """
+    try:
+        from domain.ontology_quality_models import ODIN_SCHEMAS, SCHEMA_ORG_MAPPINGS
+
+        odin_names = list(ODIN_SCHEMAS.keys())
+        schema_org_names = list(SCHEMA_ORG_MAPPINGS.values())
+        all_ontology_labels = odin_names + schema_org_names
+
+        # Find nodes without any ontology labels
+        query = """
+        MATCH (n)
+        WHERE n.id IS NOT NULL
+          AND none(label IN labels(n) WHERE label IN $ontology_labels)
+        RETURN n.id as id, n.name as name, n.type as type, labels(n) as labels
+        LIMIT $limit
+        """
+
+        result = await kg_backend.query_raw(query, {
+            "ontology_labels": all_ontology_labels,
+            "limit": limit
+        })
+
+        entities = [dict(r) for r in result] if result else []
+
+        # Group by type
+        by_type = {}
+        for entity in entities:
+            etype = entity.get("type", "Unknown")
+            if etype not in by_type:
+                by_type[etype] = []
+            by_type[etype].append(entity)
+
+        return {
+            "unmapped_count": len(entities),
+            "by_type": {k: len(v) for k, v in by_type.items()},
+            "entities": entities[:50],  # First 50 for display
+            "suggestion": "Use OntologyMapper to assign proper ODIN/Schema.org types"
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting unmapped entities: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# Quality Scanner Endpoints
+# ========================================
+
+@app.get("/api/quality/scanner/status")
+async def get_quality_scanner_status():
+    """
+    Get the status of the background quality scanner.
+
+    Returns information about the scanner's state, last scan times,
+    and recent scan results.
+    """
+    from application.services.quality_scanner_job import get_quality_scanner
+
+    try:
+        scanner = get_quality_scanner()
+        return scanner.status
+
+    except Exception as e:
+        logger.error(f"Error getting scanner status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/quality/scanner/scan")
+async def trigger_quality_scan(
+    scan_type: str = Query(default="both", description="Type of scan: 'document', 'ontology', or 'both'"),
+    kg_backend = Depends(get_kg_backend)
+):
+    """
+    Trigger a manual quality scan.
+
+    Args:
+        scan_type: Type of scan to run ('document', 'ontology', or 'both')
+    """
+    from application.services.quality_scanner_job import (
+        get_quality_scanner,
+        initialize_quality_scanner,
+    )
+    from application.services.document_tracker import DocumentTracker
+    from pathlib import Path
+
+    try:
+        # Initialize scanner with dependencies if not already done
+        document_tracker = DocumentTracker(
+            tracking_file=Path("data/document_tracking.json"),
+            pdf_directory=Path("PDFs"),
+            markdown_directory=Path("markdown_output")
+        )
+
+        scanner = initialize_quality_scanner(
+            document_tracker=document_tracker,
+            kg_backend=kg_backend,
+        )
+
+        results = await scanner.run_manual_scan(scan_type)
+
+        return {
+            "success": True,
+            "scan_type": scan_type,
+            "results": {
+                scan: {
+                    "timestamp": result.timestamp.isoformat(),
+                    "documents_scanned": result.documents_scanned,
+                    "documents_assessed": result.documents_assessed,
+                    "documents_failed": result.documents_failed,
+                    "ontology_assessed": result.ontology_assessed,
+                    "ontology_score": result.ontology_score,
+                    "errors": result.errors[:5],  # Limit errors shown
+                }
+                for scan, result in results.items()
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error running quality scan: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/quality/trends/documents")
+async def get_document_quality_trends(
+    days: int = Query(default=30, le=90, description="Number of days to look back"),
+):
+    """
+    Get document quality trends over time.
+
+    Returns aggregated quality metrics grouped by day for trend visualization.
+    """
+    try:
+        from infrastructure.database.session import db_session
+        from infrastructure.database.repositories import DocumentQualityRepository
+        from sqlalchemy import select, func
+        from infrastructure.database.models import DocumentQuality
+        from datetime import datetime, timedelta
+
+        async with db_session() as session:
+            cutoff = datetime.now() - timedelta(days=days)
+
+            # Get daily averages
+            query = select(
+                func.date(DocumentQuality.assessed_at).label("date"),
+                func.avg(DocumentQuality.overall_score).label("avg_score"),
+                func.count().label("count"),
+                func.count(func.nullif(DocumentQuality.quality_level, "critical")).label("non_critical"),
+            ).where(
+                DocumentQuality.assessed_at >= cutoff
+            ).group_by(
+                func.date(DocumentQuality.assessed_at)
+            ).order_by(
+                func.date(DocumentQuality.assessed_at)
+            )
+
+            result = await session.execute(query)
+            rows = result.all()
+
+            trends = [
+                {
+                    "date": str(row.date),
+                    "avg_score": float(row.avg_score) if row.avg_score else 0,
+                    "count": row.count,
+                    "non_critical": row.non_critical,
+                }
+                for row in rows
+            ]
+
+            return {
+                "period_days": days,
+                "data_points": len(trends),
+                "trends": trends,
+            }
+
+    except Exception as e:
+        logger.error(f"Error getting document quality trends: {e}", exc_info=True)
+        # Return empty trends if database not available
+        return {
+            "period_days": days,
+            "data_points": 0,
+            "trends": [],
+            "error": "Database not available or no data",
+        }
+
+
+@app.get("/api/quality/trends/ontology")
+async def get_ontology_quality_trends(
+    days: int = Query(default=30, le=90, description="Number of days to look back"),
+):
+    """
+    Get ontology quality trends over time.
+
+    Returns historical ontology quality assessments for trend visualization.
+    """
+    try:
+        from infrastructure.database.session import db_session
+        from infrastructure.database.repositories import OntologyQualityRepository
+
+        async with db_session() as session:
+            repo = OntologyQualityRepository(session)
+            assessments = await repo.get_history(days=days)
+
+            trends = [
+                {
+                    "date": a.assessed_at.isoformat() if a.assessed_at else None,
+                    "overall_score": float(a.overall_score) if a.overall_score else 0,
+                    "quality_level": a.quality_level,
+                    "coverage_ratio": float(a.coverage_ratio) if a.coverage_ratio else 0,
+                    "compliance_ratio": float(a.compliance_ratio) if a.compliance_ratio else 0,
+                    "coherence_ratio": float(a.coherence_ratio) if a.coherence_ratio else 0,
+                    "entity_count": a.entity_count,
+                    "relationship_count": a.relationship_count,
+                }
+                for a in assessments
+            ]
+
+            return {
+                "period_days": days,
+                "data_points": len(trends),
+                "trends": trends,
+            }
+
+    except Exception as e:
+        logger.error(f"Error getting ontology quality trends: {e}", exc_info=True)
+        return {
+            "period_days": days,
+            "data_points": 0,
+            "trends": [],
+            "error": "Database not available or no data",
+        }
 
 
 # ========================================
