@@ -139,15 +139,35 @@ def pytest_unconfigure(config):
     if not hasattr(config, "_eval_results"):
         return
 
+    # Check if report generation is requested
+    generate_report = config.getoption("--eval-report", default=False)
     results = config._eval_results
+
     if not results:
+        if generate_report:
+            print("\n" + "=" * 60)
+            print("EVAL REPORT: No scenario results collected.")
+            print("=" * 60)
+            print("Reports are only generated when running scenario tests.")
+            print("Unit tests (tests/eval/runner/) don't generate reports.")
+            print("\nTo generate reports, run scenario tests with the API running:")
+            print("  1. Start the API: uv run uvicorn src.application.api.main:app")
+            print("  2. Set EVAL_API_KEY environment variable")
+            print("  3. Run: uv run pytest tests/eval/test_scenarios.py --eval-report")
+            print("=" * 60 + "\n")
         return
 
-    # Check if report generation is requested
-    if config.getoption("--eval-report", default=False):
+    if generate_report:
         report_dir = config.getoption("--eval-report-dir", default="eval_reports")
         manager = ReportManager(output_dir=report_dir)
-        manager.generate_all(results, name="Pytest Evaluation Run", print_console=False)
+        suite = manager.generate_all(results, name="Pytest Evaluation Run", print_console=False)
+        print("\n" + "=" * 60)
+        print(f"EVAL REPORT: Generated in {report_dir}/")
+        print("=" * 60)
+        print(f"  Scenarios: {suite.passed_scenarios}/{suite.total_scenarios} passed")
+        print(f"  Assertions: {suite.passed_assertions}/{suite.total_assertions} passed")
+        print(f"  Pass rate: {suite.pass_rate * 100:.1f}%")
+        print("=" * 60 + "\n")
 
 
 # ========================================
