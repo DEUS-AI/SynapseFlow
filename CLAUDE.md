@@ -115,6 +115,10 @@ REDIS_HOST=localhost
 REDIS_PORT=6380
 ENABLE_AUTO_PROMOTION=true
 ENABLE_PROMOTION_SCANNER=true
+
+# Evaluation Framework (for agent testing)
+SYNAPSEFLOW_EVAL_MODE=true                    # Enable /api/eval/* endpoints
+SYNAPSEFLOW_EVAL_API_KEY=your-eval-key        # API key for eval endpoints
 ```
 
 ## DDA (Domain Data Architecture) Files

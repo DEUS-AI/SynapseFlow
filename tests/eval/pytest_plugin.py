@@ -46,14 +46,14 @@ def pytest_addoption(parser):
     group.addoption(
         "--eval-api-url",
         action="store",
-        default=os.getenv("EVAL_API_URL", "http://localhost:8000"),
+        default=os.getenv("SYNAPSEFLOW_EVAL_API_URL", "http://localhost:8000"),
         help="Base URL for the evaluation API",
     )
 
     group.addoption(
         "--eval-api-key",
         action="store",
-        default=os.getenv("EVAL_API_KEY", ""),
+        default=os.getenv("SYNAPSEFLOW_EVAL_API_KEY", ""),
         help="API key for the evaluation API",
     )
 
@@ -152,7 +152,7 @@ def pytest_unconfigure(config):
             print("Unit tests (tests/eval/runner/) don't generate reports.")
             print("\nTo generate reports, run scenario tests with the API running:")
             print("  1. Start the API: uv run uvicorn src.application.api.main:app")
-            print("  2. Set EVAL_API_KEY environment variable")
+            print("  2. Set SYNAPSEFLOW_EVAL_API_KEY environment variable")
             print("  3. Run: uv run pytest tests/eval/test_scenarios.py --eval-report")
             print("=" * 60 + "\n")
         return

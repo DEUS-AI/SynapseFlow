@@ -6,7 +6,7 @@ for report generation. Run with:
 
     uv run pytest tests/eval/test_scenarios.py -v --eval-report
 
-Note: These tests require the API to be running and EVAL_API_KEY to be set.
+Note: These tests require the API to be running and SYNAPSEFLOW_EVAL_API_KEY to be set.
 For unit tests that don't require the API, see tests/eval/runner/
 """
 

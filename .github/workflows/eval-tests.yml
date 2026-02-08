@@ -107,7 +107,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6380
       SYNAPSEFLOW_EVAL_MODE: 'true'
-      EVAL_API_KEY: ${{ secrets.EVAL_API_KEY || 'test-eval-key' }}
+      SYNAPSEFLOW_EVAL_API_KEY: ${{ secrets.SYNAPSEFLOW_EVAL_API_KEY || 'test-eval-key' }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:

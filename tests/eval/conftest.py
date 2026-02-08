@@ -31,14 +31,14 @@ from tests.eval.runner import (
 
 def get_eval_api_url() -> str:
     """Get the evaluation API base URL from environment."""
-    return os.getenv("EVAL_API_URL", "http://localhost:8000")
+    return os.getenv("SYNAPSEFLOW_EVAL_API_URL", "http://localhost:8000")
 
 
 def get_eval_api_key() -> str:
     """Get the evaluation API key from environment."""
-    api_key = os.getenv("EVAL_API_KEY", "")
+    api_key = os.getenv("SYNAPSEFLOW_EVAL_API_KEY", "")
     if not api_key:
-        pytest.skip("EVAL_API_KEY environment variable not set")
+        pytest.skip("SYNAPSEFLOW_EVAL_API_KEY environment variable not set")
     return api_key
 
 

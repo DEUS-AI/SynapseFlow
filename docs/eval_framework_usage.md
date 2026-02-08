@@ -293,15 +293,13 @@ gh workflow run eval-tests.yml \
 ### Environment Variables
 
 ```bash
-# API Configuration
-EVAL_API_URL=http://localhost:8000
-EVAL_API_KEY=your-eval-api-key
+# Evaluation Framework
+SYNAPSEFLOW_EVAL_MODE=true                    # Enables evaluation endpoints
+SYNAPSEFLOW_EVAL_API_KEY=your-eval-api-key    # API key for eval endpoints
+SYNAPSEFLOW_EVAL_API_URL=http://localhost:8000  # API base URL (optional)
 
 # LLM Judge (optional - uses mock by default)
 OPENAI_API_KEY=sk-...
-
-# Framework mode
-SYNAPSEFLOW_EVAL_MODE=true  # Enables test isolation
 ```
 
 ### Pytest Options
@@ -418,8 +416,8 @@ print(f"Passed: {suite_report.passed}/{suite_report.total}")
 
 ### Common Issues
 
-1. **"EVAL_API_KEY not configured"**
-   - Set `EVAL_API_KEY` environment variable or use `--eval-api-key`
+1. **"SYNAPSEFLOW_EVAL_API_KEY not configured"**
+   - Set `SYNAPSEFLOW_EVAL_API_KEY` environment variable or use `--eval-api-key`
 
 2. **"Could not connect to API"**
    - Ensure API is running: `uv run uvicorn src.application.api.main:app --port 8000`
