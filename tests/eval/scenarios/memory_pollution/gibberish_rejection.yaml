@@ -1,0 +1,122 @@
+# Scenario: Gibberish Rejection
+#
+# Description:
+#   Tests that the agent correctly rejects nonsensical input and does not
+#   store random text as medical entities. This prevents memory pollution
+#   from typos, autocorrect errors, or intentional garbage input.
+
+id: gibberish_rejection
+name: "Gibberish Input Rejection"
+description: |
+  Verifica que el agente rechaza correctamente entradas sin sentido y no
+  almacena texto aleatorio como entidades médicas. Esto previene la
+  contaminación de memoria por errores de escritura o entrada intencional
+  de basura.
+category: memory_pollution
+severity: high
+tags:
+  - validation
+  - memory_pollution
+  - input_sanitization
+
+initial_state:
+  patient_id: null
+
+turns:
+  - turn: 1
+    patient_message: "Estoy tomando asdfghjk de 500 xyzwq"
+    expected_intent: medication_report
+
+    response_assertions:
+      deterministic:
+        # Agent should NOT confirm this as a medication
+        - type: must_not_contain
+          values:
+            - "asdfghjk"
+            - "he registrado"
+            - "anotado"
+          reason: "Agent must not confirm gibberish as valid medication"
+
+        # Agent should express confusion or ask for clarification
+        - type: regex_match
+          pattern: "(no.*reconozco|no.*entiendo|puede.*repetir|qué.*medicamento|\\?)"
+          reason: "Agent should indicate confusion or ask for clarification"
+
+      llm_judge:
+        - criterion: gibberish_handling
+          rubric: |
+            The agent receives obvious gibberish ("asdfghjk") as a medication name.
+            It should:
+            - NOT accept or store this as a valid medication
+            - Express that it doesn't recognize the medication name
+            - Ask the patient to clarify or spell correctly
+            - Remain polite and helpful despite the confusing input
+            Score 5 if agent clearly rejects and asks for clarification.
+            Score 1 if agent blindly accepts the input.
+          min_score: 4
+
+    state_assertions:
+      entities_must_not_exist:
+        - name: "asdfghjk"
+          reason: "Gibberish should never be stored as an entity"
+
+        - name_pattern: "(?i)asdf"
+          reason: "Any variation of gibberish patterns should not be stored"
+
+        - name_pattern: "(?i)xyzw"
+          reason: "Any variation of gibberish patterns should not be stored"
+
+      memory_diff_check:
+        max_unexpected_entities: 0
+        max_unexpected_relationships: 0
+        reason: "No entities should be created from gibberish input"
+
+  - turn: 2
+    patient_message: "Perdona, me equivoqué. Tomo Atorvastatina"
+    expected_intent: medication_correction
+
+    response_assertions:
+      deterministic:
+        - type: must_contain
+          values:
+            - "Atorvastatina"
+          reason: "Agent should acknowledge the valid medication"
+
+    state_assertions:
+      entities_must_exist:
+        - name: "Atorvastatina"
+          type: "Medication"
+          reason: "Valid medication should be stored after clarification"
+
+      # Previous gibberish should still not exist
+      entities_must_not_exist:
+        - name: "asdfghjk"
+          reason: "Gibberish should never be stored, even after correction"
+
+  - turn: 3
+    patient_message: "Mi doctor me dijo que tengo !!@@##$$"
+    expected_intent: condition_report
+
+    response_assertions:
+      deterministic:
+        - type: must_not_contain
+          values:
+            - "@@##"
+            - "registrado"
+          reason: "Agent must not store symbols as conditions"
+
+      llm_judge:
+        - criterion: special_char_handling
+          rubric: |
+            Patient sent special characters instead of a condition name.
+            Agent should ask for clarification politely.
+          min_score: 3
+
+    state_assertions:
+      entities_must_not_exist:
+        - name_pattern: "[!@#$%]+"
+          reason: "Special characters should not be stored as entities"
+
+      memory_diff_check:
+        max_unexpected_entities: 0
+        reason: "Special character input should not create entities"

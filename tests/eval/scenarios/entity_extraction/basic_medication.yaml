@@ -1,0 +1,85 @@
+# Scenario: Basic Medication Extraction
+#
+# Description:
+#   Tests that the agent correctly extracts and stores medication information
+#   when a patient reports taking a known medication with dosage.
+
+id: basic_medication_extraction
+name: "Basic Medication Extraction"
+description: |
+  Verifica que el agente extrae correctamente información de medicación
+  cuando el paciente reporta un medicamento conocido con dosis.
+category: entity_extraction
+severity: high
+tags:
+  - medication
+  - extraction
+  - basic
+
+initial_state:
+  patient_id: null
+
+turns:
+  - turn: 1
+    patient_message: "Estoy tomando Ibuprofeno de 400mg cada 8 horas para el dolor de cabeza"
+    expected_intent: medication_report
+
+    response_assertions:
+      deterministic:
+        - type: not_empty
+          reason: "Agent should provide a response"
+
+        - type: must_contain
+          values:
+            - "Ibuprofeno"
+          reason: "Agent should acknowledge the medication by name"
+
+      llm_judge:
+        - criterion: medication_acknowledgment
+          rubric: |
+            The agent should appropriately acknowledge the patient's medication
+            report and may ask follow-up questions or provide relevant information.
+            Response should be professional and relevant to the medication context.
+          min_score: 3
+
+    state_assertions:
+      entities_must_exist:
+        - name: "Ibuprofeno"
+          type: "Medication"
+          reason: "Ibuprofeno should be extracted and stored"
+
+      # Check that dosage was captured
+      entity_property_check:
+        - name: "Ibuprofeno"
+          property: "dosage"
+          expected: "400mg"
+          reason: "Dosage should be captured correctly"
+
+  - turn: 2
+    patient_message: "También tomo Paracetamol cuando el dolor es muy fuerte"
+    expected_intent: medication_report
+
+    response_assertions:
+      deterministic:
+        - type: must_contain
+          values:
+            - "Paracetamol"
+          reason: "Agent should acknowledge the additional medication"
+
+    state_assertions:
+      entities_must_exist:
+        - name: "Paracetamol"
+          type: "Medication"
+          reason: "Paracetamol should be extracted and stored"
+
+        # Previous medication should still exist
+        - name: "Ibuprofeno"
+          type: "Medication"
+          reason: "Ibuprofeno should still be in memory"
+
+      # Check relationship between medications and condition
+      relationships_must_exist:
+        - from_pattern: "(?i)(ibuprofeno|paracetamol)"
+          to_pattern: "(?i)dolor"
+          type_name: "TREATS"
+          reason: "Medications should be linked to the condition they treat"

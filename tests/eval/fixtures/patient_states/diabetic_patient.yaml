@@ -1,0 +1,65 @@
+# Fixture: Diabetic Patient Base State
+# A patient with diabetes and common associated conditions/medications.
+# This fixture can be referenced by scenarios using "fixture: diabetic_patient"
+
+name: "Diabetic Patient Base State"
+description: |
+  Paciente diabético con historial típico de diabetes tipo 2.
+  Incluye medicaciones comunes y condiciones asociadas.
+
+entities:
+  # Condición principal
+  - name: "Diabetes tipo 2"
+    type: "Condition"
+    properties:
+      icd10_code: "E11"
+      onset_date: "2020-01-15"
+      status: "active"
+    dikw_layer: "SEMANTIC"
+    confidence: 0.95
+
+  # Medicación principal
+  - name: "Metformina"
+    type: "Medication"
+    properties:
+      dosage: "850mg"
+      frequency: "2 veces al día"
+      active: true
+    dikw_layer: "SEMANTIC"
+    confidence: 0.90
+
+  # Comorbilidades comunes
+  - name: "Hipertensión"
+    type: "Condition"
+    properties:
+      icd10_code: "I10"
+      status: "controlled"
+    dikw_layer: "SEMANTIC"
+    confidence: 0.88
+
+  - name: "Losartán"
+    type: "Medication"
+    properties:
+      dosage: "50mg"
+      frequency: "1 vez al día"
+      active: true
+    dikw_layer: "SEMANTIC"
+    confidence: 0.90
+
+relationships:
+  - from: "Metformina"
+    to: "Diabetes tipo 2"
+    type: "TREATS"
+    properties:
+      effectiveness: "good"
+
+  - from: "Losartán"
+    to: "Hipertensión"
+    type: "TREATS"
+    properties:
+      effectiveness: "good"
+
+  - from: "Diabetes tipo 2"
+    to: "Hipertensión"
+    type: "COMORBID_WITH"
+    properties: {}

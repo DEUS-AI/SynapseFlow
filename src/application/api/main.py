@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 import logging
+import asyncio
 from typing import Dict, Set, List, Any, Optional
 import tempfile
 import os
@@ -47,6 +48,21 @@ app.add_middleware(
 app.include_router(kg_router)
 app.include_router(document_router)
 app.include_router(crystallization_router)
+
+# ========================================
+# Evaluation Framework (Conditional)
+# ========================================
+# Only register evaluation endpoints when SYNAPSEFLOW_EVAL_MODE=true
+# These endpoints allow automated testing of agent behavior
+
+EVAL_MODE_ENABLED = os.getenv("SYNAPSEFLOW_EVAL_MODE", "false").lower() in ("true", "1", "yes")
+
+if EVAL_MODE_ENABLED:
+    from .evaluation_router import router as evaluation_router
+    app.include_router(evaluation_router)
+    logger.info("🧪 Evaluation endpoints enabled (SYNAPSEFLOW_EVAL_MODE=true)")
+else:
+    logger.debug("Evaluation endpoints disabled (set SYNAPSEFLOW_EVAL_MODE=true to enable)")
 
 
 # ========================================
@@ -256,18 +272,36 @@ async def chat_websocket_endpoint(
                     if session_meta and session_meta.message_count >= 3:
                         if not session_meta.title or session_meta.title == "New Conversation":
                             logger.info(f"Auto-generating title for session {session_id} (message_count={session_meta.message_count})")
-                            new_title = await history_service.auto_generate_title(session_id)
+
+                            # Retry logic for title generation (max 2 attempts)
+                            new_title = None
+                            for attempt in range(2):
+                                new_title = await history_service.auto_generate_title(session_id)
+                                if new_title:
+                                    break
+                                if attempt == 0:
+                                    logger.info(f"Title generation attempt 1 failed, retrying...")
+                                    await asyncio.sleep(0.5)
 
                             if new_title:
-                                # Notify frontend of title update
-                                await manager.send_personal_message(
-                                    {
-                                        "type": "title_updated",
-                                        "session_id": session_id,
-                                        "title": new_title
-                                    },
-                                    client_id
-                                )
+                                # Verify the title was persisted before notifying frontend
+                                await asyncio.sleep(0.1)  # Small delay for Neo4j consistency
+
+                                # Read back to verify persistence
+                                updated_meta = await history_service.get_session_metadata(session_id)
+                                if updated_meta and updated_meta.title == new_title:
+                                    # Notify frontend of title update
+                                    await manager.send_personal_message(
+                                        {
+                                            "type": "title_updated",
+                                            "session_id": session_id,
+                                            "title": new_title
+                                        },
+                                        client_id
+                                    )
+                                    logger.info(f"Title update confirmed and notified: '{new_title}'")
+                                else:
+                                    logger.warning(f"Title persistence verification failed for session {session_id}")
                 except Exception as title_error:
                     # Don't fail the message if title generation fails
                     logger.warning(f"Auto-title generation failed: {title_error}")
@@ -376,6 +410,8 @@ async def get_patient_memories(
     Get raw Mem0 memories for a patient with timestamps.
 
     Used for displaying memory history in the patient context panel.
+
+    Returns an empty list if the patient has no memories yet (collection doesn't exist).
     """
     try:
         # Get memories from Mem0 (using the isolated manager)
@@ -406,8 +442,24 @@ async def get_patient_memories(
             "total_count": len(filtered_memories)
         }
     except Exception as e:
+        error_str = str(e).lower()
+        # Handle "collection doesn't exist" gracefully - return empty list
+        # This happens when a patient has no memories yet (fresh patient or after cleanup)
+        if "doesn't exist" in error_str or "not found" in error_str or "collection" in error_str:
+            logger.info(f"No memory collection for patient {patient_id} yet (will be created on first memory)")
+            return {
+                "patient_id": patient_id,
+                "memories": [],
+                "total_count": 0
+            }
+        # For other errors, still log but return empty (don't break the UI)
         logger.error(f"Error fetching patient memories: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "patient_id": patient_id,
+            "memories": [],
+            "total_count": 0,
+            "error": "Failed to fetch memories"
+        }
 
 
 @app.get("/api/patients/{patient_id}/graph")
