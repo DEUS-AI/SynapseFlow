@@ -9,7 +9,7 @@ Estos tests verifican:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from tests.eval.runner.models import (
@@ -150,7 +150,7 @@ class TestMemorySnapshot:
         """Retorna todas las entidades de todas las capas."""
         snapshot = MemorySnapshot(
             patient_id="test-patient",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             graphiti=GraphitiLayerSnapshot(
                 entities=[MemoryEntity(name="E1", entity_type="Type1")],
             ),
@@ -171,7 +171,7 @@ class TestMemorySnapshot:
         """Busca entidad por nombre."""
         snapshot = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[
                     MemoryEntity(name="Metformin", entity_type="Medication"),
@@ -191,7 +191,7 @@ class TestMemorySnapshot:
         """Verifica existencia de entidad."""
         snapshot = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[
                     MemoryEntity(name="Metformin", entity_type="Medication"),
@@ -271,11 +271,11 @@ class TestMemoryInspectorDiff:
         """Detecta entidad añadida."""
         before = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
         after = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[MemoryEntity(name="Metformin", entity_type="Medication")],
             ),
@@ -291,14 +291,14 @@ class TestMemoryInspectorDiff:
         """Detecta entidad eliminada."""
         before = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[MemoryEntity(name="Metformin", entity_type="Medication")],
             ),
         )
         after = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         diff = inspector.compute_diff(before, after)
@@ -311,7 +311,7 @@ class TestMemoryInspectorDiff:
         """Detecta entidad modificada."""
         before = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[
                     MemoryEntity(
@@ -325,7 +325,7 @@ class TestMemoryInspectorDiff:
         )
         after = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[
                     MemoryEntity(
@@ -354,11 +354,11 @@ class TestMemoryInspectorDiff:
         """Detecta relación añadida."""
         before = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
         after = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 relationships=[
                     MemoryRelationship(
@@ -379,7 +379,7 @@ class TestMemoryInspectorDiff:
         """No detecta cambios cuando no hay."""
         snapshot = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[MemoryEntity(name="Metformin", entity_type="Medication")],
             ),
@@ -393,14 +393,14 @@ class TestMemoryInspectorDiff:
         """Detecta cambios en múltiples capas."""
         before = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             graphiti=GraphitiLayerSnapshot(
                 entities=[MemoryEntity(name="Old", entity_type="Entity")],
             ),
         )
         after = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             neo4j_dikw=Neo4jDIKWLayerSnapshot(
                 perception=[MemoryEntity(name="New", entity_type="Entity")],
             ),
@@ -417,14 +417,14 @@ class TestMemoryInspectorDiff:
         """Detecta cambios en memorias Mem0."""
         before = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             mem0=Mem0LayerSnapshot(
                 memories=[Mem0Memory(id="mem1", text="Old memory")],
             ),
         )
         after = MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             mem0=Mem0LayerSnapshot(
                 memories=[Mem0Memory(id="mem2", text="New memory")],
             ),
@@ -461,7 +461,7 @@ class TestMemoryInspectorClient:
         """Test de captura de snapshot exitosa."""
         mock_response = {
             "patient_id": "test-patient",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "redis": {"session_data": {}, "active_sessions": 0},
             "mem0": {"memories": [], "memory_count": 0},
             "graphiti": {"episodes": [], "entities": [], "edges": []},

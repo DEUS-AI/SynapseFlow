@@ -5,7 +5,7 @@ Tests the orchestration logic without requiring a live API.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import List
 
@@ -55,7 +55,7 @@ def mock_memory_inspector():
     # Default implementations
     inspector.take_snapshot = AsyncMock(return_value=MemorySnapshot(
         patient_id="test-patient",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
     ))
     inspector.compute_diff = MagicMock(return_value=MemoryDiff())
     inspector.flush_pipelines = AsyncMock(return_value={"success": True})
@@ -509,7 +509,7 @@ class TestStateAssertions:
         # Create snapshot with the expected entity
         mock_memory_inspector.take_snapshot = AsyncMock(return_value=MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             graphiti=GraphitiLayerSnapshot(
                 entities=[
                     MemoryEntity(
@@ -582,7 +582,7 @@ class TestStateAssertions:
         """Test entity_must_not_exist assertion fails when entity exists."""
         mock_memory_inspector.take_snapshot = AsyncMock(return_value=MemorySnapshot(
             patient_id="test",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             graphiti=GraphitiLayerSnapshot(
                 entities=[
                     MemoryEntity(

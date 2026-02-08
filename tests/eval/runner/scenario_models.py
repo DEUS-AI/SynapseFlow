@@ -8,7 +8,7 @@ de evaluación definidos en archivos YAML.
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ========================================
@@ -175,13 +175,12 @@ class InitialStateEntity(BaseModel):
 
 class InitialStateRelationship(BaseModel):
     """Relación para el estado inicial."""
+    model_config = ConfigDict(populate_by_name=True)
+
     from_entity: str = Field(..., alias="from")
     to_entity: str = Field(..., alias="to")
     type: str
     properties: Dict[str, Any] = Field(default_factory=dict)
-
-    class Config:
-        populate_by_name = True
 
 
 class InitialState(BaseModel):

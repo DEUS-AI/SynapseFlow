@@ -10,7 +10,7 @@ This module provides report generation for evaluation results:
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -91,7 +91,7 @@ class SuiteReport:
 
         return cls(
             name=name,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             duration_seconds=total_duration,
             total_scenarios=len(results),
             passed_scenarios=sum(1 for r in results if r.passed),

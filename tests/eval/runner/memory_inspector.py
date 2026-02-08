@@ -11,7 +11,7 @@ para los endpoints de evaluación, permitiendo:
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -171,7 +171,7 @@ class MemoryInspector:
         """Parsea la respuesta JSON a un MemorySnapshot."""
         # Parse timestamp
         timestamp = datetime.fromisoformat(
-            data.get("timestamp", datetime.utcnow().isoformat()).replace("Z", "+00:00")
+            data.get("timestamp", datetime.now(UTC).isoformat()).replace("Z", "+00:00")
         )
 
         # Parse Redis layer

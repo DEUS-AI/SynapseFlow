@@ -9,7 +9,7 @@ las aserciones definidas en cada turno.
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .models import (
@@ -182,7 +182,7 @@ class ScenarioOrchestrator:
             passed=passed,
             turns=turn_results,
             duration_seconds=duration,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             error=error_message,
         )
 
@@ -237,7 +237,7 @@ class ScenarioOrchestrator:
                         passed=False,
                         turns=[],
                         duration_seconds=0.0,
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(UTC),
                         error=str(result),
                     ))
                 else:
