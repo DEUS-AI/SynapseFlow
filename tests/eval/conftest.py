@@ -4,9 +4,12 @@ Pytest configuration for evaluation framework tests.
 This module provides fixtures for running agent evaluations:
 - MemoryInspector for API interaction
 - ScenarioLoader for loading YAML scenarios
-- TestOrchestrator for running evaluation scenarios
+- ScenarioOrchestrator for running evaluation scenarios
 - Utility fixtures for common test patterns
 """
+
+# Register the pytest plugin for eval command-line options
+pytest_plugins = ["tests.eval.pytest_plugin"]
 
 import os
 import pytest
