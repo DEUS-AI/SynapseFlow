@@ -76,6 +76,7 @@ class MemoryInspector:
         self.api_key = api_key
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
+        self._client_loop: Optional[asyncio.AbstractEventLoop] = None
 
     async def __aenter__(self):
         """Context manager entry."""
@@ -95,12 +96,32 @@ class MemoryInspector:
     @property
     def client(self) -> httpx.AsyncClient:
         """Retorna el cliente HTTP."""
+        # Get current event loop
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+
+        # If client exists but was created in a different/closed loop, recreate it
+        if self._client is not None:
+            if self._client_loop is not current_loop:
+                # Close old client synchronously (best effort)
+                try:
+                    if not self._client.is_closed:
+                        # Can't await here, just reset
+                        pass
+                except Exception:
+                    pass
+                self._client = None
+                self._client_loop = None
+
         if self._client is None:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=self.timeout,
                 headers={"X-Eval-API-Key": self.api_key},
             )
+            self._client_loop = current_loop
         return self._client
 
     async def close(self):

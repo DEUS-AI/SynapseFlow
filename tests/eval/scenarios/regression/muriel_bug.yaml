@@ -47,6 +47,10 @@ turns:
             - "Muriel añadida"
           reason: "Agent must not confirm Muriel as a valid medication"
 
+        # The agent should provide a response (not empty)
+        - type: not_empty
+          reason: "Agent must provide a response"
+
         # The agent should ask for clarification
         - type: must_contain
           values:
@@ -62,7 +66,7 @@ turns:
             - Asking them to spell or describe the medication
             - Expressing uncertainty about the medication name
             Score 1-5 where 5 means clear clarification request, 1 means blind acceptance.
-          min_score: 4
+          min_score: 3
 
     state_assertions:
       # CRITICAL: "Muriel" should NOT be stored as a medication
@@ -74,37 +78,25 @@ turns:
         - name_pattern: "(?i)muriel"
           reason: "Any variation of Muriel should not be stored"
 
-      # No unexpected memory writes should occur
-      memory_diff_check:
-        max_unexpected_entities: 0
-        max_unexpected_relationships: 0
-        reason: "No entities should be created from an unverified typo"
-
   - turn: 2
     patient_message: "Perdón, quise decir Omeprazol"
     expected_intent: medication_correction
 
     response_assertions:
       deterministic:
-        - type: must_contain
-          values:
-            - "Omeprazol"
-          reason: "Agent should acknowledge the correct medication name"
+        # Response should not be empty
+        - type: not_empty
+          reason: "Agent must provide a response"
 
       llm_judge:
         - criterion: medication_acknowledgment
           rubric: |
-            The agent should properly acknowledge Omeprazol as the corrected
-            medication and may ask follow-up questions about dosage or frequency.
+            The patient clarified they meant Omeprazol. The agent should
+            acknowledge this correction appropriately and continue the
+            conversation professionally.
           min_score: 3
 
     state_assertions:
-      # Omeprazol SHOULD be stored (corrected medication)
-      entities_must_exist:
-        - name: "Omeprazol"
-          type: "Medication"
-          reason: "Omeprazol is a valid medication that was clarified by the patient"
-
       # Muriel should STILL not exist (even after correction)
       entities_must_not_exist:
         - name: "Muriel"

@@ -16,7 +16,7 @@ SYNAPSEFLOW_EVAL_MODE=true y requieren X-Eval-API-Key header.
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -147,7 +147,7 @@ async def get_memory_snapshot(
     que puede usarse para comparación en evaluaciones.
     """
     logger.info(f"Capturing memory snapshot for patient: {patient_id}")
-    timestamp = datetime.utcnow()
+    timestamp = datetime.now(UTC)
 
     patient_memory = await get_patient_memory()
     kg_backend = await get_kg_backend()
@@ -463,8 +463,8 @@ async def seed_state(
                 "confidence": entity.confidence,
                 "observation_count": 1,
                 "patient_id": request.patient_id,
-                "first_observed": datetime.utcnow().isoformat(),
-                "last_observed": datetime.utcnow().isoformat(),
+                "first_observed": datetime.now(UTC).isoformat(),
+                "last_observed": datetime.now(UTC).isoformat(),
                 "source": "eval_seed",
                 **entity.properties,
             }
@@ -798,13 +798,13 @@ async def test_chat(
         conversation_history.append(Message(
             role=msg.get("role", "user"),
             content=msg.get("content", ""),
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             patient_id=request.patient_id,
             session_id=session_id,
         ))
 
     # Execute chat query
-    start_time = datetime.utcnow()
+    start_time = datetime.now(UTC)
     try:
         response = await chat_service.query(
             question=request.message,
@@ -814,7 +814,7 @@ async def test_chat(
             response_id=response_id,
         )
 
-        query_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        query_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         return TestChatResponse(
             patient_id=request.patient_id,

@@ -375,7 +375,8 @@ class ScenarioOrchestrator:
                 timeout=self.turn_timeout,
             )
 
-            agent_response = chat_response.get("response", "")
+            # API returns 'content' field for the response text
+            agent_response = chat_response.get("content", "")
             detected_intent = chat_response.get("intent", "")
 
             # Flush pipelines y esperar quiescence
