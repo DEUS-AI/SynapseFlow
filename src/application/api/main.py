@@ -2927,6 +2927,207 @@ async def get_unmapped_entities(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/ontology/coverage/detailed")
+async def get_detailed_ontology_coverage(
+    kg_backend = Depends(get_kg_backend)
+):
+    """
+    Get detailed ontology coverage metrics.
+
+    Returns comprehensive coverage statistics including:
+    - Overall coverage (all entities)
+    - Knowledge-only coverage (excluding structural entities like Chunk, Document)
+    - Breakdown by DIKW layer
+    - Breakdown by entity type
+    - Health indicators
+    """
+    try:
+        # Query for detailed coverage metrics
+        query = """
+        MATCH (n)
+        WHERE n.id IS NOT NULL
+        WITH n,
+             labels(n) as nodeLabels,
+             coalesce(n._exclude_from_ontology, false) as excluded,
+             coalesce(n._ontology_mapped, false) as mapped,
+             coalesce(n._is_structural, false) as is_structural,
+             coalesce(n._is_noise, false) as is_noise,
+             n.layer as layer,
+             n.type as entityType
+        WITH n, nodeLabels, excluded, mapped, is_structural, is_noise, layer, entityType,
+             any(label IN nodeLabels WHERE label IN ['Chunk', 'StructuralChunk', 'Document', 'DocumentQuality', 'ExtractedEntity']) as has_structural_label
+        WITH
+            // Totals
+            count(n) as total_entities,
+            sum(CASE WHEN mapped THEN 1 ELSE 0 END) as total_mapped,
+
+            // Knowledge entities (excluding structural and noise)
+            sum(CASE WHEN NOT has_structural_label AND NOT is_structural AND NOT is_noise THEN 1 ELSE 0 END) as knowledge_entities,
+            sum(CASE WHEN NOT has_structural_label AND NOT is_structural AND NOT is_noise AND mapped THEN 1 ELSE 0 END) as knowledge_mapped,
+
+            // Structural breakdown
+            sum(CASE WHEN has_structural_label OR is_structural THEN 1 ELSE 0 END) as structural_entities,
+            sum(CASE WHEN is_noise THEN 1 ELSE 0 END) as noise_entities,
+
+            // By layer (for knowledge entities only)
+            sum(CASE WHEN layer = 'PERCEPTION' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as perception_count,
+            sum(CASE WHEN layer = 'SEMANTIC' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as semantic_count,
+            sum(CASE WHEN layer = 'REASONING' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as reasoning_count,
+            sum(CASE WHEN layer = 'APPLICATION' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as application_count
+
+        RETURN
+            total_entities,
+            total_mapped,
+            knowledge_entities,
+            knowledge_mapped,
+            structural_entities,
+            noise_entities,
+            perception_count,
+            semantic_count,
+            reasoning_count,
+            application_count,
+            CASE WHEN total_entities > 0 THEN round(toFloat(total_mapped) / total_entities * 100, 2) ELSE 0.0 END as overall_coverage_pct,
+            CASE WHEN knowledge_entities > 0 THEN round(toFloat(knowledge_mapped) / knowledge_entities * 100, 2) ELSE 0.0 END as knowledge_coverage_pct
+        """
+
+        result = await kg_backend.query_raw(query, {})
+        record = result[0] if result else {}
+
+        # Get unmapped types breakdown
+        unmapped_query = """
+        MATCH (n)
+        WHERE n.id IS NOT NULL
+          AND NOT coalesce(n._ontology_mapped, false)
+          AND NOT coalesce(n._is_structural, false)
+          AND NOT coalesce(n._is_noise, false)
+          AND NOT any(label IN labels(n) WHERE label IN ['Chunk', 'Document', 'ExtractedEntity'])
+        RETURN n.type as type, count(n) as count
+        ORDER BY count DESC
+        LIMIT 15
+        """
+        unmapped_result = await kg_backend.query_raw(unmapped_query, {})
+        unmapped_by_type = {r["type"]: r["count"] for r in unmapped_result} if unmapped_result else {}
+
+        # Calculate DIKW layer distribution health
+        total_layered = (
+            record.get("perception_count", 0) +
+            record.get("semantic_count", 0) +
+            record.get("reasoning_count", 0) +
+            record.get("application_count", 0)
+        )
+
+        layer_distribution = {}
+        if total_layered > 0:
+            layer_distribution = {
+                "PERCEPTION": {
+                    "count": record.get("perception_count", 0),
+                    "pct": round(record.get("perception_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "30-50%",
+                },
+                "SEMANTIC": {
+                    "count": record.get("semantic_count", 0),
+                    "pct": round(record.get("semantic_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "25-40%",
+                },
+                "REASONING": {
+                    "count": record.get("reasoning_count", 0),
+                    "pct": round(record.get("reasoning_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "10-20%",
+                },
+                "APPLICATION": {
+                    "count": record.get("application_count", 0),
+                    "pct": round(record.get("application_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "5-15%",
+                },
+            }
+
+        # Determine health status
+        knowledge_coverage = record.get("knowledge_coverage_pct", 0)
+        if knowledge_coverage >= 80:
+            health_status = "HEALTHY"
+        elif knowledge_coverage >= 60:
+            health_status = "MODERATE"
+        elif knowledge_coverage >= 40:
+            health_status = "NEEDS_IMPROVEMENT"
+        else:
+            health_status = "CRITICAL"
+
+        return {
+            "coverage": {
+                "overall": {
+                    "total_entities": record.get("total_entities", 0),
+                    "mapped_entities": record.get("total_mapped", 0),
+                    "coverage_pct": record.get("overall_coverage_pct", 0),
+                },
+                "knowledge_only": {
+                    "total_entities": record.get("knowledge_entities", 0),
+                    "mapped_entities": record.get("knowledge_mapped", 0),
+                    "coverage_pct": record.get("knowledge_coverage_pct", 0),
+                },
+                "excluded": {
+                    "structural_entities": record.get("structural_entities", 0),
+                    "noise_entities": record.get("noise_entities", 0),
+                },
+            },
+            "layer_distribution": layer_distribution,
+            "unmapped_by_type": unmapped_by_type,
+            "health": {
+                "status": health_status,
+                "knowledge_coverage_pct": knowledge_coverage,
+                "target_coverage_pct": 80,
+                "recommendations": _get_coverage_recommendations(
+                    knowledge_coverage,
+                    unmapped_by_type,
+                    layer_distribution
+                ),
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting detailed coverage: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _get_coverage_recommendations(
+    coverage_pct: float,
+    unmapped_types: dict,
+    layer_distribution: dict
+) -> list:
+    """Generate recommendations for improving coverage."""
+    recommendations = []
+
+    if coverage_pct < 80:
+        recommendations.append(
+            f"Knowledge coverage is {coverage_pct}%. Target is 80%+. "
+            "Run batch remediation to map existing entities."
+        )
+
+    if unmapped_types:
+        top_unmapped = list(unmapped_types.keys())[:3]
+        recommendations.append(
+            f"Top unmapped types: {', '.join(top_unmapped)}. "
+            "Consider adding these to the ontology registry."
+        )
+
+    # Check layer balance
+    if layer_distribution:
+        perception_pct = layer_distribution.get("PERCEPTION", {}).get("pct", 0)
+        if perception_pct > 60:
+            recommendations.append(
+                f"PERCEPTION layer is {perception_pct}% (should be 30-50%). "
+                "Promote validated entities to SEMANTIC layer."
+            )
+
+        reasoning_pct = layer_distribution.get("REASONING", {}).get("pct", 0)
+        if reasoning_pct < 5:
+            recommendations.append(
+                "REASONING layer is underrepresented. "
+                "Enable inference rules to generate reasoning-layer knowledge."
+            )
+
+    return recommendations
+
+
 # ========================================
 # Quality Scanner Endpoints
 # ========================================

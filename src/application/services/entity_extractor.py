@@ -3,15 +3,25 @@
 Uses LLM to extract entities and relationships from text chunks,
 then links them to existing graph nodes.
 
-Enhanced with semantic normalization for consistent terminology.
+Enhanced with semantic normalization for consistent terminology
+and ontology type validation.
 """
 
+import logging
 from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 import json
 import re
 from application.services.semantic_normalizer import SemanticNormalizer
+from domain.ontologies.registry import (
+    resolve_entity_type,
+    is_known_type,
+    suggest_type_mapping,
+    get_ontology_config,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,6 +33,12 @@ class ExtractedEntity:
     confidence: float
     source_chunk_id: str
     linked_node_id: Optional[str] = None
+    # Ontology validation fields
+    canonical_type: Optional[str] = None
+    is_ontology_mapped: bool = False
+    dikw_layer: Optional[str] = None
+    original_name: Optional[str] = None
+    type_suggestion: Optional[str] = None
 
 
 @dataclass
@@ -37,52 +53,67 @@ class ExtractedRelation:
 
 class EntityExtractor:
     """Extracts entities and relationships from text using LLM."""
-    
+
     # Entity types relevant to data architecture domain
     ENTITY_TYPES = [
         "Table", "Column", "Database", "Schema",
         "BusinessConcept", "DataProduct", "Person",
         "Process", "System", "Policy", "Metric"
     ]
-    
-    def __init__(self, llm_client=None, domain: Optional[str] = None, enable_normalization: bool = True):
+
+    def __init__(
+        self,
+        llm_client=None,
+        domain: Optional[str] = None,
+        enable_normalization: bool = True,
+        validate_types: bool = True,
+        auto_fix_types: bool = True,
+    ):
         """Initialize the entity extractor.
 
         Args:
             llm_client: Optional LLM client (uses OpenAI if not provided)
             domain: Optional domain for domain-specific normalization
             enable_normalization: Whether to enable semantic normalization
+            validate_types: Whether to validate entity types against ontology registry
+            auto_fix_types: Whether to auto-correct unknown types using suggestions
         """
         self.llm_client = llm_client
         self.enable_normalization = enable_normalization
+        self.validate_types = validate_types
+        self.auto_fix_types = auto_fix_types
 
         # Initialize semantic normalizer
         if enable_normalization:
             self.normalizer = SemanticNormalizer(domain=domain)
         else:
             self.normalizer = None
+
+        # Track unknown types for reporting
+        self._unknown_types_seen: Dict[str, int] = {}
     
     async def extract_entities(
-        self, 
-        text: str, 
+        self,
+        text: str,
         chunk_id: str = "unknown"
     ) -> List[ExtractedEntity]:
         """Extract entities from a text chunk.
-        
+
         Args:
             text: Text to extract entities from
             chunk_id: ID of the source chunk
-            
+
         Returns:
-            List of extracted entities
+            List of extracted entities with ontology validation
         """
         prompt = self._create_entity_extraction_prompt(text)
         response = await self._call_llm(prompt)
-        
+
         entities = []
         if response and "entities" in response:
             for e in response["entities"]:
                 original_name = e.get("name", "Unknown")
+                raw_type = e.get("type", "Unknown")
 
                 # Normalize entity name if normalizer available
                 if self.normalizer:
@@ -90,22 +121,85 @@ class EntityExtractor:
                 else:
                     canonical_name = original_name
 
+                # Validate and resolve entity type against ontology
+                entity_type = raw_type
+                canonical_type = None
+                is_mapped = False
+                dikw_layer = None
+                type_suggestion = None
+
+                if self.validate_types:
+                    canonical_type = resolve_entity_type(raw_type)
+
+                    if is_known_type(canonical_type):
+                        is_mapped = True
+                        entity_type = canonical_type
+                        config = get_ontology_config(canonical_type)
+                        if config:
+                            dikw_layer = config.get("layer")
+                    else:
+                        # Type not in registry
+                        self._unknown_types_seen[raw_type] = self._unknown_types_seen.get(raw_type, 0) + 1
+
+                        # Try to find a suggestion
+                        suggestions = suggest_type_mapping(raw_type)
+                        if suggestions:
+                            best_suggestion = suggestions[0]
+                            type_suggestion = best_suggestion["suggested_type"]
+
+                            # Auto-fix if enabled and similarity is high enough
+                            if self.auto_fix_types and best_suggestion["similarity"] >= 0.7:
+                                entity_type = type_suggestion
+                                canonical_type = type_suggestion
+                                is_mapped = True
+                                config = get_ontology_config(type_suggestion)
+                                if config:
+                                    dikw_layer = config.get("layer")
+                                logger.debug(
+                                    f"Auto-fixed type '{raw_type}' -> '{type_suggestion}' "
+                                    f"(similarity: {best_suggestion['similarity']:.2f})"
+                                )
+                            else:
+                                logger.warning(
+                                    f"Unknown entity type: '{raw_type}'. "
+                                    f"Suggestion: '{type_suggestion}' "
+                                    f"(similarity: {best_suggestion['similarity']:.2f})"
+                                )
+                        else:
+                            logger.warning(f"Unknown entity type with no suggestions: '{raw_type}'")
+
                 entity = ExtractedEntity(
-                    name=canonical_name,  # Use normalized name
-                    entity_type=e.get("type", "Unknown"),
+                    name=canonical_name,
+                    entity_type=entity_type,
                     context=e.get("context", ""),
                     confidence=e.get("confidence", 0.5),
-                    source_chunk_id=chunk_id
+                    source_chunk_id=chunk_id,
+                    canonical_type=canonical_type,
+                    is_ontology_mapped=is_mapped,
+                    dikw_layer=dikw_layer,
+                    original_name=original_name if canonical_name != original_name else None,
+                    type_suggestion=type_suggestion if not is_mapped else None,
                 )
-
-                # Store original name if different (for traceability)
-                if canonical_name != original_name and hasattr(entity, '__dict__'):
-                    entity.__dict__['original_name'] = original_name
-                    entity.__dict__['normalized'] = True
 
                 entities.append(entity)
 
         return entities
+
+    def get_unknown_types_report(self) -> Dict[str, int]:
+        """Get report of unknown types seen during extraction.
+
+        Returns:
+            Dict mapping unknown type strings to their occurrence count
+        """
+        return dict(sorted(
+            self._unknown_types_seen.items(),
+            key=lambda x: x[1],
+            reverse=True
+        ))
+
+    def reset_unknown_types(self) -> None:
+        """Reset the unknown types tracking."""
+        self._unknown_types_seen.clear()
     
     async def extract_relations(
         self, 

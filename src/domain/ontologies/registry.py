@@ -49,7 +49,7 @@ class OntologyDomain(str, Enum):
 # Extracted from the current odin.py usage patterns
 
 DATA_ONTOLOGY_REGISTRY: Dict[str, Dict[str, Any]] = {
-    # PERCEPTION Layer
+    # PERCEPTION Layer - Raw data structures and sources
     "table": {
         "odin_class": ODIN.DATA_ENTITY,
         "layer": "PERCEPTION",
@@ -86,8 +86,35 @@ DATA_ONTOLOGY_REGISTRY: Dict[str, Dict[str, Any]] = {
         "hierarchy_path": ["attribute", "field"],
         "confidence_threshold": 0.7,
     },
+    "database": {
+        "odin_class": ODIN.DATA_ENTITY,
+        "layer": "PERCEPTION",
+        "parent_type": "data_entity",
+        "auto_relationships": ["CONTAINS", "HOSTS", "BELONGS_TO_DOMAIN"],
+        "external_systems": ["schema.org:Dataset"],
+        "hierarchy_path": ["data_entity", "database"],
+        "confidence_threshold": 0.7,
+    },
+    "schema": {
+        "odin_class": ODIN.DATA_ENTITY,
+        "layer": "PERCEPTION",
+        "parent_type": "data_entity",
+        "auto_relationships": ["CONTAINS", "BELONGS_TO"],
+        "external_systems": ["schema.org:Dataset"],
+        "hierarchy_path": ["data_entity", "schema"],
+        "confidence_threshold": 0.7,
+    },
+    "system": {
+        "odin_class": ODIN.DATA_ENTITY,
+        "layer": "PERCEPTION",
+        "parent_type": "data_entity",
+        "auto_relationships": ["CONTAINS", "HOSTS", "PRODUCES"],
+        "external_systems": ["schema.org:SoftwareApplication"],
+        "hierarchy_path": ["data_entity", "system"],
+        "confidence_threshold": 0.7,
+    },
 
-    # SEMANTIC Layer
+    # SEMANTIC Layer - Validated concepts with business meaning
     "report": {
         "odin_class": ODIN.INFORMATION_ASSET,
         "layer": "SEMANTIC",
@@ -115,8 +142,35 @@ DATA_ONTOLOGY_REGISTRY: Dict[str, Dict[str, Any]] = {
         "hierarchy_path": ["domain"],
         "confidence_threshold": 0.85,
     },
+    "data_product": {
+        "odin_class": ODIN.INFORMATION_ASSET,
+        "layer": "SEMANTIC",
+        "parent_type": "information_asset",
+        "auto_relationships": ["DERIVED_FROM", "REPRESENTS", "PRODUCES", "CONSUMES"],
+        "external_systems": ["schema.org:Dataset"],
+        "hierarchy_path": ["information_asset", "data_product"],
+        "confidence_threshold": 0.85,
+    },
+    "person": {
+        "odin_class": ODIN.DOMAIN,
+        "layer": "SEMANTIC",
+        "parent_type": "stakeholder",
+        "auto_relationships": ["OWNS", "MANAGES", "RESPONSIBLE_FOR", "ASSOCIATED_WITH"],
+        "external_systems": ["schema.org:Person"],
+        "hierarchy_path": ["stakeholder", "person"],
+        "confidence_threshold": 0.85,
+    },
+    "team": {
+        "odin_class": ODIN.DOMAIN,
+        "layer": "SEMANTIC",
+        "parent_type": "stakeholder",
+        "auto_relationships": ["OWNS", "MANAGES", "RESPONSIBLE_FOR"],
+        "external_systems": ["schema.org:Organization"],
+        "hierarchy_path": ["stakeholder", "team"],
+        "confidence_threshold": 0.85,
+    },
 
-    # REASONING Layer
+    # REASONING Layer - Inferred knowledge and business rules
     "concept": {
         "odin_class": ODIN.BUSINESS_CONCEPT,
         "layer": "REASONING",
@@ -153,8 +207,35 @@ DATA_ONTOLOGY_REGISTRY: Dict[str, Dict[str, Any]] = {
         "hierarchy_path": ["quality_rule"],
         "confidence_threshold": 0.9,
     },
+    "process": {
+        "odin_class": ODIN.BUSINESS_CONCEPT,
+        "layer": "REASONING",
+        "parent_type": "business_concept",
+        "auto_relationships": ["TRANSFORMS", "USES", "PRODUCES", "CONSUMES"],
+        "external_systems": ["schema.org:Action"],
+        "hierarchy_path": ["business_concept", "process"],
+        "confidence_threshold": 0.9,
+    },
+    "pipeline": {
+        "odin_class": ODIN.BUSINESS_CONCEPT,
+        "layer": "REASONING",
+        "parent_type": "business_concept",
+        "auto_relationships": ["TRANSFORMS", "USES", "PRODUCES", "CONTAINS"],
+        "external_systems": [],
+        "hierarchy_path": ["business_concept", "pipeline"],
+        "confidence_threshold": 0.9,
+    },
+    "workflow": {
+        "odin_class": ODIN.BUSINESS_CONCEPT,
+        "layer": "REASONING",
+        "parent_type": "business_concept",
+        "auto_relationships": ["TRANSFORMS", "USES", "PRODUCES", "CONTAINS"],
+        "external_systems": [],
+        "hierarchy_path": ["business_concept", "workflow"],
+        "confidence_threshold": 0.9,
+    },
 
-    # APPLICATION Layer
+    # APPLICATION Layer - Query patterns, cached results, operational data
     "score": {
         "odin_class": ODIN.DATA_QUALITY_SCORE,
         "layer": "APPLICATION",
@@ -182,29 +263,167 @@ DATA_ONTOLOGY_REGISTRY: Dict[str, Dict[str, Any]] = {
         "hierarchy_path": ["decision"],
         "confidence_threshold": 0.95,
     },
+    "metric": {
+        "odin_class": ODIN.DATA_QUALITY_SCORE,
+        "layer": "APPLICATION",
+        "parent_type": "quality_score",
+        "auto_relationships": ["MEASURES", "DERIVED_FROM", "APPLIES_TO"],
+        "external_systems": [],
+        "hierarchy_path": ["quality_score", "metric"],
+        "confidence_threshold": 0.95,
+    },
+    "kpi": {
+        "odin_class": ODIN.DATA_QUALITY_SCORE,
+        "layer": "APPLICATION",
+        "parent_type": "quality_score",
+        "auto_relationships": ["MEASURES", "DERIVED_FROM", "APPLIES_TO"],
+        "external_systems": [],
+        "hierarchy_path": ["quality_score", "kpi"],
+        "confidence_threshold": 0.95,
+    },
+    "policy": {
+        "odin_class": ODIN.DATA_QUALITY_RULE,
+        "layer": "APPLICATION",
+        "parent_type": "governance",
+        "auto_relationships": ["APPLIES_TO", "GOVERNS", "ENFORCES"],
+        "external_systems": [],
+        "hierarchy_path": ["governance", "policy"],
+        "confidence_threshold": 0.95,
+    },
+    "sla": {
+        "odin_class": ODIN.DATA_QUALITY_RULE,
+        "layer": "APPLICATION",
+        "parent_type": "governance",
+        "auto_relationships": ["APPLIES_TO", "GOVERNS", "MEASURES"],
+        "external_systems": [],
+        "hierarchy_path": ["governance", "sla"],
+        "confidence_threshold": 0.95,
+    },
 }
 
-# Data architecture type aliases
+# Data architecture type aliases - comprehensive normalization
 DATA_TYPE_ALIASES: Dict[str, str] = {
+    # Table/Entity aliases
     "tables": "table",
+    "dataentity": "table",
+    "data_entity": "table",
+    "entity": "table",
+    "entities": "table",
+
+    # File aliases
     "files": "file",
+
+    # Column/Field aliases
     "columns": "column",
     "fields": "field",
     "attribute": "field",
     "attributes": "field",
+
+    # Database/Schema aliases
+    "databases": "database",
+    "db": "database",
+    "schemas": "schema",
+
+    # System aliases
+    "systems": "system",
+    "application": "system",
+    "applications": "system",
+    "service": "system",
+    "services": "system",
+
+    # Report/Dashboard aliases
     "reports": "report",
     "dashboards": "dashboard",
+
+    # Domain aliases
     "domains": "domain",
+    "business_domain": "domain",
+    "businessdomain": "domain",
+
+    # Data Product aliases (critical fix)
+    "data_product": "data_product",
+    "dataproduct": "data_product",
+    "data product": "data_product",
+    "product": "data_product",
+    "products": "data_product",
+    "data_products": "data_product",
+
+    # Person/Stakeholder aliases (critical fix)
+    "people": "person",
+    "persons": "person",
+    "user": "person",
+    "users": "person",
+    "owner": "person",
+    "owners": "person",
+    "stakeholder": "person",
+    "stakeholders": "person",
+    "steward": "person",
+    "stewards": "person",
+    "data_owner": "person",
+    "data_steward": "person",
+
+    # Team aliases
+    "teams": "team",
+    "group": "team",
+    "groups": "team",
+    "department": "team",
+    "departments": "team",
+
+    # Concept aliases (critical fix - BusinessConcept normalization)
     "concepts": "concept",
     "businessconcept": "business_concept",
+    "business concept": "business_concept",
+    "business_concepts": "business_concept",
+    "businessconcepts": "business_concept",
+
+    # Process aliases
+    "processes": "process",
+    "etl": "process",
+    "job": "process",
+    "jobs": "process",
+    "task": "process",
+    "tasks": "process",
+
+    # Pipeline/Workflow aliases
+    "pipelines": "pipeline",
+    "data_pipeline": "pipeline",
+    "datapipeline": "pipeline",
+    "workflows": "workflow",
+    "flow": "workflow",
+    "flows": "workflow",
+
+    # Rule aliases
     "rules": "rule",
     "qualityrule": "data_quality_rule",
+    "quality_rule": "data_quality_rule",
+    "validation_rule": "data_quality_rule",
+    "validationrule": "data_quality_rule",
+
+    # Score/Metric aliases
     "scores": "score",
     "qualityscore": "score",
+    "quality_score": "score",
+    "metrics": "metric",
+    "kpis": "kpi",
+    "indicator": "kpi",
+    "indicators": "kpi",
+    "measure": "metric",
+    "measures": "metric",
+
+    # Usage aliases
     "usagestats": "usage",
+    "usage_stats": "usage",
+    "statistics": "usage",
+
+    # Decision aliases
     "decisions": "decision",
-    "dataentity": "table",
-    "data_entity": "table",
+
+    # Policy/SLA aliases
+    "policies": "policy",
+    "governance": "policy",
+    "slas": "sla",
+    "agreement": "sla",
+    "agreements": "sla",
 }
 
 
@@ -228,16 +447,60 @@ UNIFIED_TYPE_ALIASES: Dict[str, str] = {
 def resolve_entity_type(raw_type: str) -> str:
     """Normalize and resolve an entity type to its canonical form.
 
-    Works across all ontology domains.
+    Works across all ontology domains with robust normalization.
 
     Args:
-        raw_type: Raw entity type string (e.g., "Medical Condition", "tables")
+        raw_type: Raw entity type string (e.g., "Medical Condition", "tables", "BusinessConcept")
 
     Returns:
-        Canonical type string (e.g., "disease", "table")
+        Canonical type string (e.g., "disease", "table", "business_concept")
     """
+    if not raw_type:
+        return "unknown"
+
+    # Step 1: Basic normalization - lowercase, trim, replace delimiters
     normalized = raw_type.lower().strip().replace("-", "_").replace(" ", "_")
-    return UNIFIED_TYPE_ALIASES.get(normalized, normalized)
+
+    # Step 2: Remove special characters (keep alphanumeric and underscore)
+    normalized = ''.join(c for c in normalized if c.isalnum() or c == '_')
+
+    # Step 3: Remove consecutive underscores
+    while "__" in normalized:
+        normalized = normalized.replace("__", "_")
+
+    # Step 4: Remove leading/trailing underscores
+    normalized = normalized.strip("_")
+
+    if not normalized:
+        return "unknown"
+
+    # Step 5: Check alias first
+    if normalized in UNIFIED_TYPE_ALIASES:
+        return UNIFIED_TYPE_ALIASES[normalized]
+
+    # Step 6: Check if already in registry
+    if normalized in UNIFIED_ONTOLOGY_REGISTRY:
+        return normalized
+
+    # Step 7: Try singular form (remove trailing 's')
+    if normalized.endswith('s') and len(normalized) > 2:
+        singular = normalized[:-1]
+        if singular in UNIFIED_TYPE_ALIASES:
+            return UNIFIED_TYPE_ALIASES[singular]
+        if singular in UNIFIED_ONTOLOGY_REGISTRY:
+            return singular
+
+    # Step 8: Try common suffix variations
+    # e.g., "extracted_entity" -> "entity"
+    for suffix in ["_entity", "_concept", "_type"]:
+        if normalized.endswith(suffix):
+            base = normalized[:-len(suffix)]
+            if base in UNIFIED_ONTOLOGY_REGISTRY:
+                return base
+            if base in UNIFIED_TYPE_ALIASES:
+                return UNIFIED_TYPE_ALIASES[base]
+
+    return normalized
 
 
 def get_ontology_config(entity_type: str) -> Optional[Dict[str, Any]]:

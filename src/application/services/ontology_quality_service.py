@@ -33,6 +33,15 @@ from application.services.semantic_normalizer import SemanticNormalizer
 
 logger = logging.getLogger(__name__)
 
+# Labels that indicate structural (non-knowledge) entities
+STRUCTURAL_ENTITY_LABELS = {
+    "Chunk",
+    "StructuralChunk",
+    "Document",
+    "DocumentQuality",
+    "ExtractedEntity",
+}
+
 
 class OntologyQualityService:
     """Evaluates ontology quality for knowledge graphs."""
@@ -105,8 +114,12 @@ class OntologyQualityService:
 
         return report
 
-    async def _fetch_all_entities(self) -> List[Dict[str, Any]]:
-        """Fetch all entities from the knowledge graph."""
+    async def _fetch_all_entities(self, include_structural: bool = True) -> List[Dict[str, Any]]:
+        """Fetch all entities from the knowledge graph.
+
+        Args:
+            include_structural: If False, exclude structural entities (Chunk, Document, etc.)
+        """
         try:
             query = """
             MATCH (n)
@@ -117,14 +130,46 @@ class OntologyQualityService:
                    labels(n) as labels,
                    n.layer as layer,
                    n.confidence as confidence,
-                   properties(n) as properties
+                   properties(n) as properties,
+                   coalesce(n._exclude_from_ontology, false) as exclude_from_ontology,
+                   coalesce(n._is_structural, false) as is_structural,
+                   coalesce(n._is_noise, false) as is_noise
             LIMIT 10000
             """
             results = await self.backend.query_raw(query, {})
-            return [dict(r) for r in results] if results else []
+            entities = [dict(r) for r in results] if results else []
+
+            if not include_structural:
+                # Filter out structural entities
+                entities = [
+                    e for e in entities
+                    if not self._is_structural_entity(e)
+                ]
+
+            return entities
         except Exception as e:
             logger.error(f"Error fetching entities: {e}")
             return []
+
+    def _is_structural_entity(self, entity: Dict[str, Any]) -> bool:
+        """Check if entity is structural (not knowledge).
+
+        Structural entities are infrastructure (Chunk, Document) not knowledge.
+        """
+        # Check explicit exclusion flags
+        if entity.get("exclude_from_ontology") or entity.get("is_structural"):
+            return True
+
+        # Check labels
+        labels = set(entity.get("labels", []))
+        if labels & STRUCTURAL_ENTITY_LABELS:
+            return True
+
+        return False
+
+    def _is_noise_entity(self, entity: Dict[str, Any]) -> bool:
+        """Check if entity is noise (stopword, short name)."""
+        return entity.get("is_noise", False)
 
     async def _fetch_all_relationships(self) -> List[Dict[str, Any]]:
         """Fetch all relationships from the knowledge graph."""
@@ -158,7 +203,11 @@ class OntologyQualityService:
         return classes
 
     async def _assess_coverage(self, entities: List[Dict[str, Any]]) -> OntologyCoverageScore:
-        """Assess ontology coverage of entities."""
+        """Assess ontology coverage of entities.
+
+        Reports both overall coverage and knowledge-entity-only coverage
+        (excluding structural entities like Chunk, Document).
+        """
         score = OntologyCoverageScore()
         score.total_entities = len(entities)
 
@@ -168,9 +217,15 @@ class OntologyQualityService:
         class_distribution = Counter()
         unmapped_types = set()
 
+        # Track knowledge vs structural separately
+        knowledge_entities = 0
+        knowledge_mapped = 0
+
         for entity in entities:
             labels = set(entity.get("labels", []))
             entity_type = entity.get("type", "Unknown")
+            is_structural = self._is_structural_entity(entity)
+            is_noise = self._is_noise_entity(entity)
 
             # Check ODIN mapping
             has_odin = bool(labels & self.odin_classes)
@@ -191,15 +246,34 @@ class OntologyQualityService:
                         class_distribution[label] += 1
             else:
                 score.unmapped_entities += 1
-                unmapped_types.add(entity_type)
+                # Only track unmapped types for knowledge entities
+                if not is_structural and not is_noise:
+                    unmapped_types.add(entity_type)
+
+            # Knowledge-only metrics (exclude structural and noise)
+            if not is_structural and not is_noise:
+                knowledge_entities += 1
+                if has_odin or has_schema:
+                    knowledge_mapped += 1
 
         # Calculate ratios
-        score.coverage_ratio = score.mapped_entities / score.total_entities
-        score.odin_coverage = score.odin_mapped / score.total_entities
-        score.schema_org_coverage = score.schema_org_mapped / score.total_entities
+        if score.total_entities > 0:
+            score.coverage_ratio = score.mapped_entities / score.total_entities
+            score.odin_coverage = score.odin_mapped / score.total_entities
+            score.schema_org_coverage = score.schema_org_mapped / score.total_entities
 
         score.class_distribution = dict(class_distribution.most_common(20))
         score.unmapped_types = list(unmapped_types)[:10]
+
+        # Add knowledge-only coverage as additional data
+        # Store in class_distribution dict with special keys
+        score.class_distribution["_knowledge_entities"] = knowledge_entities
+        score.class_distribution["_knowledge_mapped"] = knowledge_mapped
+        score.class_distribution["_knowledge_coverage"] = (
+            round(knowledge_mapped / knowledge_entities, 4)
+            if knowledge_entities > 0 else 0.0
+        )
+        score.class_distribution["_structural_excluded"] = score.total_entities - knowledge_entities
 
         return score
 
