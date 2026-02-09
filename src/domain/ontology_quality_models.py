@@ -372,6 +372,17 @@ class OntologyQualityReport:
                     "unmapped": self.coverage.unmapped_entities,
                     "odin_coverage": self.coverage.odin_coverage,
                     "schema_org_coverage": self.coverage.schema_org_coverage,
+                    # Knowledge-only coverage (excludes structural entities like Chunk, Document)
+                    "knowledge_only": {
+                        "total": self.coverage.class_distribution.get("_knowledge_entities", 0),
+                        "mapped": self.coverage.class_distribution.get("_knowledge_mapped", 0),
+                        "coverage_pct": round(
+                            self.coverage.class_distribution.get("_knowledge_coverage", 0) * 100, 1
+                        ),
+                        "structural_excluded": self.coverage.class_distribution.get(
+                            "_structural_excluded", 0
+                        ),
+                    },
                 },
                 "compliance": {
                     "ratio": self.compliance.compliance_ratio,
