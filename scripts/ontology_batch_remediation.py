@@ -493,6 +493,36 @@ async def get_unmapped_types(driver, limit: int = 20) -> List[Dict[str, Any]]:
     return [{"type": r["type"], "count": r["count"]} for r in records]
 
 
+def _convert_to_count_query(query: str) -> str:
+    """Convert a remediation query to a count-only query for dry-run.
+
+    Extracts MATCH and WHERE clauses and creates a simple count query.
+    """
+    lines = query.strip().split("\n")
+    match_where_lines = []
+    in_set_block = False
+
+    for line in lines:
+        stripped = line.strip()
+        # Stop collecting when we hit SET
+        if stripped.startswith("SET "):
+            in_set_block = True
+            continue
+        # Stop when we hit RETURN
+        if stripped.startswith("RETURN "):
+            break
+        # Skip lines that are part of SET block (continuation lines)
+        if in_set_block and (stripped.startswith("n.") or stripped.startswith("n._") or stripped == ""):
+            continue
+        # Collect MATCH and WHERE lines
+        if not in_set_block:
+            match_where_lines.append(line)
+
+    # Build count query
+    count_query = "\n".join(match_where_lines) + "\nRETURN count(n) as would_update"
+    return count_query
+
+
 async def run_dry_run(driver) -> Dict[str, Any]:
     """Run dry-run to preview what would be updated."""
     logger.info("Running dry-run analysis...")
@@ -503,18 +533,7 @@ async def run_dry_run(driver) -> Dict[str, Any]:
     # For each remediation query, count how many would be affected
     preview = []
     for name, description, query in REMEDIATION_QUERIES:
-        # Convert SET to WITH count for preview
-        count_query = query.replace(
-            "SET n._ontology_mapped = true",
-            "WITH n"
-        ).replace(
-            "RETURN count(n) as updated",
-            "RETURN count(n) as would_update"
-        )
-        # Remove other SET clauses
-        for line in count_query.split("\n"):
-            if line.strip().startswith("n.") or line.strip().startswith("n._"):
-                count_query = count_query.replace(line, "")
+        count_query = _convert_to_count_query(query)
 
         try:
             async with driver.session() as session:
@@ -531,7 +550,8 @@ async def run_dry_run(driver) -> Dict[str, Any]:
             preview.append({
                 "name": name,
                 "description": description,
-                "would_update": "error",
+                "would_update": -1,  # Use -1 for error instead of string
+                "error": str(e),
             })
 
     return {
@@ -540,7 +560,7 @@ async def run_dry_run(driver) -> Dict[str, Any]:
         "remediation_preview": preview,
         "total_would_update": sum(
             p["would_update"] for p in preview
-            if isinstance(p["would_update"], int)
+            if isinstance(p["would_update"], int) and p["would_update"] >= 0
         ),
     }
 
@@ -668,7 +688,11 @@ def print_report(results: Dict[str, Any], is_dry_run: bool = False):
 
         print("\n## Remediation Preview")
         for step in results.get("remediation_preview", []):
-            print(f"  - {step['name']}: {step['would_update']:,}")
+            count = step['would_update']
+            if count < 0:
+                print(f"  - {step['name']}: ERROR")
+            else:
+                print(f"  - {step['name']}: {count:,}")
 
         print(f"\n## Total Would Update: {results.get('total_would_update', 0):,}")
 
