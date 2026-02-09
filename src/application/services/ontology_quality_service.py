@@ -227,23 +227,33 @@ class OntologyQualityService:
             is_structural = self._is_structural_entity(entity)
             is_noise = self._is_noise_entity(entity)
 
-            # Check ODIN mapping
+            # Check ODIN mapping (by label)
             has_odin = bool(labels & self.odin_classes)
             if has_odin:
                 score.odin_mapped += 1
 
-            # Check Schema.org mapping
+            # Check Schema.org mapping (by label)
             has_schema = bool(labels & self.schema_org_types)
             if has_schema:
                 score.schema_org_mapped += 1
 
-            # Overall mapping
-            if has_odin or has_schema:
+            # Check if marked as mapped via remediation flag
+            # This covers entities that have _ontology_mapped=true but may not have ODIN labels
+            props = entity.get("properties", {}) or {}
+            has_remediation_flag = props.get("_ontology_mapped", False)
+
+            # Overall mapping - consider both ODIN labels AND remediation flag
+            is_mapped = has_odin or has_schema or has_remediation_flag
+            if is_mapped:
                 score.mapped_entities += 1
                 # Track class distribution
                 for label in labels:
                     if label in self.odin_classes or label in self.schema_org_types:
                         class_distribution[label] += 1
+                # Also track canonical type if set via remediation
+                if has_remediation_flag and not has_odin and not has_schema:
+                    canonical = props.get("_canonical_type", "unknown")
+                    class_distribution[f"mapped:{canonical}"] += 1
             else:
                 score.unmapped_entities += 1
                 # Only track unmapped types for knowledge entities
@@ -253,7 +263,7 @@ class OntologyQualityService:
             # Knowledge-only metrics (exclude structural and noise)
             if not is_structural and not is_noise:
                 knowledge_entities += 1
-                if has_odin or has_schema:
+                if is_mapped:
                     knowledge_mapped += 1
 
         # Calculate ratios
@@ -387,7 +397,7 @@ class OntologyQualityService:
                 all_nodes.add(source_id)
                 all_nodes.add(target_id)
 
-            if rel_type in hierarchy_rels:
+            if rel_type in hierarchy_rels and source_id and target_id:
                 score.total_relationships += 1
 
                 # Source is child, target is parent
@@ -417,7 +427,7 @@ class OntologyQualityService:
             score.coherence_ratio = 1.0  # No hierarchy relationships = not invalid
 
         # Detect orphans (nodes with no parents in hierarchy)
-        entity_ids = {e.get("id") for e in entities}
+        entity_ids = {e.get("id") for e in entities if e.get("id")}
         nodes_with_parents = set(parents.keys())
         root_nodes = entity_ids - nodes_with_parents
 
