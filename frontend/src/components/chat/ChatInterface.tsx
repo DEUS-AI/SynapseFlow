@@ -21,6 +21,9 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showSessionList, setShowSessionList] = useState(true);
   const [sessionListKey, setSessionListKey] = useState(0);
+  // Memory refresh state for real-time updates
+  const [memoryRefreshTrigger, setMemoryRefreshTrigger] = useState(0);
+  const [isProcessingMemory, setIsProcessingMemory] = useState(false);
   const lastUserQuery = useRef<string>('');
   const messageCounter = useRef(0);
 
@@ -98,7 +101,12 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   const { isConnected, sendMessage, connectionError } = useWebSocket(wsURL, {
     onMessage: (data: WebSocketChatMessage) => {
       if (data.type === 'status') {
-        setIsThinking(data.status === 'thinking');
+        const thinking = data.status === 'thinking';
+        setIsThinking(thinking);
+        // Show memory processing indicator when thinking starts
+        if (thinking) {
+          setIsProcessingMemory(true);
+        }
       } else if (data.type === 'message' && data.role === 'assistant') {
         messageCounter.current += 1;
         const messageId = data.response_id || `${currentSessionId}-${messageCounter.current}-${Date.now()}`;
@@ -141,6 +149,9 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
         }
 
         setIsThinking(false);
+        // Stop processing indicator and trigger memory refresh
+        setIsProcessingMemory(false);
+        setMemoryRefreshTrigger((prev) => prev + 1);
       } else if (data.type === 'title_updated') {
         console.log('Session title updated:', data.title);
         setSessionListKey((prev) => prev + 1);
@@ -294,7 +305,11 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
 
       {/* Patient context sidebar - hidden on mobile and tablet */}
       <div className="hidden lg:block flex-shrink-0">
-        <PatientContextSidebar patientId={patientId} />
+        <PatientContextSidebar
+          patientId={patientId}
+          memoryRefreshTrigger={memoryRefreshTrigger}
+          isProcessingMemory={isProcessingMemory}
+        />
       </div>
     </div>
   );

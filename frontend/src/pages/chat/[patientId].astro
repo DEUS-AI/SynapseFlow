@@ -15,16 +15,14 @@ export async function getStaticPaths() {
 }
 
 const { patientId } = Astro.params;
-
-// Generate session ID (in production, would come from auth)
-const sessionId = `session:${Date.now()}`;
+// Note: Session management is handled internally by ChatInterface
+// via auto-resume (fetches latest session) or creates new session
 ---
 
 <BaseLayout title="Patient Chat">
   <div class="chat-container">
     <ChatInterface
       patientId={patientId}
-      sessionId={sessionId}
       client:load
     />
   </div>

@@ -63,8 +63,9 @@ def mock_memory_inspector():
     inspector.seed_state = AsyncMock(return_value={"success": True})
     inspector.reset_patient = AsyncMock(return_value={"success": True})
     inspector.send_chat = AsyncMock(return_value={
-        "response": "Hello! How can I help you?",
+        "content": "Hello! How can I help you?",
         "intent": "greeting",
+        "confidence": 0.95,
     })
 
     return inspector
@@ -275,7 +276,7 @@ class TestBasicOrchestration:
     ):
         """Test stopping on first failure."""
         # Make the chat return empty response (will fail not_empty assertion)
-        mock_memory_inspector.send_chat = AsyncMock(return_value={"response": ""})
+        mock_memory_inspector.send_chat = AsyncMock(return_value={"content": ""})
 
         orchestrator = ScenarioOrchestrator(
             memory_inspector=mock_memory_inspector,
@@ -362,7 +363,7 @@ class TestDeterministicAssertions:
     async def test_must_contain_passes(self, mock_memory_inspector):
         """Test must_contain assertion passes when value is present."""
         mock_memory_inspector.send_chat = AsyncMock(return_value={
-            "response": "I see you're taking Metformina",
+            "content": "I see you're taking Metformina",
         })
 
         orchestrator = ScenarioOrchestrator(memory_inspector=mock_memory_inspector)
@@ -396,7 +397,7 @@ class TestDeterministicAssertions:
     async def test_must_contain_fails(self, mock_memory_inspector):
         """Test must_contain assertion fails when value is missing."""
         mock_memory_inspector.send_chat = AsyncMock(return_value={
-            "response": "I understand",
+            "content": "I understand",
         })
 
         orchestrator = ScenarioOrchestrator(memory_inspector=mock_memory_inspector)
@@ -431,7 +432,7 @@ class TestDeterministicAssertions:
     async def test_must_not_contain_passes(self, mock_memory_inspector):
         """Test must_not_contain assertion passes."""
         mock_memory_inspector.send_chat = AsyncMock(return_value={
-            "response": "I understand",
+            "content": "I understand",
         })
 
         orchestrator = ScenarioOrchestrator(memory_inspector=mock_memory_inspector)
@@ -465,7 +466,7 @@ class TestDeterministicAssertions:
     async def test_regex_match(self, mock_memory_inspector):
         """Test regex_match assertion."""
         mock_memory_inspector.send_chat = AsyncMock(return_value={
-            "response": "Your dosage is 500mg twice daily",
+            "content": "Your dosage is 500mg twice daily",
         })
 
         orchestrator = ScenarioOrchestrator(memory_inspector=mock_memory_inspector)
@@ -668,7 +669,7 @@ class TestErrorHandling:
 
         async def slow_chat(*args, **kwargs):
             await asyncio.sleep(100)  # Will timeout
-            return {"response": "Never returned"}
+            return {"content": "Never returned"}
 
         mock_memory_inspector.send_chat = slow_chat
 

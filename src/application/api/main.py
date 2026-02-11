@@ -2759,11 +2759,6 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
     try:
         result = await quick_ontology_check(kg_backend)
 
-        # Get relationship count from Neo4j
-        rel_query = "MATCH ()-[r]->() RETURN count(r) as count"
-        rel_result = await kg_backend.query_raw(rel_query, {})
-        relationship_count = rel_result[0]["count"] if rel_result else 0
-
         # Wrap in structure expected by frontend
         return {
             "has_assessment": True,
@@ -2774,11 +2769,11 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
                 "quality_level": result.get("quality_level", "unknown"),
                 "coverage_ratio": result.get("coverage_ratio", 0),
                 "compliance_ratio": result.get("compliance_ratio", 0),
-                "coherence_ratio": 1.0 - (result.get("entity_count", 0) / max(result.get("entity_count", 1), 1) * 0.1),  # Estimate based on orphan ratio
-                "consistency_ratio": result.get("compliance_ratio", 0),  # Use compliance as proxy
+                "coherence_ratio": result.get("coherence_ratio", 1.0),
+                "consistency_ratio": result.get("consistency_ratio", 1.0),
                 "entity_count": result.get("entity_count", 0),
-                "relationship_count": relationship_count,
-                "orphan_nodes": result.get("entity_count", 0),  # From quick check, all may appear orphan
+                "relationship_count": result.get("relationship_count", 0),
+                "orphan_nodes": result.get("orphan_nodes", 0),
                 "critical_issues": result.get("critical_issues", []),
                 "recommendations": result.get("top_recommendations", []),
                 "assessed_at": datetime.utcnow().isoformat() + "Z",

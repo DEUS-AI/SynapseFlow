@@ -19,6 +19,7 @@ _mem0_instance = None  # NEW: Mem0 instance for conversational layer
 _chat_service_instance = None
 _conversation_graph_instance = None  # LangGraph conversation engine
 _neurosymbolic_service_instance = None
+_episodic_memory_instance = None  # Graphiti-based episodic memory
 
 # Layer transition services
 _layer_transition_service = None
@@ -68,6 +69,43 @@ async def get_patient_memory():
     if _patient_memory_instance is None:
         _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
     return _patient_memory_instance
+
+
+async def get_episodic_memory():
+    """
+    Get the Graphiti-based EpisodicMemoryService instance.
+
+    This service provides episodic memory for conversations using Graphiti
+    with FalkorDB backend. It extracts entities, stores conversation turns,
+    and emits events for the crystallization pipeline.
+
+    CRITICAL: This must be initialized and passed to ConversationGraph
+    for entity extraction to work!
+    """
+    global _episodic_memory_instance, _event_bus_instance
+
+    # Check if episodic memory is enabled
+    if not os.getenv("ENABLE_EPISODIC_MEMORY", "").lower() in ("true", "1", "yes"):
+        return None
+
+    if _episodic_memory_instance is None:
+        from composition_root import bootstrap_episodic_memory
+
+        # Ensure event bus is initialized (for crystallization events)
+        if _event_bus_instance is None:
+            _, _event_bus_instance = await get_knowledge_management()
+
+        _episodic_memory_instance = await bootstrap_episodic_memory(
+            event_bus=_event_bus_instance
+        )
+
+        if _episodic_memory_instance:
+            print("✅ EpisodicMemoryService initialized (FalkorDB + Graphiti)")
+        else:
+            print("⚠️ EpisodicMemoryService not available (check ENABLE_EPISODIC_MEMORY)")
+
+    return _episodic_memory_instance
+
 
 async def get_temporal_scoring_service():
     """
@@ -182,6 +220,10 @@ async def get_conversation_graph():
 
     This is the new conversation engine that replaces the intent-based
     routing with a state machine approach.
+
+    CRITICAL: Now includes EpisodicMemoryService for entity extraction!
+    Without this, store_turn_episode() is never called and entities
+    are not extracted from conversations.
     """
     global _conversation_graph_instance, _patient_memory_instance, _mem0_instance
 
@@ -195,14 +237,22 @@ async def get_conversation_graph():
         # Get neurosymbolic service for knowledge retrieval
         neurosymbolic_service = await get_neurosymbolic_service()
 
+        # CRITICAL: Get episodic memory service for entity extraction
+        # This enables store_turn_episode() in conversation_nodes.py
+        episodic_memory_service = await get_episodic_memory()
+
         _conversation_graph_instance = build_conversation_graph(
             patient_memory_service=_patient_memory_instance,
             neurosymbolic_service=neurosymbolic_service,
+            episodic_memory_service=episodic_memory_service,  # CRITICAL for entity extraction!
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             model=os.getenv("CHAT_MODEL", "gpt-4o"),
         )
 
-        print("✅ ConversationGraph (LangGraph) initialized")
+        if episodic_memory_service:
+            print("✅ ConversationGraph (LangGraph) initialized with episodic memory")
+        else:
+            print("✅ ConversationGraph (LangGraph) initialized (no episodic memory)")
 
     return _conversation_graph_instance
 

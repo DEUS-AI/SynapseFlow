@@ -114,7 +114,7 @@ class LangGraphChatService:
 
             query_time = (datetime.now() - start_time).total_seconds()
 
-            # Build ChatResponse
+            # Build ChatResponse with Phase 6 enhanced metadata
             response = ChatResponse(
                 answer=result.get("response", "I apologize, I couldn't process your request."),
                 confidence=self._calculate_confidence(result),
@@ -122,6 +122,11 @@ class LangGraphChatService:
                 related_concepts=self._extract_related_concepts(result),
                 reasoning_trail=self._build_reasoning_trail(result),
                 query_time_seconds=query_time,
+                # Phase 6: Enhanced metadata
+                medical_alerts=self._extract_medical_alerts(result),
+                routing=self._build_routing_info(result, question),
+                temporal_context=self._build_temporal_context(result),
+                entities=self._extract_entities(result),
             )
 
             logger.info(
@@ -206,6 +211,98 @@ class LangGraphChatService:
             trail.append(f"Topics: {', '.join(topics[:3])}")
 
         return trail
+
+    # ========================================
+    # Phase 6: Enhanced Metadata Methods
+    # ========================================
+
+    def _extract_medical_alerts(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract medical alerts from graph result."""
+        alerts = []
+
+        # Check for urgency-based alerts
+        urgency = result.get("urgency", "low")
+        if urgency == "high":
+            alerts.append({
+                "severity": "HIGH",
+                "category": "symptom_pattern",
+                "message": "High urgency detected in conversation",
+                "recommendation": "Consider consulting a healthcare provider",
+            })
+        elif urgency == "emergency":
+            alerts.append({
+                "severity": "CRITICAL",
+                "category": "symptom_pattern",
+                "message": "Emergency situation detected",
+                "recommendation": "Seek immediate medical attention",
+            })
+
+        # Extract any alerts from the result
+        for alert in result.get("medical_alerts", []):
+            alerts.append(alert)
+
+        return alerts
+
+    def _build_routing_info(self, result: Dict[str, Any], question: str) -> Dict[str, Any]:
+        """Build routing info based on conversation mode."""
+        mode = result.get("mode", "casual_chat")
+
+        # Map conversation modes to query intents
+        mode_to_intent = {
+            "casual_chat": "exploratory",
+            "medical_consult": "inferential",
+            "research_explore": "relational",
+            "goal_driven": "actionable",
+            "closing": "exploratory",
+        }
+
+        # Map modes to DIKW layers
+        mode_to_layers = {
+            "casual_chat": ["PERCEPTION"],
+            "medical_consult": ["SEMANTIC", "REASONING"],
+            "research_explore": ["SEMANTIC", "REASONING"],
+            "goal_driven": ["REASONING", "APPLICATION"],
+            "closing": ["PERCEPTION"],
+        }
+
+        return {
+            "intent": mode_to_intent.get(mode, "exploratory"),
+            "intent_confidence": 0.8,
+            "layers": mode_to_layers.get(mode, ["SEMANTIC"]),
+            "requires_inference": mode in ["medical_consult", "goal_driven"],
+        }
+
+    def _build_temporal_context(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Build temporal context from conversation state."""
+        turn_count = result.get("turn_count", 1)
+
+        # Determine temporal window based on conversation length
+        if turn_count <= 2:
+            window = "immediate"
+        elif turn_count <= 5:
+            window = "recent"
+        else:
+            window = "short_term"
+
+        return {
+            "window": window,
+            "confidence": 0.7,
+        }
+
+    def _extract_entities(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract entities from graph result."""
+        entities = []
+
+        # Extract topics as entities
+        for i, topic in enumerate(result.get("topics", [])[:5]):
+            entities.append({
+                "id": f"topic_{i}",
+                "name": topic,
+                "entity_type": "Topic",
+                "dikw_layer": "PERCEPTION",
+            })
+
+        return entities
 
     async def get_conversation_state(
         self,

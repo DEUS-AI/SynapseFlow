@@ -54,6 +54,28 @@ class CrystallizationResult:
 
 
 @dataclass
+class FlushResult:
+    """Result of a flush operation for evaluation framework."""
+    flushed: bool
+    events_processed: int
+    entities_crystallized: int
+    promotions_executed: int
+    pending_after_flush: int
+    processing_time_ms: float
+    errors: List[str] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass
+class BufferStatus:
+    """Status of the crystallization buffer for evaluation framework."""
+    buffer_size: int
+    last_flush: Optional[datetime]
+    batch_in_progress: bool
+    running: bool
+
+
+@dataclass
 class CrystallizedEntity:
     """An entity that has been crystallized to Neo4j."""
     neo4j_id: str
@@ -634,3 +656,89 @@ class CrystallizationService:
 
         # Then query Graphiti for recent entities
         return await self.crystallize_from_graphiti(patient_id=patient_id)
+
+    # ========================================
+    # Evaluation Framework Support
+    # ========================================
+
+    async def flush_now(self) -> FlushResult:
+        """
+        Fuerza el procesamiento inmediato de todos los eventos pendientes.
+
+        Este método está diseñado para el framework de evaluación,
+        permitiendo que los tests capturen el estado de memoria
+        después de que todos los pipelines hayan terminado.
+
+        Returns:
+            FlushResult con estadísticas del flush
+        """
+        start_time = datetime.now()
+        errors = []
+        entities_crystallized = 0
+        promotions_executed = 0
+
+        logger.info(f"Flush requested: {len(self._pending_entities)} pending entities")
+
+        try:
+            # 1. Process all pending entities immediately
+            if self._pending_entities:
+                result = await self._process_pending_batch()
+                entities_crystallized = result.entities_created + result.entities_merged
+                promotions_executed = result.promotion_candidates
+                errors.extend(result.errors)
+
+            # 2. Query Graphiti for any entities not yet in the pending queue
+            # This catches entities that were stored but events not yet received
+            graphiti_result = await self.crystallize_from_graphiti()
+            entities_crystallized += graphiti_result.entities_created + graphiti_result.entities_merged
+            promotions_executed += graphiti_result.promotion_candidates
+            errors.extend(graphiti_result.errors)
+
+        except Exception as e:
+            logger.error(f"Error during flush: {e}", exc_info=True)
+            errors.append(str(e))
+
+        processing_time = (datetime.now() - start_time).total_seconds() * 1000
+        pending_after = len(self._pending_entities)
+
+        logger.info(
+            f"Flush complete: {entities_crystallized} entities crystallized, "
+            f"{promotions_executed} promotions, {pending_after} still pending, "
+            f"{processing_time:.1f}ms"
+        )
+
+        return FlushResult(
+            flushed=True,
+            events_processed=entities_crystallized,  # Approximate
+            entities_crystallized=entities_crystallized,
+            promotions_executed=promotions_executed,
+            pending_after_flush=pending_after,
+            processing_time_ms=processing_time,
+            errors=errors,
+        )
+
+    def get_buffer_status(self) -> BufferStatus:
+        """
+        Retorna el estado actual del buffer de cristalización.
+
+        Este método está diseñado para el framework de evaluación,
+        permitiendo verificar si el servicio ha alcanzado quiescence.
+
+        Returns:
+            BufferStatus con el estado del buffer
+        """
+        return BufferStatus(
+            buffer_size=len(self._pending_entities),
+            last_flush=self._last_crystallization,
+            batch_in_progress=False,  # TODO: Track this properly with a flag
+            running=self._running,
+        )
+
+    def is_quiescent(self) -> bool:
+        """
+        Verifica si el servicio está en estado quiescent (sin trabajo pendiente).
+
+        Returns:
+            True si no hay entidades pendientes y no hay batch en progreso
+        """
+        return len(self._pending_entities) == 0

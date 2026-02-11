@@ -5,7 +5,7 @@ Este módulo define los modelos Pydantic usados por el framework de evaluación
 para representar snapshots de memoria, diffs, escenarios y resultados.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -310,7 +310,7 @@ class EvalResult(BaseModel):
     passed: bool
     turns: List[TurnResult] = Field(default_factory=list)
     duration_seconds: float = 0.0
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     error: Optional[str] = None
 
     @property

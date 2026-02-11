@@ -1,0 +1,530 @@
+{
+  "name": "Pytest Evaluation Run",
+  "timestamp": "2026-02-08T14:16:55.215351+00:00",
+  "summary": {
+    "duration_seconds": 61.54,
+    "total_scenarios": 6,
+    "passed_scenarios": 0,
+    "failed_scenarios": 6,
+    "pass_rate": 0.0,
+    "total_assertions": 29,
+    "passed_assertions": 15,
+    "failed_assertions": 14,
+    "assertion_pass_rate": 51.7,
+    "all_passed": false
+  },
+  "by_category": {
+    "regression": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3
+    },
+    "memory_pollution": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    },
+    "entity_extraction": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    },
+    "temporal_reasoning": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    }
+  },
+  "by_severity": {
+    "critical": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3
+    },
+    "high": {
+      "total": 2,
+      "passed": 0,
+      "failed": 2
+    },
+    "medium": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    }
+  },
+  "scenarios": [
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": false,
+      "duration_seconds": 27.38,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "",
+          "passed": false,
+          "response_time_ms": 16658.7,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "Missing required values: ['?']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "memory_diff_check",
+              "passed": true,
+              "reason": "No entities should be created from an unverified typo",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "Missing required values: ['?']",
+              "score": null,
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "",
+          "passed": false,
+          "response_time_ms": 9817.2,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the correct medication name",
+              "details": "Missing required values: ['Omeprazol']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the correct medication name",
+              "details": "Missing required values: ['Omeprazol']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "gibberish_rejection",
+      "scenario_name": "Gibberish Input Rejection",
+      "category": "memory_pollution",
+      "severity": "high",
+      "passed": false,
+      "duration_seconds": 0.0,
+      "error": "Failed to setup scenario: Error resetting patient: Event loop is closed",
+      "turns": []
+    },
+    {
+      "scenario_id": "basic_medication_extraction",
+      "scenario_name": "Basic Medication Extraction",
+      "category": "entity_extraction",
+      "severity": "high",
+      "passed": false,
+      "duration_seconds": 19.11,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Ibuprofeno de 400mg cada 8 horas para el dolor de cabeza",
+          "agent_response": "",
+          "passed": false,
+          "response_time_ms": 10329.5,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": false,
+              "reason": "Agent should provide a response",
+              "details": "Response is empty or contains only whitespace",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the medication by name",
+              "details": "Missing required values: ['Ibuprofeno']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should be extracted and stored",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_property_check",
+              "passed": false,
+              "reason": "Dosage should be captured correctly",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "not_empty",
+              "passed": false,
+              "reason": "Agent should provide a response",
+              "details": "Response is empty or contains only whitespace",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the medication by name",
+              "details": "Missing required values: ['Ibuprofeno']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should be extracted and stored",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_property_check",
+              "passed": false,
+              "reason": "Dosage should be captured correctly",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "También tomo Paracetamol cuando el dolor es muy fuerte",
+          "agent_response": "",
+          "passed": false,
+          "response_time_ms": 8018.0,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the additional medication",
+              "details": "Missing required values: ['Paracetamol']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Paracetamol should be extracted and stored",
+              "details": "Entity not found: Paracetamol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should still be in memory",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "relationship_must_exist",
+              "passed": false,
+              "reason": "Medications should be linked to the condition they treat",
+              "details": "Relationship not found",
+              "score": null,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the additional medication",
+              "details": "Missing required values: ['Paracetamol']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Paracetamol should be extracted and stored",
+              "details": "Entity not found: Paracetamol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should still be in memory",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "relationship_must_exist",
+              "passed": false,
+              "reason": "Medications should be linked to the condition they treat",
+              "details": "Relationship not found",
+              "score": null,
+              "severity": "medium"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "past_medication_reasoning",
+      "scenario_name": "Past vs Current Medication Distinction",
+      "category": "temporal_reasoning",
+      "severity": "medium",
+      "passed": false,
+      "duration_seconds": 0.0,
+      "error": "Failed to setup scenario: Error resetting patient: Event loop is closed",
+      "turns": []
+    },
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": false,
+      "duration_seconds": 15.05,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "",
+          "passed": false,
+          "response_time_ms": 9742.3,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "Missing required values: ['?']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "memory_diff_check",
+              "passed": true,
+              "reason": "No entities should be created from an unverified typo",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "Missing required values: ['?']",
+              "score": null,
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "",
+          "passed": false,
+          "response_time_ms": 4561.8,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the correct medication name",
+              "details": "Missing required values: ['Omeprazol']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "must_contain",
+              "passed": false,
+              "reason": "Agent should acknowledge the correct medication name",
+              "details": "Missing required values: ['Omeprazol']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": false,
+      "duration_seconds": 0.0,
+      "error": "Failed to setup scenario: Error resetting patient: Event loop is closed",
+      "turns": []
+    }
+  ]
+}

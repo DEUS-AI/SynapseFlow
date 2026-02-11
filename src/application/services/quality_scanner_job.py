@@ -266,7 +266,7 @@ class QualityScannerJob:
             from application.services.ontology_quality_service import OntologyQualityService
 
             service = OntologyQualityService(kg_backend=self.kg_backend)
-            report = await service.assess_ontology()
+            report = await service.assess_ontology_quality()
 
             result.ontology_assessed = True
             result.ontology_score = report.overall_score

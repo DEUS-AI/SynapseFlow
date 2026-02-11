@@ -66,19 +66,22 @@ class DataSyncUtility:
         session_repo = SessionRepository(self.pg_session)
 
         # Query all sessions from Neo4j
+        # Note: Sessions are stored as ConversationSession nodes linked from Patient nodes
         query = """
-        MATCH (s:Session)
+        MATCH (p:Patient)-[:HAS_SESSION]->(s:ConversationSession)
+        OPTIONAL MATCH (s)-[:HAS_MESSAGE]->(m:Message)
+        WITH s, p.id as patient_id, count(m) as msg_count
         RETURN
             s.id as session_id,
-            s.patient_id as patient_id,
+            patient_id,
             s.title as title,
             s.status as status,
-            s.created_at as created_at,
+            s.started_at as created_at,
             s.updated_at as updated_at,
             s.last_activity as last_activity,
-            s.message_count as message_count,
+            msg_count as message_count,
             s.device_type as device_type
-        ORDER BY s.created_at ASC
+        ORDER BY s.started_at ASC
         """
 
         result = await self.neo4j.query_raw(query, {})
@@ -161,17 +164,18 @@ class DataSyncUtility:
         session_repo = SessionRepository(self.pg_session)
 
         # Query all messages from Neo4j
+        # Note: Messages are linked from ConversationSession nodes
         query = """
-        MATCH (s:Session)-[:HAS_MESSAGE]->(m:Message)
+        MATCH (p:Patient)-[:HAS_SESSION]->(s:ConversationSession)-[:HAS_MESSAGE]->(m:Message)
         RETURN
             m.id as message_id,
             s.id as session_id,
-            m.patient_id as patient_id,
+            p.id as patient_id,
             m.role as role,
             m.content as content,
-            m.created_at as created_at,
+            m.timestamp as created_at,
             m.response_id as response_id
-        ORDER BY m.created_at ASC
+        ORDER BY m.timestamp ASC
         """
 
         result = await self.neo4j.query_raw(query, {})
@@ -246,7 +250,7 @@ class DataSyncUtility:
         message_repo = MessageRepository(self.pg_session)
 
         # Count sessions in Neo4j
-        neo4j_sessions_query = "MATCH (s:Session) RETURN count(s) as count"
+        neo4j_sessions_query = "MATCH (s:ConversationSession) RETURN count(s) as count"
         neo4j_result = await self.neo4j.query_raw(neo4j_sessions_query, {})
         neo4j_sessions = neo4j_result[0]["count"] if neo4j_result else 0
 

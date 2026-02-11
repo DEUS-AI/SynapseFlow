@@ -203,6 +203,10 @@ class ConversationState(TypedDict, total=False):
     emotional_arc: List[str]    # EmotionalTone values over turns
     urgency_level: str          # Current UrgencyLevel value
 
+    # === Session Flags ===
+    has_greeted: bool           # True after greeting has been delivered (prevents double greeting)
+    returning_user: bool        # True if patient has prior history (prevents re-introduction)
+
     # === Timestamps ===
     created_at: str             # ISO format datetime
     last_activity: str          # ISO format datetime
@@ -257,6 +261,7 @@ def create_initial_state(
         refined_context=None,
         emotional_arc=[EmotionalTone.NEUTRAL.value],
         urgency_level=UrgencyLevel.LOW.value,
+        has_greeted=False,  # Prevents double greetings in a session
         created_at=now,
         last_activity=now,
         conversation_summary=None,

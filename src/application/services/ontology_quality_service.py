@@ -34,12 +34,13 @@ from application.services.semantic_normalizer import SemanticNormalizer
 logger = logging.getLogger(__name__)
 
 # Labels that indicate structural (non-knowledge) entities
+# Note: ExtractedEntity is NOT structural - it's a marker for entities
+# extracted from documents, used alongside type labels like BusinessConcept
 STRUCTURAL_ENTITY_LABELS = {
     "Chunk",
     "StructuralChunk",
     "Document",
     "DocumentQuality",
-    "ExtractedEntity",
 }
 
 
@@ -134,7 +135,6 @@ class OntologyQualityService:
                    coalesce(n._exclude_from_ontology, false) as exclude_from_ontology,
                    coalesce(n._is_structural, false) as is_structural,
                    coalesce(n._is_noise, false) as is_noise
-            LIMIT 10000
             """
             results = await self.backend.query_raw(query, {})
             entities = [dict(r) for r in results] if results else []
@@ -184,7 +184,6 @@ class OntologyQualityService:
                    b.id as target_id,
                    b.name as target_name,
                    labels(b) as target_labels
-            LIMIT 50000
             """
             results = await self.backend.query_raw(query, {})
             return [dict(r) for r in results] if results else []
@@ -223,7 +222,7 @@ class OntologyQualityService:
 
         for entity in entities:
             labels = set(entity.get("labels", []))
-            entity_type = entity.get("type", "Unknown")
+            entity_type = entity.get("type") or "Unknown"
             is_structural = self._is_structural_entity(entity)
             is_noise = self._is_noise_entity(entity)
 
@@ -426,21 +425,18 @@ class OntologyQualityService:
         else:
             score.coherence_ratio = 1.0  # No hierarchy relationships = not invalid
 
-        # Detect orphans (nodes with no parents in hierarchy)
-        entity_ids = {e.get("id") for e in entities if e.get("id")}
-        nodes_with_parents = set(parents.keys())
-        root_nodes = entity_ids - nodes_with_parents
+        # Detect true orphans (knowledge nodes with no relationships at all)
+        # Exclude structural entities (Chunk, Document, etc.) from orphan count
+        # as they are infrastructure, not knowledge entities
+        knowledge_entity_ids = {
+            e.get("id") for e in entities
+            if e.get("id") and not self._is_structural_entity(e)
+        }
+        connected_nodes = all_nodes  # nodes that participate in any relationship
 
-        # Not all root nodes are orphans - some are legitimate roots
-        # Orphans are leaf nodes without any hierarchy connections
-        potential_orphans = 0
-        for entity in entities:
-            eid = entity.get("id")
-            if eid not in nodes_with_parents and eid not in children:
-                # No parent and no children - completely isolated from hierarchy
-                potential_orphans += 1
-
-        score.orphan_nodes = potential_orphans
+        # True orphans are knowledge entities that have no relationships at all
+        true_orphans = knowledge_entity_ids - connected_nodes
+        score.orphan_nodes = len(true_orphans)
 
         # Calculate hierarchy depth
         depths = self._calculate_hierarchy_depths(parents)
@@ -786,8 +782,12 @@ async def quick_ontology_check(kg_backend: Any) -> Dict[str, Any]:
         "quality_level": report.quality_level.value,
         "overall_score": round(report.overall_score, 2),
         "entity_count": report.entity_count,
+        "relationship_count": report.relationship_count,
+        "orphan_nodes": report.taxonomy.orphan_nodes,
         "coverage_ratio": round(report.coverage.coverage_ratio, 2),
         "compliance_ratio": round(report.compliance.compliance_ratio, 2),
+        "coherence_ratio": round(report.taxonomy.coherence_ratio, 2),
+        "consistency_ratio": round(report.consistency.consistency_ratio, 2),
         "critical_issues": report.critical_issues[:3],
         "top_recommendations": report.improvement_priority[:3],
     }

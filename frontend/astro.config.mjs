@@ -16,7 +16,7 @@ export default defineConfig({
   },
   vite: {
     optimizeDeps: {
-      include: ['react-markdown', 'remark-parse', 'unified'],
+      include: ['react-markdown', 'remark-parse', 'unified', 'recharts'],
     },
     server: {
       proxy: {

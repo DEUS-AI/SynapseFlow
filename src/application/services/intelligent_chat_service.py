@@ -544,19 +544,31 @@ Return a JSON object with these arrays (empty if none found):
 - stopped_medications: [{name: "drug name", reason: "why stopped if mentioned"}]
 - resolved_conditions: [{condition: "condition name", details: "any info about when/how resolved"}]
 - allergies: [{substance: "allergen", reaction: "if mentioned", severity: "mild/moderate/severe if mentioned"}]
+- procedures: [{name: "procedure name", type: "test/surgery/screening/imaging", scheduled_date: "if mentioned", status: "scheduled/completed/cancelled", notes: "any details"}]
+- medical_devices: [{name: "device name", type: "stoma/implant/prosthetic/pump/monitor", status: "active/removed", location: "body location if mentioned", notes: "any details"}]
+
+PROCEDURES & TESTS - Extract these:
+- "I have a colonoscopy scheduled" → add to procedures with status="scheduled"
+- "I had an MRI last week" → add to procedures with status="completed"
+- "I need to get a blood test" → add to procedures with status="scheduled"
+- "my colonoscopy is next month" → add to procedures with scheduled_date
+- Examples: colonoscopy, endoscopy, MRI, CT scan, blood test, biopsy, EKG, ultrasound, X-ray, surgery
+
+MEDICAL DEVICES & IMPLANTS - Extract these (VERY IMPORTANT for care planning):
+- "I have a colostomy" / "I have a colostomy bag" → add to medical_devices with type="stoma"
+- "I have an ileostomy" / "I have an ostomy" → add to medical_devices with type="stoma"
+- "I have a pacemaker" → add to medical_devices with type="implant"
+- "I use an insulin pump" → add to medical_devices with type="pump"
+- "I have a feeding tube" / "I have a port" → add to medical_devices
+- Examples: colostomy, ileostomy, urostomy, pacemaker, insulin pump, cochlear implant, feeding tube, port-a-cath
 
 IMPORTANT: Distinguish between:
 - "I take ibuprofen" → add to medications
-- "I stopped taking ibuprofen" / "I no longer take ibuprofen" / "I discontinued ibuprofen" → add to stopped_medications
-- "I'm not taking ibuprofen anymore" → add to stopped_medications
+- "I stopped taking ibuprofen" / "I no longer take ibuprofen" → add to stopped_medications
 
-IMPORTANT: Detect RESOLVED conditions (symptoms/diagnoses that are no longer present):
+IMPORTANT: Detect RESOLVED conditions:
 - "I no longer have knee pain" → add to resolved_conditions
 - "my headache is gone" → add to resolved_conditions
-- "the pain went away" → add to resolved_conditions
-- "my back is much better now" / "it has cleared up" → add to resolved_conditions
-- "I don't have that pain anymore" → add to resolved_conditions
-- "my X has resolved" / "X is better" → add to resolved_conditions
 
 Only extract facts the patient explicitly states about THEMSELVES (not general questions).
 Be precise - "I have Crohn's disease" is a diagnosis, "what is Crohn's disease" is NOT.
@@ -590,17 +602,48 @@ Patient message: """ + message
                     except Exception as e:
                         logger.warning(f"Failed to store diagnosis {dx['condition']}: {e}")
 
-            # Store extracted medications
+            # Store extracted medications (with validation)
+            from application.services.medication_validator import get_medication_validator
+            validator = get_medication_validator()
+
             for med in result.get("medications", []):
                 if med.get("name"):
                     try:
-                        await self.patient_memory.add_medication(
-                            patient_id=patient_id,
-                            name=med["name"],
-                            dosage=med.get("dosage", "unknown"),
-                            frequency=med.get("frequency", "unknown")
-                        )
-                        logger.info(f"Extracted and stored medication: {med['name']} for {patient_id}")
+                        # Validate medication before storing
+                        validation = validator.validate(med["name"])
+
+                        if validation.is_valid:
+                            # Use the validated/corrected name
+                            await self.patient_memory.add_medication(
+                                patient_id=patient_id,
+                                name=validation.validated_name,
+                                dosage=med.get("dosage", "unknown"),
+                                frequency=med.get("frequency", "unknown")
+                            )
+                            if validation.confidence < 1.0:
+                                logger.info(
+                                    f"Extracted and stored medication (fuzzy match): "
+                                    f"'{med['name']}' -> '{validation.validated_name}' "
+                                    f"(confidence: {validation.confidence:.0%}) for {patient_id}"
+                                )
+                            else:
+                                logger.info(f"Extracted and stored medication: {validation.validated_name} for {patient_id}")
+                        else:
+                            # Log unrecognized medications for review
+                            logger.warning(
+                                f"Unrecognized medication rejected: '{med['name']}' "
+                                f"for {patient_id}. Suggestions: {validation.suggestions}. "
+                                f"Message: {validation.message}"
+                            )
+                            # Store in pending state for review
+                            await self.patient_memory.add_pending_medication(
+                                patient_id=patient_id,
+                                name=med["name"],
+                                suggestions=validation.suggestions,
+                                confidence=validation.confidence,
+                                dosage=med.get("dosage", "unknown"),
+                                frequency=med.get("frequency", "unknown")
+                            )
                     except Exception as e:
                         logger.warning(f"Failed to store medication {med['name']}: {e}")
 
@@ -643,6 +686,38 @@ Patient message: """ + message
                         logger.info(f"Extracted and stored allergy: {allergy['substance']} for {patient_id}")
                     except Exception as e:
                         logger.warning(f"Failed to store allergy {allergy['substance']}: {e}")
+
+            # Store extracted procedures and tests
+            for procedure in result.get("procedures", []):
+                if procedure.get("name"):
+                    try:
+                        await self.patient_memory.add_procedure(
+                            patient_id=patient_id,
+                            name=procedure["name"],
+                            procedure_type=procedure.get("type", "test"),
+                            scheduled_date=procedure.get("scheduled_date"),
+                            status=procedure.get("status", "scheduled"),
+                            notes=procedure.get("notes")
+                        )
+                        logger.info(f"Extracted and stored procedure: {procedure['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store procedure {procedure['name']}: {e}")
+
+            # Store extracted medical devices (colostomy, ileostomy, pacemaker, etc.)
+            for device in result.get("medical_devices", []):
+                if device.get("name"):
+                    try:
+                        await self.patient_memory.add_medical_device(
+                            patient_id=patient_id,
+                            name=device["name"],
+                            device_type=device.get("type", "device"),
+                            status=device.get("status", "active"),
+                            location=device.get("location"),
+                            notes=device.get("notes")
+                        )
+                        logger.info(f"Extracted and stored medical device: {device['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store medical device {device['name']}: {e}")
 
         except Exception as e:
             logger.warning(f"Medical fact extraction failed: {e}")

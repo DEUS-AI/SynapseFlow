@@ -1,0 +1,142 @@
+%% SynapseFlow Neurosymbolic Integration Architecture
+%% Shows how neural and symbolic components work together
+
+flowchart TB
+    subgraph NEURAL["Neural Components (Dense/Probabilistic)"]
+        direction TB
+        subgraph LLM["LLM Layer"]
+            GPT[OpenAI GPT-4]
+            EMB[Embeddings API]
+            LLM_R[LLMReasoner]
+        end
+
+        subgraph EPISODIC["Episodic Memory"]
+            GRAPH[Graphiti Engine]
+            FALK[(FalkorDB)]
+            VEC[(Qdrant Vectors)]
+        end
+
+        subgraph EXTRACT["Extraction"]
+            NER[Entity Extraction]
+            REL_EXT[Relationship Extraction]
+            CONF[Confidence Scoring]
+        end
+
+        GPT --> LLM_R
+        EMB --> VEC
+        GPT --> NER
+        NER --> REL_EXT
+        REL_EXT --> CONF
+    end
+
+    subgraph SYMBOLIC["Symbolic Components (Sparse/Deterministic)"]
+        direction TB
+        subgraph RULES["Rule Engine"]
+            MED_R[Medical Rules]
+            VAL[Validation Engine]
+            ONT[Ontology Mapper]
+        end
+
+        subgraph DIKW["DIKW Knowledge Graph"]
+            NEO[(Neo4j)]
+            P_L[PERCEPTION]
+            S_L[SEMANTIC]
+            R_L[REASONING]
+            A_L[APPLICATION]
+        end
+
+        subgraph ONTO["Ontologies"]
+            SNOMED[SNOMED-CT]
+            ICD[ICD-10]
+            RX[RxNorm]
+        end
+
+        MED_R --> VAL
+        ONT --> SNOMED
+        ONT --> ICD
+        ONT --> RX
+        P_L --> S_L
+        S_L --> R_L
+        R_L --> A_L
+    end
+
+    subgraph BRIDGE["Neurosymbolic Bridge"]
+        direction TB
+        subgraph HYPER["Hypergraph Layer"]
+            FACT[FactUnit]
+            PART[:PARTICIPATES_IN]
+            COOC[Co-occurrence Context]
+        end
+
+        subgraph TRANS["Transition Services"]
+            CRYST[CrystallizationService]
+            PROM[PromotionGate]
+            LAYER[LayerTransition]
+        end
+
+        subgraph CONF_PROP["Confidence Propagation"]
+            CROSS[CrossLayerConfidence]
+            DECAY[Decay Functions]
+            RESOLVE[Conflict Resolution]
+        end
+
+        COOC --> FACT
+        FACT --> PART
+        CRYST --> PROM
+        PROM --> LAYER
+        CROSS --> DECAY
+        DECAY --> RESOLVE
+    end
+
+    subgraph QUERY["Query Processing"]
+        direction TB
+        ROUTER[DIKWRouter]
+        NQS[NeurosymbolicQueryService]
+        RE[ReasoningEngine]
+        STRAT{Strategy}
+
+        ROUTER --> STRAT
+        STRAT -->|SYMBOLIC_ONLY| SO[Rules Only]
+        STRAT -->|SYMBOLIC_FIRST| SF[Rules → LLM]
+        STRAT -->|NEURAL_FIRST| NF[LLM → Rules]
+        STRAT -->|COLLABORATIVE| CO[Parallel]
+    end
+
+    %% Cross-component flows
+    CONF --> COOC
+    GRAPH --> CRYST
+    CRYST --> P_L
+    PROM --> S_L
+    LAYER --> R_L
+
+    FACT --> NEO
+    ONT --> S_L
+    MED_R --> RE
+
+    LLM_R --> RE
+    VAL --> RE
+    RE --> NQS
+    ROUTER --> NQS
+
+    CROSS --> RE
+    P_L --> NQS
+    S_L --> NQS
+    R_L --> NQS
+    A_L --> NQS
+
+    %% Styling
+    style NEURAL fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style SYMBOLIC fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style BRIDGE fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    style QUERY fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+
+    style GPT fill:#bbdefb,stroke:#1976d2
+    style EMB fill:#bbdefb,stroke:#1976d2
+    style GRAPH fill:#90caf9,stroke:#1565c0
+    style NEO fill:#a5d6a7,stroke:#388e3c
+
+    style FACT fill:#ffcc80,stroke:#f57c00,stroke-width:2px
+    style RE fill:#ce93d8,stroke:#7b1fa2,stroke-width:2px
+
+    style MED_R fill:#ffcdd2,stroke:#c62828
+    style SNOMED fill:#c8e6c9,stroke:#2e7d32

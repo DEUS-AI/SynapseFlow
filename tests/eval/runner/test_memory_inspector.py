@@ -447,13 +447,16 @@ class TestMemoryInspectorClient:
         return AsyncMock()
 
     @pytest.fixture
-    def inspector_with_mock(self, mock_http_client):
+    async def inspector_with_mock(self, mock_http_client):
         """Crea un inspector con cliente HTTP mockeado."""
+        import asyncio
         inspector = MemoryInspector(
             base_url="http://localhost:8000",
             api_key="test-key",
         )
         inspector._client = mock_http_client
+        # Set the client loop to match the current async test's loop
+        inspector._client_loop = asyncio.get_running_loop()
         return inspector
 
     @pytest.mark.asyncio
