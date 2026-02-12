@@ -485,6 +485,7 @@ Return only the JSON object."""
         messages = state.get("messages", [])
         patient_context = state.get("patient_context", {})
         turn_count = state.get("turn_count", 0)
+        has_greeted = state.get("has_greeted", False)  # Check if already greeted
 
         # Get last user message
         last_message = messages[-1] if messages else None
@@ -494,26 +495,31 @@ Return only the JSON object."""
         system_prompt = self._build_persona_prompt(patient_context)
 
         # Build user prompt based on turn count and context
-        if turn_count <= 1:
-            # First turn - greeting
-            # Determine if this is a returning user based on multiple signals
-            mem0_memories = patient_context.get("mem0_memories", [])
-            returning_user = bool(
-                patient_context.get("active_conditions") or
-                patient_context.get("historical_conditions") or
-                patient_context.get("recently_resolved") or
-                patient_context.get("current_medications") or
-                patient_context.get("patient_name") or
-                # KEY: Mem0 memories indicate we've talked before!
-                mem0_memories or
-                # If user mentions Matucha by name, they likely know her
-                "matucha" in user_text.lower()
-            )
+        # IMPORTANT: Only greet on first turn AND if we haven't greeted yet in this session
+        # This prevents double greetings when mode transitions back to casual_chat
+        should_greet = (turn_count <= 1) and not has_greeted
 
-            # Debug logging
-            print(f"[GREETING] returning_user={returning_user}, mem0_memories={len(mem0_memories)}")
-            if mem0_memories:
-                print(f"[GREETING] Sample memories: {mem0_memories[:2]}")
+        # Determine if this is a returning user based on multiple signals
+        # This is set regardless of whether we greet, so reflection_node can use it
+        mem0_memories = patient_context.get("mem0_memories", [])
+        returning_user = bool(
+            patient_context.get("active_conditions") or
+            patient_context.get("historical_conditions") or
+            patient_context.get("recently_resolved") or
+            patient_context.get("current_medications") or
+            patient_context.get("patient_name") or
+            # KEY: Mem0 memories indicate we've talked before!
+            mem0_memories or
+            # If user mentions Matucha by name, they likely know her
+            "matucha" in user_text.lower()
+        )
+
+        # Debug logging
+        print(f"[GREETING] returning_user={returning_user}, mem0_memories={len(mem0_memories)}, should_greet={should_greet}")
+        if mem0_memories:
+            print(f"[GREETING] Sample memories: {mem0_memories[:2]}")
+
+        if should_greet:
             user_prompt = self._build_greeting_prompt(
                 user_text=user_text,
                 patient_context=patient_context,
@@ -528,29 +534,47 @@ User said: "{user_text}"
 Respond in a friendly, conversational way. If they seem to want to discuss something medical or need help with a task, acknowledge it and offer to help. Keep the response brief (under 50 words)."""
 
         try:
+            # Build conversation history for LLM context
+            llm_messages = [{"role": "system", "content": system_prompt}]
+
+            # Add recent conversation history (last 6 messages for casual chat)
+            for msg in messages[-6:]:
+                if isinstance(msg, HumanMessage):
+                    llm_messages.append({"role": "user", "content": msg.content})
+                elif isinstance(msg, AIMessage):
+                    llm_messages.append({"role": "assistant", "content": msg.content})
+
+            # Add the prompt as final user message
+            llm_messages.append({"role": "user", "content": user_prompt})
+
             response = await self.openai_client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+                messages=llm_messages,
                 temperature=0.7,
                 max_tokens=200,
             )
 
             response_text = response.choices[0].message.content.strip()
 
-            return {
+            result = {
                 "messages": [AIMessage(content=response_text)],
-                "last_assistant_action": AssistantAction.GREETED.value if turn_count <= 1 else AssistantAction.ACKNOWLEDGED.value,
+                "last_assistant_action": AssistantAction.GREETED.value if should_greet else AssistantAction.ACKNOWLEDGED.value,
+                "returning_user": returning_user,  # Store for reflection_node to use
             }
+            # Mark that we've greeted to prevent double greetings
+            if should_greet:
+                result["has_greeted"] = True
+            return result
 
         except Exception as e:
             logger.error(f"Casual chat generation failed: {e}")
-            return {
+            result = {
                 "messages": [AIMessage(content="Hello! How can I help you today?")],
                 "last_assistant_action": AssistantAction.GREETED.value,
+                "has_greeted": True,  # Even fallback greeting counts
+                "returning_user": returning_user,  # Preserve for reflection_node
             }
+            return result
 
     def _build_greeting_prompt(
         self,
@@ -747,24 +771,46 @@ Recent Memories (from past sessions - USE these to recall previous interactions)
 {f"Knowledge from medical database:{chr(10)}{knowledge_context}" if knowledge_context else ""}
 
 Generate a response that:
-1. Acknowledges their concern with appropriate empathy given the emotional tone
-2. Provides accurate, helpful medical information
-3. Asks clarifying questions if needed to better understand their situation
-4. Considers their existing conditions and medications
-5. Flags any safety concerns (allergies, drug interactions)
-6. Recommends consulting a healthcare provider for serious concerns
-7. Keeps the response focused and under 150 words
-8. If they reference past conversations (e.g., "the exercise plan you made"), use the memories above to respond appropriately
+1. MATCHES THEIR TONE: If they're asking a practical question, answer directly without emotional preambles
+   - AVOID: "I know living with [condition] can be challenging..." (they already know this!)
+   - AVOID: "Managing a chronic condition is difficult..." (condescending)
+   - GOOD: Just answer their question directly and practically
+2. Only show empathy if they express distress, frustration, or emotional content
+3. Provides accurate, helpful medical information
+4. Asks clarifying questions if needed to better understand their situation
+5. Considers their existing conditions and medications
+6. Flags any safety concerns (allergies, drug interactions)
+7. Recommends consulting a healthcare provider for serious concerns
+8. Keeps the response focused and under 150 words
+9. If they reference past conversations (e.g., "the exercise plan you made"), use the memories above to respond appropriately
+
+TONE CALIBRATION based on emotional_tone={emotional_tone}:
+- neutral/curious → Direct, informational response. No emotional preambles.
+- concerned/anxious → Brief acknowledgment, then practical help
+- frustrated/distressed → Show understanding, then help
+- positive → Match their energy, be encouraging
 
 {"IMPORTANT: This is marked as high/critical urgency. Ensure safety guidance is prominent." if urgency in [UrgencyLevel.HIGH.value, UrgencyLevel.CRITICAL.value] else ""}"""
 
         try:
+            # Build conversation history for LLM context
+            # Include recent messages so LLM remembers what was discussed
+            llm_messages = [{"role": "system", "content": system_prompt}]
+
+            # Add recent conversation history (last 10 messages for context)
+            # This allows the LLM to remember what it said and what user asked before
+            for msg in messages[-10:]:
+                if isinstance(msg, HumanMessage):
+                    llm_messages.append({"role": "user", "content": msg.content})
+                elif isinstance(msg, AIMessage):
+                    llm_messages.append({"role": "assistant", "content": msg.content})
+
+            # Add the contextual prompt as a final user message
+            llm_messages.append({"role": "user", "content": user_prompt})
+
             response = await self.openai_client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+                messages=llm_messages,
                 temperature=0.5,
                 max_tokens=400,
             )
@@ -867,12 +913,21 @@ Generate an educational response that:
 6. Keep it informative but conversational (150-250 words)"""
 
         try:
+            # Build conversation history for context
+            llm_messages = [{"role": "system", "content": system_prompt}]
+
+            # Add recent conversation history (last 8 messages)
+            for msg in messages[-8:]:
+                if isinstance(msg, HumanMessage):
+                    llm_messages.append({"role": "user", "content": msg.content})
+                elif isinstance(msg, AIMessage):
+                    llm_messages.append({"role": "assistant", "content": msg.content})
+
+            llm_messages.append({"role": "user", "content": user_prompt})
+
             response = await self.openai_client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+                messages=llm_messages,
                 temperature=0.6,
                 max_tokens=600,
             )
@@ -1620,6 +1675,8 @@ Generate only the response, nothing else."""
         mode = state.get("mode", "casual_chat")
 
         # Build reflection prompt
+        # Check if this is a returning user - they already know Matucha!
+        returning_user = state.get("returning_user", False)
         reflection_prompt = self._build_reflection_prompt(
             draft_response=draft_response,
             patient_context=patient_context,
@@ -1627,6 +1684,7 @@ Generate only the response, nothing else."""
             mode=mode,
             recently_resolved=patient_context.get("recently_resolved", []),
             historical_conditions=patient_context.get("historical_conditions", []),
+            returning_user=returning_user,
         )
 
         try:
@@ -1670,6 +1728,7 @@ Generate only the response, nothing else."""
         mode: str,
         recently_resolved: List[str],
         historical_conditions: List[str],
+        returning_user: bool = False,
     ) -> str:
         """Build the reflection prompt for response quality checking."""
 
@@ -1698,8 +1757,10 @@ CHECK FOR THESE ISSUES:
    - If YES → Remove or add "Based on your recent history..." qualifier
 
 2. **Persona Presence**:
-   - Is this turn 1? If so, does the response include a self-introduction as "Matucha"?
-   - If turn 1 and no intro → Add a brief intro: "Hi, I'm Matucha, your medical assistant."
+   - Is this a RETURNING user? {returning_user}
+   - If RETURNING user: DO NOT add self-introduction - they already know Matucha!
+   - If NEW user (not returning) and turn 1 with no intro → Add a brief intro
+   - CRITICAL: For returning users, NEVER add "I'm Matucha" or "your medical assistant"
 
 3. **Natural Tone**:
    - Does it sound mechanical or scripted? (e.g., "Great, I've noted that. Next question?")
@@ -1710,8 +1771,11 @@ CHECK FOR THESE ISSUES:
    - Good: "So you have Crohn's disease - that helps me understand your needs. Now..."
    - Bad: "Great, noted. What about dietary restrictions?"
 
-5. **Empathy Check**:
-   - If the patient mentioned something concerning, is the response appropriately empathetic?
+5. **Tone Appropriateness**:
+   - Is the response MATCHING the patient's tone?
+   - If they asked a practical question, does it answer directly WITHOUT emotional preambles?
+   - REMOVE phrases like "I know [condition] can be challenging" - this is condescending
+   - Only add empathy if the patient expressed distress/frustration
 
 Return JSON with:
 {{
@@ -1838,15 +1902,21 @@ If no issues found, return {{"needs_revision": false, "issues_found": [], "revis
         prompt = f"""You are {self.persona_name}, a warm and professional medical assistant.
 
 Your personality:
-- Empathetic and caring, but not overly casual
+- Practical and helpful - answer questions directly
 - Knowledgeable and precise with medical information
 - Patient and thorough in explanations
-- Safety-conscious - always recommend professional consultation for serious concerns
+- Safety-conscious - recommend professional consultation for serious concerns
 - Natural conversational style - not scripted or robotic
 
-Guidelines:
+CRITICAL TONE GUIDELINES:
+- DO NOT be condescending. Patients with chronic conditions KNOW their condition is difficult.
+- AVOID phrases like "I know [condition] can be challenging" or "Living with [condition] is hard"
+- For practical questions (diet, exercise, medication), just answer directly
+- Only show emotional support when they EXPRESS emotional distress
+- Treat them as a capable adult who wants information, not pity
+
+General guidelines:
 - Use clear, accessible language (avoid excessive jargon)
-- Show genuine concern for the patient's well-being
 - Remember context from the conversation
 - Be helpful but honest about limitations
 - Include safety warnings when appropriate"""
@@ -1887,6 +1957,25 @@ Return a JSON object with these arrays (empty if none found):
 - stopped_medications: [{name: "drug name", reason: "why stopped if mentioned"}]
 - resolved_conditions: [{condition: "condition name", details: "any info about resolution"}]
 - allergies: [{substance: "allergen", reaction: "if mentioned", severity: "mild/moderate/severe if mentioned"}]
+- procedures: [{name: "procedure name", type: "test/surgery/screening/imaging", scheduled_date: "if mentioned", status: "scheduled/completed/cancelled", notes: "any details"}]
+- medical_devices: [{name: "device name", type: "stoma/implant/prosthetic/pump/monitor", status: "active/removed", location: "body location if mentioned", notes: "any details"}]
+- corrected_medications: [{wrong_name: "the incorrect name", correct_name: "the correct name if given", reason: "explanation"}]
+- denied_medications: [{name: "drug name", reason: "why denied"}]
+- denied_diagnoses: [{condition: "condition name", reason: "why denied"}]
+- denied_allergies: [{substance: "allergen", reason: "why denied"}]
+
+PROCEDURES & TESTS - Extract these:
+- "I have a colonoscopy scheduled" → add to procedures with status="scheduled"
+- "I had an MRI last week" → add to procedures with status="completed"
+- "my colonoscopy is next month" → add to procedures with scheduled_date
+- Examples: colonoscopy, endoscopy, MRI, CT scan, blood test, biopsy, EKG, ultrasound, X-ray, surgery
+
+MEDICAL DEVICES & IMPLANTS - Extract these (VERY IMPORTANT for care planning):
+- "I have a colostomy" / "I have a colostomy bag" → add to medical_devices with type="stoma"
+- "I have an ileostomy" / "I have an ostomy" → add to medical_devices with type="stoma"
+- "I have a pacemaker" → add to medical_devices with type="implant"
+- "I use an insulin pump" → add to medical_devices with type="pump"
+- Examples: colostomy, ileostomy, urostomy, pacemaker, insulin pump, cochlear implant, feeding tube, port-a-cath
 
 IMPORTANT: Distinguish between:
 - "I take ibuprofen" → add to medications
@@ -1895,6 +1984,12 @@ IMPORTANT: Distinguish between:
 IMPORTANT: Detect RESOLVED conditions:
 - "I no longer have knee pain" → add to resolved_conditions
 - "my headache is gone" → add to resolved_conditions
+
+IMPORTANT: Detect CORRECTIONS and DENIALS:
+- "Moudel was a typo" → add to corrected_medications with wrong_name="Moudel"
+- "I don't take Moudel" → add to denied_medications
+- "I don't have diabetes" → add to denied_diagnoses
+- "I'm not allergic to X" → add to denied_allergies
 
 Only extract facts the patient explicitly states about THEMSELVES (not general questions).
 "I have Crohn's disease" is a diagnosis. "What is Crohn's disease?" is NOT.
@@ -1927,17 +2022,49 @@ Patient message: """ + message
                     except Exception as e:
                         logger.warning(f"Failed to store diagnosis {dx['condition']}: {e}")
 
-            # Store extracted medications
+            # Store extracted medications (with validation)
+            from application.services.medication_validator import get_medication_validator
+            validator = get_medication_validator()
+
             for med in result.get("medications", []):
                 if med.get("name"):
                     try:
-                        await self.patient_memory.add_medication(
-                            patient_id=patient_id,
-                            name=med["name"],
-                            dosage=med.get("dosage", "unknown"),
-                            frequency=med.get("frequency", "unknown")
-                        )
-                        logger.info(f"[MEDICAL_EXTRACTION] Stored medication: {med['name']} for {patient_id}")
+                        # Validate medication before storing
+                        validation = validator.validate(med["name"])
+
+                        if validation.is_valid:
+                            # Use the validated/corrected name
+                            await self.patient_memory.add_medication(
+                                patient_id=patient_id,
+                                name=validation.validated_name,
+                                dosage=med.get("dosage", "unknown"),
+                                frequency=med.get("frequency", "unknown")
+                            )
+                            if validation.confidence < 1.0:
+                                logger.info(
+                                    f"[MEDICAL_EXTRACTION] Stored medication (fuzzy match): "
+                                    f"'{med['name']}' -> '{validation.validated_name}' "
+                                    f"(confidence: {validation.confidence:.0%}) for {patient_id}"
+                                )
+                            else:
+                                logger.info(f"[MEDICAL_EXTRACTION] Stored medication: {validation.validated_name} for {patient_id}")
+                        else:
+                            # Log unrecognized medications for review
+                            logger.warning(
+                                f"[MEDICAL_EXTRACTION] Unrecognized medication rejected: '{med['name']}' "
+                                f"for {patient_id}. Suggestions: {validation.suggestions}. "
+                                f"Message: {validation.message}"
+                            )
+                            # Store in a pending/unverified state for manual review
+                            # This prevents typos like "Moudel" from being stored as valid medications
+                            await self.patient_memory.add_pending_medication(
+                                patient_id=patient_id,
+                                name=med["name"],
+                                suggestions=validation.suggestions,
+                                confidence=validation.confidence,
+                                dosage=med.get("dosage", "unknown"),
+                                frequency=med.get("frequency", "unknown")
+                            )
                     except Exception as e:
                         logger.warning(f"Failed to store medication {med['name']}: {e}")
 
@@ -1980,6 +2107,117 @@ Patient message: """ + message
                         logger.info(f"[MEDICAL_EXTRACTION] Stored allergy: {allergy['substance']} for {patient_id}")
                     except Exception as e:
                         logger.warning(f"Failed to store allergy: {e}")
+
+            # Store extracted procedures and tests (colonoscopy, MRI, blood test, etc.)
+            for procedure in result.get("procedures", []):
+                if procedure.get("name"):
+                    try:
+                        await self.patient_memory.add_procedure(
+                            patient_id=patient_id,
+                            name=procedure["name"],
+                            procedure_type=procedure.get("type", "test"),
+                            scheduled_date=procedure.get("scheduled_date"),
+                            status=procedure.get("status", "scheduled"),
+                            notes=procedure.get("notes")
+                        )
+                        logger.info(f"[MEDICAL_EXTRACTION] Stored procedure: {procedure['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store procedure: {e}")
+
+            # Store extracted medical devices (colostomy, ileostomy, pacemaker, etc.)
+            for device in result.get("medical_devices", []):
+                if device.get("name"):
+                    try:
+                        await self.patient_memory.add_medical_device(
+                            patient_id=patient_id,
+                            name=device["name"],
+                            device_type=device.get("type", "device"),
+                            status=device.get("status", "active"),
+                            location=device.get("location"),
+                            notes=device.get("notes")
+                        )
+                        logger.info(f"[MEDICAL_EXTRACTION] Stored medical device: {device['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store medical device: {e}")
+
+            # Handle CORRECTED medications (e.g., "Moudel was a typo, I meant Imurel")
+            for correction in result.get("corrected_medications", []):
+                wrong_name = correction.get("wrong_name")
+                correct_name = correction.get("correct_name")
+                if wrong_name:
+                    try:
+                        # Remove the wrong medication
+                        await self.patient_memory.remove_medication(
+                            patient_id=patient_id,
+                            medication_name=wrong_name,
+                            reason=f"Correction: {correction.get('reason', 'Patient corrected a mistake')}"
+                        )
+                        logger.info(f"[MEDICAL_EXTRACTION] Removed incorrect medication: {wrong_name} for {patient_id}")
+
+                        # Also remove from pending if it was stored there
+                        await self.patient_memory.remove_pending_medication(
+                            patient_id=patient_id,
+                            medication_name=wrong_name
+                        )
+
+                        # If they provided a correct name, validate and add it
+                        if correct_name:
+                            validation = validator.validate(correct_name)
+                            if validation.is_valid:
+                                await self.patient_memory.add_medication(
+                                    patient_id=patient_id,
+                                    name=validation.validated_name,
+                                    dosage="unknown",
+                                    frequency="unknown"
+                                )
+                                logger.info(f"[MEDICAL_EXTRACTION] Added corrected medication: {validation.validated_name} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to process medication correction: {e}")
+
+            # Handle DENIED medications (e.g., "I don't take Moudel")
+            for denied in result.get("denied_medications", []):
+                if denied.get("name"):
+                    try:
+                        await self.patient_memory.remove_medication(
+                            patient_id=patient_id,
+                            medication_name=denied["name"],
+                            reason=f"Patient denial: {denied.get('reason', 'Patient stated they do not take this medication')}"
+                        )
+                        logger.info(f"[MEDICAL_EXTRACTION] Removed denied medication: {denied['name']} for {patient_id}")
+
+                        # Also remove from pending
+                        await self.patient_memory.remove_pending_medication(
+                            patient_id=patient_id,
+                            medication_name=denied["name"]
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to remove denied medication: {e}")
+
+            # Handle DENIED diagnoses (e.g., "I don't have diabetes")
+            for denied in result.get("denied_diagnoses", []):
+                if denied.get("condition"):
+                    try:
+                        await self.patient_memory.remove_diagnosis(
+                            patient_id=patient_id,
+                            diagnosis_name=denied["condition"],
+                            reason=f"Patient denial: {denied.get('reason', 'Patient stated they do not have this condition')}"
+                        )
+                        logger.info(f"[MEDICAL_EXTRACTION] Removed denied diagnosis: {denied['condition']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove denied diagnosis: {e}")
+
+            # Handle DENIED allergies (e.g., "I'm not allergic to penicillin")
+            for denied in result.get("denied_allergies", []):
+                if denied.get("substance"):
+                    try:
+                        await self.patient_memory.remove_allergy(
+                            patient_id=patient_id,
+                            substance=denied["substance"],
+                            reason=f"Patient denial: {denied.get('reason', 'Patient stated they do not have this allergy')}"
+                        )
+                        logger.info(f"[MEDICAL_EXTRACTION] Removed denied allergy: {denied['substance']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove denied allergy: {e}")
 
         except Exception as e:
             logger.warning(f"Medical fact extraction failed: {e}")

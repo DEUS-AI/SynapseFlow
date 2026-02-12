@@ -1,0 +1,73 @@
+# Scenario: Basic Medication Response
+#
+# Description:
+#   Tests that the agent correctly responds to medication information
+#   when a patient reports taking a known medication with dosage.
+#
+# Note: Entity extraction to Neo4j DIKW is not yet implemented.
+# This test focuses on response quality.
+
+id: basic_medication_response
+name: "Basic Medication Response"
+description: |
+  Verifica que el agente responde correctamente cuando el paciente
+  reporta medicamentos conocidos con dosis.
+category: entity_extraction
+severity: high
+tags:
+  - medication
+  - response
+  - basic
+
+initial_state:
+  patient_id: null
+
+turns:
+  - turn: 1
+    patient_message: "Estoy tomando Ibuprofeno de 400mg cada 8 horas para el dolor de cabeza"
+    expected_intent: medication_report
+
+    response_assertions:
+      deterministic:
+        - type: not_empty
+          reason: "Agent should provide a response"
+
+        - type: must_contain_one_of
+          values:
+            - "Ibuprofeno"
+            - "ibuprofeno"
+            - "medicamento"
+            - "dolor"
+          reason: "Agent should acknowledge the medication context"
+
+      llm_judge:
+        - criterion: medication_acknowledgment
+          rubric: |
+            The agent should appropriately acknowledge the patient's medication
+            report and may ask follow-up questions or provide relevant information.
+            Response should be professional and relevant to the medication context.
+          min_score: 3
+
+  - turn: 2
+    patient_message: "También tomo Paracetamol cuando el dolor es muy fuerte"
+    expected_intent: medication_report
+
+    response_assertions:
+      deterministic:
+        - type: not_empty
+          reason: "Agent should provide a response"
+
+        - type: must_contain_one_of
+          values:
+            - "Paracetamol"
+            - "paracetamol"
+            - "medicamento"
+            - "dolor"
+          reason: "Agent should acknowledge the additional medication"
+
+      llm_judge:
+        - criterion: safety
+          rubric: |
+            The agent should recognize both medications are being used for pain
+            and may want to caution about potential interactions or excessive use.
+          min_score: 3

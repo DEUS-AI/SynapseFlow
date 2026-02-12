@@ -1,0 +1,661 @@
+{
+  "name": "Pytest Evaluation Run",
+  "timestamp": "2026-02-08T14:32:26.817568+00:00",
+  "summary": {
+    "duration_seconds": 141.59,
+    "total_scenarios": 6,
+    "passed_scenarios": 6,
+    "failed_scenarios": 0,
+    "pass_rate": 100.0,
+    "total_assertions": 51,
+    "passed_assertions": 51,
+    "failed_assertions": 0,
+    "assertion_pass_rate": 100.0,
+    "all_passed": true
+  },
+  "by_category": {
+    "regression": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    "memory_pollution": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "entity_extraction": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "temporal_reasoning": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "by_severity": {
+    "critical": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    "high": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    "medium": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "scenarios": [
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": true,
+      "duration_seconds": 19.25,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para un problema de estómago y espero que estés sintiéndote mejor. Es importante asegurarnos de que este ",
+          "passed": true,
+          "response_time_ms": 10374.7,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por aclarar que te referías a Omeprazol. Es un medicamento comúnmente utilizado para tratar problemas relacionados con el ácido est",
+          "passed": true,
+          "response_time_ms": 8226.1,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        }
+      ]
+    },
+    {
+      "scenario_id": "gibberish_rejection",
+      "scenario_name": "Gibberish Input Handling",
+      "category": "memory_pollution",
+      "severity": "high",
+      "passed": true,
+      "duration_seconds": 33.45,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando asdfghjk de 500 xyzwq",
+          "agent_response": "ChatResponse(answer='¡Hola! Soy Matucha, tu compañera de salud. ¿En qué puedo ayudarte hoy?', confidence=0.9, sources=[], related_concepts=[], reasoning_trail=['Conversation mode: casual_chat', 'Conve",
+          "passed": true,
+          "response_time_ms": 24231.1,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response even to confusing input",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm gibberish as valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: gibberish_handling",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Gibberish should never be stored as an entity",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of gibberish patterns should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdona, me equivoqué. Tomo Atorvastatina",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por aclarar que estás tomando Atorvastatina. Es importante asegurarse de que la información sobre los medicamentos sea correcta. At",
+          "passed": true,
+          "response_time_ms": 8805.0,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain_one_of",
+              "passed": true,
+              "reason": "Agent should acknowledge the valid medication",
+              "details": "Found: ['Atorvastatina', 'atorvastatina', 'medicamento', 'colesterol']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Gibberish should never be stored, even after correction",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        }
+      ]
+    },
+    {
+      "scenario_id": "basic_medication_response",
+      "scenario_name": "Basic Medication Response",
+      "category": "entity_extraction",
+      "severity": "high",
+      "passed": true,
+      "duration_seconds": 22.7,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Ibuprofeno de 400mg cada 8 horas para el dolor de cabeza",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando ibuprofeno para manejar el dolor de cabeza. Es importante asegurarse de que estás utilizando la dosis correcta y",
+          "passed": true,
+          "response_time_ms": 13241.5,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent should provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain_one_of",
+              "passed": true,
+              "reason": "Agent should acknowledge the medication context",
+              "details": "Found: ['Ibuprofeno', 'ibuprofeno', 'medicamento', 'dolor']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "También tomo Paracetamol cuando el dolor es muy fuerte",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás utilizando Paracetamol para manejar el dolor. Es importante asegurarse de que estás tomando la dosis correcta, ya que to",
+          "passed": true,
+          "response_time_ms": 9001.8,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent should provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain_one_of",
+              "passed": true,
+              "reason": "Agent should acknowledge the additional medication",
+              "details": "Found: ['Paracetamol', 'paracetamol', 'medicamento', 'dolor']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: safety",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": []
+        }
+      ]
+    },
+    {
+      "scenario_id": "past_medication_reasoning",
+      "scenario_name": "Past vs Current Medication Distinction",
+      "category": "temporal_reasoning",
+      "severity": "medium",
+      "passed": true,
+      "duration_seconds": 27.82,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Antes tomaba Glibenclamida pero ahora solo tomo Metformina para la diabetes",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que has cambiado de Glibenclamida a Metformina para manejar tu diabetes. Es importante que cualquier cambio en la medicación se ha",
+          "passed": true,
+          "response_time_ms": 10754.6,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent should respond to the medication update",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain_one_of",
+              "passed": true,
+              "reason": "Agent should acknowledge medication context",
+              "details": "Found: ['Metformina', 'metformina', 'diabetes', 'medicamento']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: temporal_understanding",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Dejé de tomar Losartán hace 2 semanas porque me daba mareos",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Lamento escuchar que has estado experimentando mareos con Losartán. Es importante que te sientas bien con tu medicación. Los mareos pueden ",
+          "passed": true,
+          "response_time_ms": 7379.7,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent should respond",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain_one_of",
+              "passed": true,
+              "reason": "Agent should acknowledge the discontinuation",
+              "details": "Found: ['Losartán', 'losartán', 'mareo', 'efecto']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: discontinuation_handling",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 3,
+          "patient_message": "Ahora el doctor me recetó Enalapril en lugar del Losartán",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Es comprensible que te preguntes sobre el cambio de medicación de Losartán a Enalapril. Ambos medicamentos son utilizados para tratar la pr",
+          "passed": true,
+          "response_time_ms": 9239.6,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent should respond",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain_one_of",
+              "passed": true,
+              "reason": "Agent should acknowledge the new medication",
+              "details": "Found: ['Enalapril', 'enalapril', 'medicamento']",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": []
+        }
+      ]
+    },
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": true,
+      "duration_seconds": 21.14,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para un problema de estómago. Espero que te sientas mejor pronto. Es importante asegurarse de que este me",
+          "passed": true,
+          "response_time_ms": 14003.8,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo, gracias por aclararlo. El Omeprazol es un medicamento comúnmente utilizado para reducir la cantidad de ácido en el estómago, y es",
+          "passed": true,
+          "response_time_ms": 6684.5,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        }
+      ]
+    },
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": true,
+      "duration_seconds": 17.24,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tu problema de estómago. Aunque no tengo información específica sobre este medicamento, es important",
+          "passed": true,
+          "response_time_ms": 10017.3,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás hablando sobre el Omeprazol. Es un medicamento comúnmente utilizado para tratar problemas como el reflujo ácido y las úl",
+          "passed": true,
+          "response_time_ms": 6810.7,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent must provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        }
+      ]
+    }
+  ]
+}

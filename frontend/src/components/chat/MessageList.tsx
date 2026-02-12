@@ -4,6 +4,10 @@ import type { ChatMessage, MessageFeedback } from '../../types/chat';
 import { FeedbackButtons } from './FeedbackButtons';
 import { Avatar, TypingIndicator } from './Avatar';
 import { formatRelativeTime } from '../../utils/formatTime';
+import { MedicalAlertInline } from './MedicalAlertInline';
+import { QueryIntentChip } from './QueryIntentBadge';
+import { DIKWLayerBadge } from './DIKWLayerBadge';
+import { TemporalContextBadge } from './TemporalContextBadge';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -44,20 +48,28 @@ export function MessageList({ messages, isThinking, onFeedbackSubmit }: MessageL
                 {message.role === 'user' ? (
                   <p className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</p>
                 ) : (
-                  <div className="prose prose-invert prose-sm max-w-none
-                    prose-headings:text-slate-100 prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
-                    prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
-                    prose-p:text-slate-200 prose-p:my-2
-                    prose-strong:text-slate-100 prose-strong:font-semibold
-                    prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5
-                    prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5
-                    prose-li:text-slate-200 prose-li:my-1
-                    prose-code:bg-slate-700 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-blue-300
-                    prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700 prose-pre:rounded-lg
-                    prose-a:text-blue-400 prose-a:underline hover:prose-a:text-blue-300
-                  ">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
-                  </div>
+                  <>
+                    {/* Medical alerts - shown first for visibility */}
+                    {message.medical_alerts && message.medical_alerts.length > 0 && (
+                      <MedicalAlertInline alerts={message.medical_alerts} />
+                    )}
+
+                    {/* Main response content */}
+                    <div className="prose prose-invert prose-sm max-w-none
+                      prose-headings:text-slate-100 prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
+                      prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
+                      prose-p:text-slate-200 prose-p:my-2
+                      prose-strong:text-slate-100 prose-strong:font-semibold
+                      prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5
+                      prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5
+                      prose-li:text-slate-200 prose-li:my-1
+                      prose-code:bg-slate-700 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-blue-300
+                      prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700 prose-pre:rounded-lg
+                      prose-a:text-blue-400 prose-a:underline hover:prose-a:text-blue-300
+                    ">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  </>
                 )}
 
                 {/* Timestamp */}
@@ -71,6 +83,23 @@ export function MessageList({ messages, isThinking, onFeedbackSubmit }: MessageL
               {/* Metadata for assistant messages */}
               {message.role === 'assistant' && (
                 <div className="px-4 pb-3 pt-2 border-t border-slate-700/50 space-y-2">
+                  {/* Query routing info (Intent, Layers, Temporal) */}
+                  {(message.routing || message.temporal_context) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {message.routing && (
+                        <>
+                          <QueryIntentChip routing={message.routing} />
+                          {message.routing.layers && message.routing.layers.length > 0 && (
+                            <DIKWLayerBadge layers={message.routing.layers} />
+                          )}
+                        </>
+                      )}
+                      {message.temporal_context && (
+                        <TemporalContextBadge temporal={message.temporal_context} />
+                      )}
+                    </div>
+                  )}
+
                   {/* Confidence */}
                   {message.confidence !== undefined && (
                     <div className="flex items-center gap-2">

@@ -14,13 +14,20 @@ Architecture:
 - FalkorDB: Episodic graph storage (separate from Neo4j DIKW)
 - Graphiti: Episode processing, entity extraction, edge inference
 - Hybrid Episodes: Sessions contain turns for hierarchical organization
+
+Event Integration:
+- Emits "episode_added" events for CrystallizationService integration
+- Events include extracted entities for DIKW pipeline processing
 """
 
 import logging
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
+
+if TYPE_CHECKING:
+    from application.event_bus import EventBus
 
 from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType, EpisodicNode, EntityNode
@@ -78,6 +85,7 @@ class EpisodicMemoryService:
         self,
         graphiti: Graphiti,
         store_raw_content: bool = True,
+        event_bus: Optional["EventBus"] = None,
     ):
         """
         Initialize the episodic memory service.
@@ -85,9 +93,11 @@ class EpisodicMemoryService:
         Args:
             graphiti: Configured Graphiti instance with FalkorDB driver
             store_raw_content: Whether to store raw episode content
+            event_bus: Optional EventBus for emitting episode_added events
         """
         self.graphiti = graphiti
         self.store_raw_content = store_raw_content
+        self.event_bus = event_bus
         self._initialized = False
 
         logger.info("EpisodicMemoryService initialized")
@@ -184,12 +194,23 @@ class EpisodicMemoryService:
                 f"time={processing_time:.1f}ms"
             )
 
-            return EpisodeResult(
+            episode_result = EpisodeResult(
                 episode_id=result.episode.uuid,
                 entities_extracted=entity_names,
                 relationships_created=len(result.edges) if result.edges else 0,
                 processing_time_ms=processing_time,
             )
+
+            # Emit episode_added event for CrystallizationService
+            await self._emit_episode_added_event(
+                episode_id=result.episode.uuid,
+                patient_id=patient_id,
+                session_id=session_id,
+                entities_extracted=entity_names,
+                timestamp=timestamp,
+            )
+
+            return episode_result
 
         except Exception as e:
             logger.error(f"Failed to store turn episode: {e}", exc_info=True)
@@ -484,6 +505,49 @@ class EpisodicMemoryService:
     # ========================================
     # Helper Methods
     # ========================================
+
+    async def _emit_episode_added_event(
+        self,
+        episode_id: str,
+        patient_id: str,
+        session_id: str,
+        entities_extracted: List[str],
+        timestamp: datetime,
+    ) -> None:
+        """
+        Emit episode_added event for CrystallizationService integration.
+
+        This enables the crystallization pipeline to process newly
+        extracted entities and promote them through the DIKW hierarchy.
+        """
+        if not self.event_bus:
+            return
+
+        try:
+            from domain.event import KnowledgeEvent
+            from domain.roles import Role
+
+            event = KnowledgeEvent(
+                action="episode_added",
+                data={
+                    "episode_id": episode_id,
+                    "patient_id": patient_id,
+                    "session_id": session_id,
+                    "entities_extracted": entities_extracted,
+                    "timestamp": timestamp.isoformat(),
+                    "source": "episodic_memory",
+                },
+                role=Role.KNOWLEDGE_MANAGER,
+            )
+
+            await self.event_bus.publish(event)
+            logger.debug(
+                f"Emitted episode_added event: {episode_id} with {len(entities_extracted)} entities"
+            )
+
+        except Exception as e:
+            # Don't fail the main operation if event emission fails
+            logger.warning(f"Failed to emit episode_added event: {e}")
 
     def _convert_episode(
         self,

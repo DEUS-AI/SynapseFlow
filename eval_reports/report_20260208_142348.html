@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pytest Evaluation Run - Evaluation Report</title>
+    <style>
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; margin-bottom: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; margin-bottom: 10px; }
+        h2 { color: #34495e; margin: 20px 0 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        h3 { color: #7f8c8d; margin: 15px 0 10px; }
+        .timestamp { color: #7f8c8d; font-size: 0.9em; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .summary-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .summary-card.success { border-left: 4px solid #27ae60; }
+        .summary-card.danger { border-left: 4px solid #e74c3c; }
+        .summary-card.info { border-left: 4px solid #3498db; }
+        .summary-card .value { font-size: 2.5em; font-weight: bold; color: #2c3e50; }
+        .summary-card .label { color: #7f8c8d; font-size: 0.9em; }
+        .progress-bar { height: 10px; background: #ecf0f1; border-radius: 5px; overflow: hidden; margin-top: 10px; }
+        .progress-bar .fill { height: 100%; border-radius: 5px; transition: width 0.3s; }
+        .progress-bar .fill.success { background: #27ae60; }
+        .progress-bar .fill.danger { background: #e74c3c; }
+        .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .badge.pass { background: #d4edda; color: #155724; }
+        .badge.fail { background: #f8d7da; color: #721c24; }
+        .badge.critical { background: #721c24; color: white; }
+        .badge.high { background: #e74c3c; color: white; }
+        .badge.medium { background: #f39c12; color: white; }
+        .badge.low { background: #3498db; color: white; }
+        .scenario { border: 1px solid #eee; border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
+        .scenario-header { padding: 15px; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .scenario-header:hover { background: #e9ecef; }
+        .scenario.failed .scenario-header { background: #fff5f5; }
+        .scenario-body { padding: 15px; display: none; border-top: 1px solid #eee; }
+        .scenario.expanded .scenario-body { display: block; }
+        .turn { padding: 10px; margin: 10px 0; background: #f8f9fa; border-radius: 4px; }
+        .turn.failed { background: #fff5f5; border-left: 3px solid #e74c3c; }
+        .message { margin: 5px 0; padding: 8px; background: white; border-radius: 4px; }
+        .message.patient { border-left: 3px solid #3498db; }
+        .message.agent { border-left: 3px solid #27ae60; }
+        .assertion { padding: 8px; margin: 5px 0; border-radius: 4px; font-size: 0.9em; }
+        .assertion.passed { background: #d4edda; }
+        .assertion.failed { background: #f8d7da; }
+        .details { color: #666; font-size: 0.85em; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; }
+        footer { text-align: center; padding: 20px; color: #7f8c8d; font-size: 0.9em; }
+        .toggle-all { cursor: pointer; color: #3498db; font-size: 0.9em; }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Pytest Evaluation Run</h1>
+            <p class="timestamp">Generated: 2026-02-08 14:23:48 UTC</p>
+        </header>
+
+        
+        <div class="summary">
+            <div class="summary-card danger">
+                <div class="value">0/6</div>
+                <div class="label">Scenarios Passed</div>
+                <div class="progress-bar">
+                    <div class="fill danger" style="width: 0.0%"></div>
+                </div>
+            </div>
+            <div class="summary-card info">
+                <div class="value">0.0%</div>
+                <div class="label">Pass Rate</div>
+            </div>
+            <div class="summary-card info">
+                <div class="value">53</div>
+                <div class="label">Total Assertions</div>
+            </div>
+            <div class="summary-card danger">
+                <div class="value">9</div>
+                <div class="label">Failed Assertions</div>
+            </div>
+            <div class="summary-card info">
+                <div class="value">105.5s</div>
+                <div class="label">Total Duration</div>
+            </div>
+        </div>
+        
+        
+        <div class="section">
+            <h2>Results by Category</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Total</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
+                        <th>Pass Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+            <tr>
+                <td>entity_extraction</td>
+                <td>1</td>
+                <td>0</td>
+                <td>1</td>
+                <td>0.0%</td>
+            </tr>
+            
+            <tr>
+                <td>memory_pollution</td>
+                <td>1</td>
+                <td>0</td>
+                <td>1</td>
+                <td>0.0%</td>
+            </tr>
+            
+            <tr>
+                <td>regression</td>
+                <td>3</td>
+                <td>0</td>
+                <td>3</td>
+                <td>0.0%</td>
+            </tr>
+            
+            <tr>
+                <td>temporal_reasoning</td>
+                <td>1</td>
+                <td>0</td>
+                <td>1</td>
+                <td>0.0%</td>
+            </tr>
+            
+                </tbody>
+            </table>
+        </div>
+        
+        
+        <div class="section">
+            <h2>Results by Severity</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Total</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+            <tr>
+                <td><span class="badge critical">CRITICAL</span></td>
+                <td>3</td>
+                <td>0</td>
+                <td>3</td>
+            </tr>
+            
+            <tr>
+                <td><span class="badge high">HIGH</span></td>
+                <td>2</td>
+                <td>0</td>
+                <td>2</td>
+            </tr>
+            
+            <tr>
+                <td><span class="badge medium">MEDIUM</span></td>
+                <td>1</td>
+                <td>0</td>
+                <td>1</td>
+            </tr>
+            
+                </tbody>
+            </table>
+        </div>
+        
+        
+        <div class="section">
+            <h2>Failed Scenarios (6)</h2>
+            
+        <div class="scenario failed expanded">
+            <div class="scenario-header">
+                <div>
+                    <strong>Muriel Typo Medication Bug</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">muriel_bug_regression</span>
+                </div>
+                <div>
+                    <span class="badge critical">CRITICAL</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">19.23s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> regression</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (11825ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Muriel para mi problema de estómago
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tu problema de estómago. Es importante que cualquier tratamiento sea adecuado para tus necesidades específicas. ¿Podrías compartir un poco más sobre tus síntomas o el diagnóstico que te llevó a tomar ...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm Muriel as a valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should ask a clarifying question about the unknown medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: clarification_request (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Muriel is a typo, not a valid medication - must not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of Muriel should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from an unverified typo
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (6618ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdón, quise decir Omeprazol
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por mencionar el Omeprazol. Es un medicamento comúnmente utilizado para tratar problemas relacionados con el ácido estomacal, como el reflujo gastroesofágico. Si estás considerando su uso, es importante saber si tienes alguna condi...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the correct medication name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Omeprazol is a valid medication that was clarified by the patient
+                <div class="details">Entity not found: Omeprazol</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Even after correction, Muriel should never have been stored
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed expanded">
+            <div class="scenario-header">
+                <div>
+                    <strong>Gibberish Input Rejection</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">gibberish_rejection</span>
+                </div>
+                <div>
+                    <span class="badge high">HIGH</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">29.95s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> memory_pollution</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (14193ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando asdfghjk de 500 xyzwq
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer="Hello! I'm Matucha, your medical assistant. I'm here to ensure you feel supported and informed. What's on your mind today?", confidence=0.9, sources=[], related_concepts=[], reasoning_trail=['Conversation mode: casual_chat', 'Conversation turn: 1'], query_time_seconds=10.714778,...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm gibberish as valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[regex_match]</strong> Agent should indicate confusion or ask for clarification
+                <div class="details">Pattern matched: '?'</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: gibberish_handling (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Gibberish should never be stored as an entity
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of gibberish patterns should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of gibberish patterns should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from gibberish input
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7357ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdona, me equivoqué. Tomo Atorvastatina
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo, gracias por aclarar que estás tomando Atorvastatina. Este medicamento se utiliza comúnmente para reducir el colesterol y prevenir enfermedades cardiovasculares. Es importante seguir las indicaciones de tu médico al tomarlo.\n\n¿T...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Valid medication should be stored after clarification
+                <div class="details">Entity not found: Atorvastatina</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Gibberish should never be stored, even after correction
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn ">
+            <h4>Turn 3 (7974ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Mi doctor me dijo que tengo !!@@##$$
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Lamento que te sientas confundido sobre lo que te dijo tu doctor. Parece que hay un error tipográfico en el nombre de la condición que mencionaste. Sería útil si pudieras verificar esa información o proporcionar más detalles para poder ayu...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not store symbols as conditions
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: special_char_handling (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Special characters should not be stored as entities
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> Special character input should not create entities
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed expanded">
+            <div class="scenario-header">
+                <div>
+                    <strong>Basic Medication Extraction</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">basic_medication_extraction</span>
+                </div>
+                <div>
+                    <span class="badge high">HIGH</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">19.47s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> entity_extraction</p>
+                
+                
+        <div class="turn failed">
+            <h4>Turn 1 (11494ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Ibuprofeno de 400mg cada 8 horas para el dolor de cabeza
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando ibuprofeno para manejar el dolor de cabeza. El ibuprofeno de 400 mg cada 8 horas es una dosis común, pero es importante no exceder la dosis recomendada y usarlo solo durante un período corto de tiempo para evitar...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[not_empty]</strong> Agent should provide a response
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the medication by name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Ibuprofeno should be extracted and stored
+                <div class="details">Entity not found: Ibuprofeno</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_property_check]</strong> Dosage should be captured correctly
+                <div class="details">Entity not found: Ibuprofeno</div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7573ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> También tomo Paracetamol cuando el dolor es muy fuerte
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás usando paracetamol para manejar el dolor. Es importante asegurarse de no exceder la dosis recomendada, ya que el paracetamol puede afectar el hígado si se toma en exceso. ¿Podrías decirme con qué frecuencia lo estás toma...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the additional medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Paracetamol should be extracted and stored
+                <div class="details">Entity not found: Paracetamol</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Ibuprofeno should still be in memory
+                <div class="details">Entity not found: Ibuprofeno</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[relationship_must_exist]</strong> Medications should be linked to the condition they treat
+                <div class="details">Relationship not found</div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed expanded">
+            <div class="scenario-header">
+                <div>
+                    <strong>Past vs Current Medication Distinction</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">past_medication_reasoning</span>
+                </div>
+                <div>
+                    <span class="badge medium">MEDIUM</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">0.44s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> temporal_reasoning</p>
+                <div class="assertion failed"><strong>Error:</strong> Failed to setup scenario: HTTP error seeding state: Client error '422 Unprocessable Content' for url 'http://localhost:8000/api/eval/seed-state'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422</div>
+                
+            </div>
+        </div>
+        
+        <div class="scenario failed expanded">
+            <div class="scenario-header">
+                <div>
+                    <strong>Muriel Typo Medication Bug</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">muriel_bug_regression</span>
+                </div>
+                <div>
+                    <span class="badge critical">CRITICAL</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">18.41s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> regression</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (10114ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Muriel para mi problema de estómago
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tratar un problema de estómago. Es importante asegurarnos de que cualquier medicamento que tomes sea adecuado para tus síntomas y que no cause interacciones con otros medicamentos o condiciones de sal...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm Muriel as a valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should ask a clarifying question about the unknown medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: clarification_request (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Muriel is a typo, not a valid medication - must not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of Muriel should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from an unverified typo
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7877ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdón, quise decir Omeprazol
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por la aclaración sobre el Omeprazol. Este medicamento se usa comúnmente para reducir la cantidad de ácido en el estómago y tratar condiciones como el reflujo gastroesofágico. Aunque es generalmente seguro, es importante tomarlo se...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the correct medication name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Omeprazol is a valid medication that was clarified by the patient
+                <div class="details">Entity not found: Omeprazol</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Even after correction, Muriel should never have been stored
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed expanded">
+            <div class="scenario-header">
+                <div>
+                    <strong>Muriel Typo Medication Bug</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">muriel_bug_regression</span>
+                </div>
+                <div>
+                    <span class="badge critical">CRITICAL</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">18.01s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> regression</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (9944ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Muriel para mi problema de estómago
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tratar un problema de estómago y espero que te sientas mejor pronto. Es importante asegurarse de que este medicamento sea adecuado para ti, especialmente si tienes otras condiciones de salud o estás t...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm Muriel as a valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should ask a clarifying question about the unknown medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: clarification_request (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Muriel is a typo, not a valid medication - must not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of Muriel should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from an unverified typo
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7611ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdón, quise decir Omeprazol
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo, gracias por aclarar. El Omeprazol es un medicamento comúnmente utilizado para tratar problemas como el reflujo ácido y las úlceras gástricas. Actúa reduciendo la cantidad de ácido que produce el estómago.\n\n¿Hay algún síntoma es...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the correct medication name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Omeprazol is a valid medication that was clarified by the patient
+                <div class="details">Entity not found: Omeprazol</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Even after correction, Muriel should never have been stored
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        </div>
+        
+        
+        <div class="section">
+            <h2>All Scenarios (6)</h2>
+            <p class="toggle-all" onclick="toggleAll()">Expand/Collapse All</p>
+            
+        <div class="scenario failed ">
+            <div class="scenario-header">
+                <div>
+                    <strong>Muriel Typo Medication Bug</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">muriel_bug_regression</span>
+                </div>
+                <div>
+                    <span class="badge critical">CRITICAL</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">19.23s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> regression</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (11825ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Muriel para mi problema de estómago
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tu problema de estómago. Es importante que cualquier tratamiento sea adecuado para tus necesidades específicas. ¿Podrías compartir un poco más sobre tus síntomas o el diagnóstico que te llevó a tomar ...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm Muriel as a valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should ask a clarifying question about the unknown medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: clarification_request (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Muriel is a typo, not a valid medication - must not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of Muriel should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from an unverified typo
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (6618ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdón, quise decir Omeprazol
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por mencionar el Omeprazol. Es un medicamento comúnmente utilizado para tratar problemas relacionados con el ácido estomacal, como el reflujo gastroesofágico. Si estás considerando su uso, es importante saber si tienes alguna condi...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the correct medication name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Omeprazol is a valid medication that was clarified by the patient
+                <div class="details">Entity not found: Omeprazol</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Even after correction, Muriel should never have been stored
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed ">
+            <div class="scenario-header">
+                <div>
+                    <strong>Gibberish Input Rejection</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">gibberish_rejection</span>
+                </div>
+                <div>
+                    <span class="badge high">HIGH</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">29.95s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> memory_pollution</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (14193ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando asdfghjk de 500 xyzwq
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer="Hello! I'm Matucha, your medical assistant. I'm here to ensure you feel supported and informed. What's on your mind today?", confidence=0.9, sources=[], related_concepts=[], reasoning_trail=['Conversation mode: casual_chat', 'Conversation turn: 1'], query_time_seconds=10.714778,...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm gibberish as valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[regex_match]</strong> Agent should indicate confusion or ask for clarification
+                <div class="details">Pattern matched: '?'</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: gibberish_handling (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Gibberish should never be stored as an entity
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of gibberish patterns should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of gibberish patterns should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from gibberish input
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7357ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdona, me equivoqué. Tomo Atorvastatina
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo, gracias por aclarar que estás tomando Atorvastatina. Este medicamento se utiliza comúnmente para reducir el colesterol y prevenir enfermedades cardiovasculares. Es importante seguir las indicaciones de tu médico al tomarlo.\n\n¿T...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Valid medication should be stored after clarification
+                <div class="details">Entity not found: Atorvastatina</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Gibberish should never be stored, even after correction
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn ">
+            <h4>Turn 3 (7974ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Mi doctor me dijo que tengo !!@@##$$
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Lamento que te sientas confundido sobre lo que te dijo tu doctor. Parece que hay un error tipográfico en el nombre de la condición que mencionaste. Sería útil si pudieras verificar esa información o proporcionar más detalles para poder ayu...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not store symbols as conditions
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: special_char_handling (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Special characters should not be stored as entities
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> Special character input should not create entities
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed ">
+            <div class="scenario-header">
+                <div>
+                    <strong>Basic Medication Extraction</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">basic_medication_extraction</span>
+                </div>
+                <div>
+                    <span class="badge high">HIGH</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">19.47s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> entity_extraction</p>
+                
+                
+        <div class="turn failed">
+            <h4>Turn 1 (11494ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Ibuprofeno de 400mg cada 8 horas para el dolor de cabeza
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando ibuprofeno para manejar el dolor de cabeza. El ibuprofeno de 400 mg cada 8 horas es una dosis común, pero es importante no exceder la dosis recomendada y usarlo solo durante un período corto de tiempo para evitar...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[not_empty]</strong> Agent should provide a response
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the medication by name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Ibuprofeno should be extracted and stored
+                <div class="details">Entity not found: Ibuprofeno</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_property_check]</strong> Dosage should be captured correctly
+                <div class="details">Entity not found: Ibuprofeno</div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7573ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> También tomo Paracetamol cuando el dolor es muy fuerte
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás usando paracetamol para manejar el dolor. Es importante asegurarse de no exceder la dosis recomendada, ya que el paracetamol puede afectar el hígado si se toma en exceso. ¿Podrías decirme con qué frecuencia lo estás toma...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the additional medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Paracetamol should be extracted and stored
+                <div class="details">Entity not found: Paracetamol</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Ibuprofeno should still be in memory
+                <div class="details">Entity not found: Ibuprofeno</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[relationship_must_exist]</strong> Medications should be linked to the condition they treat
+                <div class="details">Relationship not found</div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed ">
+            <div class="scenario-header">
+                <div>
+                    <strong>Past vs Current Medication Distinction</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">past_medication_reasoning</span>
+                </div>
+                <div>
+                    <span class="badge medium">MEDIUM</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">0.44s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> temporal_reasoning</p>
+                <div class="assertion failed"><strong>Error:</strong> Failed to setup scenario: HTTP error seeding state: Client error '422 Unprocessable Content' for url 'http://localhost:8000/api/eval/seed-state'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422</div>
+                
+            </div>
+        </div>
+        
+        <div class="scenario failed ">
+            <div class="scenario-header">
+                <div>
+                    <strong>Muriel Typo Medication Bug</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">muriel_bug_regression</span>
+                </div>
+                <div>
+                    <span class="badge critical">CRITICAL</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">18.41s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> regression</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (10114ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Muriel para mi problema de estómago
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tratar un problema de estómago. Es importante asegurarnos de que cualquier medicamento que tomes sea adecuado para tus síntomas y que no cause interacciones con otros medicamentos o condiciones de sal...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm Muriel as a valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should ask a clarifying question about the unknown medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: clarification_request (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Muriel is a typo, not a valid medication - must not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of Muriel should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from an unverified typo
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7877ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdón, quise decir Omeprazol
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por la aclaración sobre el Omeprazol. Este medicamento se usa comúnmente para reducir la cantidad de ácido en el estómago y tratar condiciones como el reflujo gastroesofágico. Aunque es generalmente seguro, es importante tomarlo se...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the correct medication name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Omeprazol is a valid medication that was clarified by the patient
+                <div class="details">Entity not found: Omeprazol</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Even after correction, Muriel should never have been stored
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        <div class="scenario failed ">
+            <div class="scenario-header">
+                <div>
+                    <strong>Muriel Typo Medication Bug</strong>
+                    <span style="color: #7f8c8d; margin-left: 10px;">muriel_bug_regression</span>
+                </div>
+                <div>
+                    <span class="badge critical">CRITICAL</span>
+                    <span class="badge fail">FAIL</span>
+                    <span style="color: #7f8c8d; margin-left: 10px;">18.01s</span>
+                </div>
+            </div>
+            <div class="scenario-body">
+                <p><strong>Category:</strong> regression</p>
+                
+                
+        <div class="turn ">
+            <h4>Turn 1 (9944ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Estoy tomando Muriel para mi problema de estómago
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tratar un problema de estómago y espero que te sientas mejor pronto. Es importante asegurarse de que este medicamento sea adecuado para ti, especialmente si tienes otras condiciones de salud o estás t...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_not_contain]</strong> Agent must not confirm Muriel as a valid medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should ask a clarifying question about the unknown medication
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: clarification_request (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Muriel is a typo, not a valid medication - must not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Any variation of Muriel should not be stored
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[memory_diff_check]</strong> No entities should be created from an unverified typo
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+        <div class="turn failed">
+            <h4>Turn 2 (7611ms)</h4>
+            <div class="message patient">
+                <strong>Patient:</strong> Perdón, quise decir Omeprazol
+            </div>
+            <div class="message agent">
+                <strong>Agent:</strong> ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo, gracias por aclarar. El Omeprazol es un medicamento comúnmente utilizado para tratar problemas como el reflujo ácido y las úlceras gástricas. Actúa reduciendo la cantidad de ácido que produce el estómago.\n\n¿Hay algún síntoma es...
+            </div>
+            <h5>Assertions:</h5>
+            
+            <div class="assertion passed">
+                <strong>[must_contain]</strong> Agent should acknowledge the correct medication name
+                <div class="details"></div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[llm_judge]</strong> LLM Judge: medication_acknowledgment (Score: 0.80)
+                <div class="details">Score: 4/5 - Mock evaluation - looks good!</div>
+            </div>
+            
+            <div class="assertion failed">
+                <strong>[entity_must_exist]</strong> Omeprazol is a valid medication that was clarified by the patient
+                <div class="details">Entity not found: Omeprazol</div>
+            </div>
+            
+            <div class="assertion passed">
+                <strong>[entity_must_not_exist]</strong> Even after correction, Muriel should never have been stored
+                <div class="details"></div>
+            </div>
+            
+        </div>
+        
+            </div>
+        </div>
+        
+        </div>
+        <script>
+            document.querySelectorAll('.scenario-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    header.parentElement.classList.toggle('expanded');
+                });
+            });
+            function toggleAll() {
+                const scenarios = document.querySelectorAll('.scenario');
+                const allExpanded = Array.from(scenarios).every(s => s.classList.contains('expanded'));
+                scenarios.forEach(s => {
+                    if (allExpanded) s.classList.remove('expanded');
+                    else s.classList.add('expanded');
+                });
+            }
+        </script>
+        
+
+        <footer>
+            <p>Generated by SynapseFlow Evaluation Framework</p>
+        </footer>
+    </div>
+</body>
+</html>

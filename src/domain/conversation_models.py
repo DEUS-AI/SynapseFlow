@@ -101,8 +101,27 @@ class MemoryContext:
         return bool(self.active_conditions or self.current_medications or self.allergies)
 
     def is_returning_user(self) -> bool:
-        """Check if this is a returning user (not first session)."""
-        return self.days_since_last_session is not None
+        """
+        Check if this is a returning user (not first session).
+
+        Uses multiple signals for robust detection:
+        - days_since_last_session is set
+        - has conversation history (topics or summary)
+        - has prior medical records
+        """
+        # Primary signal: explicit days since last session
+        if self.days_since_last_session is not None:
+            return True
+
+        # Secondary signal: has conversation history
+        if self.has_history():
+            return True
+
+        # Tertiary signal: has medical records (implies prior interaction)
+        if self.has_medical_history():
+            return True
+
+        return False
 
     def get_time_context(self) -> str:
         """Generate time-based greeting context."""
@@ -240,14 +259,17 @@ class PrivacySettings:
 
 
 # Response templates by intent type
+# Note: These are fallback templates. LLM-based generation is preferred.
 RESPONSE_TEMPLATES = {
     IntentType.GREETING: {
-        "with_memory": "Hello {name}! Good to see you. {proactive_context} How can I help you today?",
+        # For new users - introduce ourselves
+        "with_memory": "Hello{name}! Good to see you. {proactive_context} How can I help you today?",
         "without_memory": "Hello! I'm your medical assistant. How can I help you today?"
     },
     IntentType.GREETING_RETURN: {
-        "with_memory": "Welcome back, {name}! {time_context} {proactive_followup}",
-        "without_memory": "Welcome back! How can I assist you today?"
+        # For returning users - NO introduction, warm welcome
+        "with_memory": "Welcome back{name}! {time_context} {proactive_followup}",
+        "without_memory": "Great to see you again! How can I help you today?"
     },
     IntentType.SYMPTOM_REPORT: {
         "with_memory": "I understand you're experiencing {symptom}. {context_connection} Let me help you with that.",

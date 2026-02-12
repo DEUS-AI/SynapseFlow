@@ -1,0 +1,90 @@
+# Scenario: Gibberish Rejection
+#
+# Description:
+#   Tests that the agent correctly handles nonsensical input and does not
+#   treat random text as valid medical information.
+
+id: gibberish_rejection
+name: "Gibberish Input Handling"
+description: |
+  Verifica que el agente maneja correctamente entradas sin sentido y no
+  trata texto aleatorio como información médica válida.
+category: memory_pollution
+severity: high
+tags:
+  - validation
+  - memory_pollution
+  - input_sanitization
+
+initial_state:
+  patient_id: null
+
+turns:
+  - turn: 1
+    patient_message: "Estoy tomando asdfghjk de 500 xyzwq"
+    expected_intent: medication_report
+
+    response_assertions:
+      deterministic:
+        # Agent should respond (not crash or return empty)
+        - type: not_empty
+          reason: "Agent must provide a response even to confusing input"
+
+        # Agent should NOT confirm this as a medication
+        - type: must_not_contain
+          values:
+            - "asdfghjk registrado"
+            - "he anotado asdfghjk"
+            - "registrado asdfghjk"
+          reason: "Agent must not confirm gibberish as valid medication"
+
+      llm_judge:
+        - criterion: gibberish_handling
+          rubric: |
+            The agent receives obvious gibberish ("asdfghjk") as a medication name.
+            It should:
+            - NOT accept or store this as a valid medication
+            - Express that it doesn't recognize the medication name
+            - Ask the patient to clarify or spell correctly
+            - Remain polite and helpful despite the confusing input
+            Score 5 if agent clearly rejects and asks for clarification.
+            Score 1 if agent blindly accepts the input.
+          min_score: 3
+
+    state_assertions:
+      entities_must_not_exist:
+        - name: "asdfghjk"
+          reason: "Gibberish should never be stored as an entity"
+
+        - name_pattern: "(?i)asdf"
+          reason: "Any variation of gibberish patterns should not be stored"
+
+  - turn: 2
+    patient_message: "Perdona, me equivoqué. Tomo Atorvastatina"
+    expected_intent: medication_correction
+
+    response_assertions:
+      deterministic:
+        - type: not_empty
+          reason: "Agent must provide a response"
+
+        - type: must_contain_one_of
+          values:
+            - "Atorvastatina"
+            - "atorvastatina"
+            - "medicamento"
+            - "colesterol"
+          reason: "Agent should acknowledge the valid medication"
+
+      llm_judge:
+        - criterion: medication_acknowledgment
+          rubric: |
+            The agent should appropriately acknowledge the corrected medication
+            (Atorvastatina) and may provide relevant information.
+          min_score: 3
+
+    state_assertions:
+      # Previous gibberish should still not exist
+      entities_must_not_exist:
+        - name: "asdfghjk"
+          reason: "Gibberish should never be stored, even after correction"

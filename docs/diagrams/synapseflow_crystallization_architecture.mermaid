@@ -1,0 +1,70 @@
+flowchart TB
+    subgraph EPISODIC["Memoria Episodica"]
+        EP[Episodio / Conversacion] --> GR[Graphiti Engine]
+        GR --> FK[(FalkorDB)]
+        FK --> ENT[Entidades Extraidas]
+        FK --> REL[Relaciones Extraidas]
+    end
+
+    subgraph BUS["Event Bus In-Memory"]
+        EVT{{"episode_added"}}
+    end
+
+    subgraph CRYSTAL["Crystallization Pipeline"]
+        CS[CrystallizationService]
+        ER[EntityResolver]
+        TS[TemporalScoring]
+        CS --> ER
+        CS --> TS
+    end
+
+    subgraph GATE["Validation Gate"]
+        PG[PromotionGate]
+        VE[ValidationEngine]
+        PG --> VE
+        PG --> RK{Risk Level?}
+        RK -->|LOW/MED| AUTO[Auto-Promote]
+        RK -->|HIGH| REVIEW[Human Review Queue]
+    end
+
+    subgraph DIKW["Neo4j DIKW Knowledge Graph"]
+        P[("PERCEPTION\nDatos crudos observados")]
+        S[("SEMANTIC\nConceptos validados\nSNOMED-CT")]
+        R[("REASONING\nInferencias medicas\nInteracciones, patrones")]
+        A[("APPLICATION\nRecomendaciones\naccionables")]
+        P -->|"conf >= 0.85\nobs >= 2\nSNOMED match"| S
+        S -->|"conf >= 0.92\nobs >= 3\nstable 48h"| R
+        R -->|"validated\nrules applied"| A
+    end
+
+    ENT --> EVT
+    REL --> EVT
+    EVT --> CS
+    CS -->|"Nuevas entidades"| P
+    CS -->|"Candidatos promocion"| PG
+    AUTO --> S
+    AUTO --> R
+    REVIEW -->|"Aprobado"| R
+
+    subgraph ROUTER["DIKW Router"]
+        DR[DIKWRouter]
+        DR -->|Factual| P
+        DR -->|Relacional| S
+        DR -->|Inferencial| R
+        DR -->|Accionable| A
+    end
+
+    Q[Query del Usuario] --> DR
+    KM[KnowledgeManager\nOrquestador] --> CS
+    KM --> DR
+
+    style EPISODIC fill:#1a1a2e,stroke:#e94560,color:#fff
+    style BUS fill:#0f3460,stroke:#e94560,color:#fff
+    style CRYSTAL fill:#16213e,stroke:#0f3460,color:#fff
+    style GATE fill:#1a1a2e,stroke:#e94560,color:#fff
+    style DIKW fill:#0f3460,stroke:#533483,color:#fff
+    style ROUTER fill:#16213e,stroke:#0f3460,color:#fff
+    style P fill:#f5a623,stroke:#333,color:#000
+    style S fill:#4ecdc4,stroke:#333,color:#000
+    style R fill:#3498db,stroke:#333,color:#fff
+    style A fill:#9b59b6,stroke:#333,color:#fff

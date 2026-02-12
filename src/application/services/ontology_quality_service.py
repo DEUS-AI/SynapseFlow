@@ -33,6 +33,16 @@ from application.services.semantic_normalizer import SemanticNormalizer
 
 logger = logging.getLogger(__name__)
 
+# Labels that indicate structural (non-knowledge) entities
+# Note: ExtractedEntity is NOT structural - it's a marker for entities
+# extracted from documents, used alongside type labels like BusinessConcept
+STRUCTURAL_ENTITY_LABELS = {
+    "Chunk",
+    "StructuralChunk",
+    "Document",
+    "DocumentQuality",
+}
+
 
 class OntologyQualityService:
     """Evaluates ontology quality for knowledge graphs."""
@@ -105,8 +115,12 @@ class OntologyQualityService:
 
         return report
 
-    async def _fetch_all_entities(self) -> List[Dict[str, Any]]:
-        """Fetch all entities from the knowledge graph."""
+    async def _fetch_all_entities(self, include_structural: bool = True) -> List[Dict[str, Any]]:
+        """Fetch all entities from the knowledge graph.
+
+        Args:
+            include_structural: If False, exclude structural entities (Chunk, Document, etc.)
+        """
         try:
             query = """
             MATCH (n)
@@ -117,14 +131,45 @@ class OntologyQualityService:
                    labels(n) as labels,
                    n.layer as layer,
                    n.confidence as confidence,
-                   properties(n) as properties
-            LIMIT 10000
+                   properties(n) as properties,
+                   coalesce(n._exclude_from_ontology, false) as exclude_from_ontology,
+                   coalesce(n._is_structural, false) as is_structural,
+                   coalesce(n._is_noise, false) as is_noise
             """
             results = await self.backend.query_raw(query, {})
-            return [dict(r) for r in results] if results else []
+            entities = [dict(r) for r in results] if results else []
+
+            if not include_structural:
+                # Filter out structural entities
+                entities = [
+                    e for e in entities
+                    if not self._is_structural_entity(e)
+                ]
+
+            return entities
         except Exception as e:
             logger.error(f"Error fetching entities: {e}")
             return []
+
+    def _is_structural_entity(self, entity: Dict[str, Any]) -> bool:
+        """Check if entity is structural (not knowledge).
+
+        Structural entities are infrastructure (Chunk, Document) not knowledge.
+        """
+        # Check explicit exclusion flags
+        if entity.get("exclude_from_ontology") or entity.get("is_structural"):
+            return True
+
+        # Check labels
+        labels = set(entity.get("labels", []))
+        if labels & STRUCTURAL_ENTITY_LABELS:
+            return True
+
+        return False
+
+    def _is_noise_entity(self, entity: Dict[str, Any]) -> bool:
+        """Check if entity is noise (stopword, short name)."""
+        return entity.get("is_noise", False)
 
     async def _fetch_all_relationships(self) -> List[Dict[str, Any]]:
         """Fetch all relationships from the knowledge graph."""
@@ -139,7 +184,6 @@ class OntologyQualityService:
                    b.id as target_id,
                    b.name as target_name,
                    labels(b) as target_labels
-            LIMIT 50000
             """
             results = await self.backend.query_raw(query, {})
             return [dict(r) for r in results] if results else []
@@ -158,7 +202,11 @@ class OntologyQualityService:
         return classes
 
     async def _assess_coverage(self, entities: List[Dict[str, Any]]) -> OntologyCoverageScore:
-        """Assess ontology coverage of entities."""
+        """Assess ontology coverage of entities.
+
+        Reports both overall coverage and knowledge-entity-only coverage
+        (excluding structural entities like Chunk, Document).
+        """
         score = OntologyCoverageScore()
         score.total_entities = len(entities)
 
@@ -168,38 +216,73 @@ class OntologyQualityService:
         class_distribution = Counter()
         unmapped_types = set()
 
+        # Track knowledge vs structural separately
+        knowledge_entities = 0
+        knowledge_mapped = 0
+
         for entity in entities:
             labels = set(entity.get("labels", []))
-            entity_type = entity.get("type", "Unknown")
+            entity_type = entity.get("type") or "Unknown"
+            is_structural = self._is_structural_entity(entity)
+            is_noise = self._is_noise_entity(entity)
 
-            # Check ODIN mapping
+            # Check ODIN mapping (by label)
             has_odin = bool(labels & self.odin_classes)
             if has_odin:
                 score.odin_mapped += 1
 
-            # Check Schema.org mapping
+            # Check Schema.org mapping (by label)
             has_schema = bool(labels & self.schema_org_types)
             if has_schema:
                 score.schema_org_mapped += 1
 
-            # Overall mapping
-            if has_odin or has_schema:
+            # Check if marked as mapped via remediation flag
+            # This covers entities that have _ontology_mapped=true but may not have ODIN labels
+            props = entity.get("properties", {}) or {}
+            has_remediation_flag = props.get("_ontology_mapped", False)
+
+            # Overall mapping - consider both ODIN labels AND remediation flag
+            is_mapped = has_odin or has_schema or has_remediation_flag
+            if is_mapped:
                 score.mapped_entities += 1
                 # Track class distribution
                 for label in labels:
                     if label in self.odin_classes or label in self.schema_org_types:
                         class_distribution[label] += 1
+                # Also track canonical type if set via remediation
+                if has_remediation_flag and not has_odin and not has_schema:
+                    canonical = props.get("_canonical_type", "unknown")
+                    class_distribution[f"mapped:{canonical}"] += 1
             else:
                 score.unmapped_entities += 1
-                unmapped_types.add(entity_type)
+                # Only track unmapped types for knowledge entities
+                if not is_structural and not is_noise:
+                    unmapped_types.add(entity_type)
+
+            # Knowledge-only metrics (exclude structural and noise)
+            if not is_structural and not is_noise:
+                knowledge_entities += 1
+                if is_mapped:
+                    knowledge_mapped += 1
 
         # Calculate ratios
-        score.coverage_ratio = score.mapped_entities / score.total_entities
-        score.odin_coverage = score.odin_mapped / score.total_entities
-        score.schema_org_coverage = score.schema_org_mapped / score.total_entities
+        if score.total_entities > 0:
+            score.coverage_ratio = score.mapped_entities / score.total_entities
+            score.odin_coverage = score.odin_mapped / score.total_entities
+            score.schema_org_coverage = score.schema_org_mapped / score.total_entities
 
         score.class_distribution = dict(class_distribution.most_common(20))
         score.unmapped_types = list(unmapped_types)[:10]
+
+        # Add knowledge-only coverage as additional data
+        # Store in class_distribution dict with special keys
+        score.class_distribution["_knowledge_entities"] = knowledge_entities
+        score.class_distribution["_knowledge_mapped"] = knowledge_mapped
+        score.class_distribution["_knowledge_coverage"] = (
+            round(knowledge_mapped / knowledge_entities, 4)
+            if knowledge_entities > 0 else 0.0
+        )
+        score.class_distribution["_structural_excluded"] = score.total_entities - knowledge_entities
 
         return score
 
@@ -313,7 +396,7 @@ class OntologyQualityService:
                 all_nodes.add(source_id)
                 all_nodes.add(target_id)
 
-            if rel_type in hierarchy_rels:
+            if rel_type in hierarchy_rels and source_id and target_id:
                 score.total_relationships += 1
 
                 # Source is child, target is parent
@@ -342,21 +425,18 @@ class OntologyQualityService:
         else:
             score.coherence_ratio = 1.0  # No hierarchy relationships = not invalid
 
-        # Detect orphans (nodes with no parents in hierarchy)
-        entity_ids = {e.get("id") for e in entities}
-        nodes_with_parents = set(parents.keys())
-        root_nodes = entity_ids - nodes_with_parents
+        # Detect true orphans (knowledge nodes with no relationships at all)
+        # Exclude structural entities (Chunk, Document, etc.) from orphan count
+        # as they are infrastructure, not knowledge entities
+        knowledge_entity_ids = {
+            e.get("id") for e in entities
+            if e.get("id") and not self._is_structural_entity(e)
+        }
+        connected_nodes = all_nodes  # nodes that participate in any relationship
 
-        # Not all root nodes are orphans - some are legitimate roots
-        # Orphans are leaf nodes without any hierarchy connections
-        potential_orphans = 0
-        for entity in entities:
-            eid = entity.get("id")
-            if eid not in nodes_with_parents and eid not in children:
-                # No parent and no children - completely isolated from hierarchy
-                potential_orphans += 1
-
-        score.orphan_nodes = potential_orphans
+        # True orphans are knowledge entities that have no relationships at all
+        true_orphans = knowledge_entity_ids - connected_nodes
+        score.orphan_nodes = len(true_orphans)
 
         # Calculate hierarchy depth
         depths = self._calculate_hierarchy_depths(parents)
@@ -702,8 +782,12 @@ async def quick_ontology_check(kg_backend: Any) -> Dict[str, Any]:
         "quality_level": report.quality_level.value,
         "overall_score": round(report.overall_score, 2),
         "entity_count": report.entity_count,
+        "relationship_count": report.relationship_count,
+        "orphan_nodes": report.taxonomy.orphan_nodes,
         "coverage_ratio": round(report.coverage.coverage_ratio, 2),
         "compliance_ratio": round(report.compliance.compliance_ratio, 2),
+        "coherence_ratio": round(report.taxonomy.coherence_ratio, 2),
+        "consistency_ratio": round(report.consistency.consistency_ratio, 2),
         "critical_issues": report.critical_issues[:3],
         "top_recommendations": report.improvement_priority[:3],
     }

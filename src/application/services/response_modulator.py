@@ -123,8 +123,11 @@ class ResponseModulator:
         Returns:
             Greeting response
         """
+        # Determine if user is returning using multiple signals
+        is_returning = memory_context.is_returning_user() or memory_context.has_history()
+
         # Select template based on whether user is returning
-        if intent.intent_type == IntentType.GREETING_RETURN and memory_context.has_history():
+        if is_returning:
             template_key = IntentType.GREETING_RETURN
         else:
             template_key = IntentType.GREETING
@@ -132,22 +135,42 @@ class ResponseModulator:
         # Build greeting using LLM with context
         system_prompt = self._build_system_prompt(intent, memory_context)
 
-        user_prompt = f"""Generate a warm, natural greeting for the patient.
+        # Get patient name for personalization
+        patient_name = memory_context.patient_name
+
+        # Build context-aware prompt
+        assistant_name = self.persona.name
+        if is_returning:
+            user_prompt = f"""Generate a SHORT, warm greeting for a RETURNING patient you already know.
+
+FORBIDDEN - NEVER SAY THESE:
+- "I'm {assistant_name}" or "I am {assistant_name}"
+- "your medical assistant" or "your assistant"
+- "I'm here to help" as an intro
+- Any form of self-introduction
+
+REQUIRED FORMAT - START WITH ONE OF THESE:
+- "Welcome back{', ' + patient_name + '!' if patient_name else '!'}"
+- "Great to see you again{', ' + patient_name + '!' if patient_name else '!'}"
+- "Good to have you back{', ' + patient_name + '!' if patient_name else '!'}"
 
 Context:
-- Intent: {template_key.value}
-- Returning user: {memory_context.is_returning_user()}
-- Days since last session: {memory_context.days_since_last_session}
-- Recent topics: {', '.join(memory_context.recent_topics[:3]) if memory_context.recent_topics else 'none'}
-- Unresolved symptoms: {', '.join(memory_context.unresolved_symptoms) if memory_context.unresolved_symptoms else 'none'}
+- Days since last chat: {memory_context.days_since_last_session or 'recently'}
+- Recent topics: {', '.join(memory_context.recent_topics[:2]) if memory_context.recent_topics else 'general health'}
+- Unresolved symptoms: {memory_context.unresolved_symptoms[0] if memory_context.unresolved_symptoms else 'none'}
 
-Generate a greeting that:
-1. Welcomes the patient warmly
-2. Mentions time context if returning user ("It's been a few days...")
-3. Asks about unresolved symptoms proactively if applicable
-4. Offers help
-5. Keep it under 50 words
-"""
+GOOD EXAMPLE: "Welcome back{', ' + patient_name if patient_name else ''}! How's your treatment going?"
+BAD EXAMPLE: "Hi, I'm {assistant_name}, your medical assistant. Great to see you again."
+
+Keep it under 25 words. Be warm but brief."""
+        else:
+            user_prompt = f"""Generate a greeting for a NEW patient you're meeting for the first time.
+
+You may briefly introduce yourself since this is their first visit.
+
+{"Use their name: " + patient_name if patient_name else "They haven't shared their name yet."}
+
+Keep it under 30 words. Be warm and welcoming."""
 
         try:
             response = await self.openai_client.chat.completions.create(
@@ -198,10 +221,10 @@ Context:
 - Current medications: {', '.join(memory_context.current_medications) if memory_context.current_medications else 'none'}
 
 Generate a response that:
-1. Acknowledges the symptom with empathy
+1. Acknowledges what they're experiencing (without being condescending)
 2. Asks clarifying questions to understand better (severity, duration, etc.)
 3. Mentions if this is related to known conditions
-4. Shows you're listening and care
+4. Keep it practical and helpful - avoid phrases like "I know this must be hard"
 5. Keep it under 75 words
 """
 
@@ -247,8 +270,35 @@ Generate a response that:
 
         # Wrap existing medical response with persona
         system_prompt = self._build_system_prompt(intent, memory_context)
+        is_returning = memory_context.is_returning_user() or memory_context.has_history()
+        patient_name = memory_context.patient_name
 
-        user_prompt = f"""Wrap this medical response with a warm, personalized intro:
+        # Build different prompts for returning vs new users
+        if is_returning:
+            user_prompt = f"""Add a brief intro to this medical response for a RETURNING patient.
+
+Medical Response:
+{medical_response}
+
+CRITICAL - FORBIDDEN PHRASES (never use these):
+- "I'm {self.persona.name}" or "I am {self.persona.name}"
+- "your medical assistant"
+- "I'm here to help"
+- Any self-introduction
+
+INSTEAD, start with something like:
+- "Great question{', ' + patient_name if patient_name else ''}!"
+- "Sure thing!"
+- "Of course!"
+- Or jump straight into the answer
+
+Instructions:
+1. Add a brief, warm intro (1 sentence MAX) - NO self-introduction
+2. Keep the medical content exactly as provided
+3. Keep any closing brief
+"""
+        else:
+            user_prompt = f"""Wrap this medical response with a warm, personalized intro:
 
 Medical Response:
 {medical_response}
@@ -451,28 +501,60 @@ Generate a response that:
             System prompt string
         """
         tone_desc = self.persona.get_tone_description()
+        is_returning = memory_context.is_returning_user() or memory_context.has_history()
+        patient_name = memory_context.patient_name
 
-        prompt = f"""You are a {tone_desc} medical assistant named {self.persona.name}.
+        # For returning users, avoid triggering self-introduction
+        if is_returning:
+            prompt = f"""You are {self.persona.name}, a {tone_desc} medical assistant.
+
+CRITICAL RULE: This patient ALREADY KNOWS YOU. You have chatted before.
+- NEVER introduce yourself (no "I'm {self.persona.name}", no "your medical assistant")
+- NEVER say "I'm here to help" as a greeting opener
+- Jump straight into warm, familiar conversation like old friends
+
+{"Address them as: " + patient_name if patient_name else "Use friendly terms like 'Welcome back!'"}
 
 Your role:
 - Provide helpful, accurate medical information
-- Show empathy and understanding
-- Remember patient context and history
-- Ask clarifying questions when needed
-- Always recommend consulting healthcare providers for serious concerns
+- Be practical and direct - avoid condescending phrases like "I know [condition] is hard"
+- Reference your shared history naturally
+- Only show emotional support when they express distress
+- Recommend consulting healthcare providers for serious concerns
 
-Patient Context:
+"""
+        else:
+            prompt = f"""You are a {tone_desc} medical assistant named {self.persona.name}.
+
+This is a NEW patient you're meeting for the first time. You may introduce yourself briefly.
+
+Your role:
+- Provide helpful, accurate medical information
+- Be practical and direct - answer questions without emotional preambles
+- Ask clarifying questions when needed
+- Only show emotional support when they express distress
+- Recommend consulting healthcare providers for serious concerns
+
 """
 
+        prompt += "Patient Context:\n"
+
+        # Add patient name if known
+        if patient_name:
+            prompt += f"- Patient name: {patient_name}\n"
+
         # Add memory context if available
-        if memory_context.has_history():
-            prompt += f"- This is a returning patient"
+        if is_returning:
+            prompt += f"- This is a RETURNING patient"
             if memory_context.days_since_last_session:
                 prompt += f" (last session {memory_context.days_since_last_session} days ago)"
             prompt += "\n"
 
             if memory_context.recent_topics:
                 prompt += f"- Recent discussion topics: {', '.join(memory_context.recent_topics[:3])}\n"
+
+            if memory_context.recently_resolved:
+                prompt += f"- Recently resolved issues: {', '.join(memory_context.recently_resolved[:2])} (acknowledge positively!)\n"
 
         if memory_context.has_medical_history():
             if memory_context.active_conditions:
@@ -484,7 +566,7 @@ Patient Context:
 
         # Add persona-specific instructions
         if self.persona.show_empathy:
-            prompt += "\nShow genuine empathy and concern for the patient's well-being."
+            prompt += "\nShow empathy ONLY when the patient expresses distress. For practical questions, be direct and helpful without emotional preambles."
 
         if self.persona.include_disclaimer:
             prompt += "\nAlways include appropriate medical disclaimers when providing health advice."
@@ -502,6 +584,8 @@ Patient Context:
         """
         Fallback to template-based greeting.
 
+        Uses smart defaults when LLM-based greeting fails.
+
         Args:
             template_key: Template key
             memory_context: Memory context
@@ -509,39 +593,41 @@ Patient Context:
         Returns:
             Template-based greeting
         """
-        template = RESPONSE_TEMPLATES.get(template_key, {})
+        is_returning = memory_context.is_returning_user() or memory_context.has_history()
+        patient_name = memory_context.patient_name
 
-        if memory_context.has_history():
-            greeting = template.get("with_memory", "Hello! How can I help you today?")
+        if is_returning:
+            # Build personalized returning user greeting
+            parts = []
 
-            # Replace {name}
-            if memory_context.patient_name:
-                greeting = greeting.replace("{name}", memory_context.patient_name)
+            # Warm welcome with name if available
+            if patient_name:
+                parts.append(f"Welcome back, {patient_name}!")
             else:
-                greeting = greeting.replace("{name}", "").replace(", !", "!")
+                parts.append("Great to see you again!")
 
-            # Replace {time_context}
+            # Add time context
             time_context = memory_context.get_time_context()
-            greeting = greeting.replace("{time_context}", time_context)
+            if time_context:
+                parts.append(time_context + ".")
 
-            # Replace {proactive_context}
-            if memory_context.recent_topics:
-                context = f"We last talked about {memory_context.recent_topics[0]}."
-                greeting = greeting.replace("{proactive_context}", context)
-            else:
-                greeting = greeting.replace("{proactive_context}", "")
+            # Acknowledge resolved conditions
+            if memory_context.recently_resolved:
+                parts.append(f"Glad to hear your {memory_context.recently_resolved[0]} has improved!")
 
-            # Replace {proactive_followup}
+            # Ask about unresolved symptoms or offer help
             if memory_context.unresolved_symptoms:
-                followup = f"How's your {memory_context.unresolved_symptoms[0]} today?"
-                greeting = greeting.replace("{proactive_followup}", followup)
+                parts.append(f"How's your {memory_context.unresolved_symptoms[0]} today?")
             elif memory_context.recent_topics:
-                followup = f"How are things with {memory_context.recent_topics[0]}?"
-                greeting = greeting.replace("{proactive_followup}", followup)
+                parts.append(f"How are things going with your {memory_context.recent_topics[0]}?")
             else:
-                greeting = greeting.replace("{proactive_followup}", "How can I help you today?")
+                parts.append("How can I help you today?")
+
+            return " ".join(parts)
 
         else:
-            greeting = template.get("without_memory", "Hello! I'm your medical assistant. How can I help you today?")
-
-        return greeting
+            # New user greeting - introduce ourselves
+            if patient_name:
+                return f"Hello, {patient_name}! I'm {self.persona.name}, your medical assistant. How can I help you today?"
+            else:
+                return f"Hello! I'm {self.persona.name}, your medical assistant. How can I help you today?"

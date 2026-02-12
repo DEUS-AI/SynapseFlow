@@ -164,7 +164,7 @@ async def upload_documents(
 async def trigger_ingestion(
     doc_id: str,
     background_tasks: BackgroundTasks,
-    use_falkor: bool = Query(default=True, description="Use FalkorDB ingestion"),
+    use_neo4j: bool = Query(default=True, description="Use Neo4j ingestion (recommended for DIKW layer storage)"),
     save_markdown: bool = Query(default=True, description="Save markdown output")
 ):
     """Trigger ingestion for a single document."""
@@ -197,7 +197,7 @@ async def trigger_ingestion(
         run_ingestion,
         job_id=job_id,
         doc_id=doc_id,
-        use_falkor=use_falkor,
+        use_neo4j=use_neo4j,
         save_markdown=save_markdown
     )
 
@@ -210,7 +210,7 @@ async def trigger_ingestion(
 async def trigger_batch_ingestion(
     background_tasks: BackgroundTasks,
     document_ids: Optional[List[str]] = Query(None, description="Document IDs to ingest (None = all pending)"),
-    use_falkor: bool = Query(default=True),
+    use_neo4j: bool = Query(default=True, description="Use Neo4j ingestion (recommended)"),
     save_markdown: bool = Query(default=True)
 ):
     """Trigger batch ingestion for multiple documents."""
@@ -246,7 +246,7 @@ async def trigger_batch_ingestion(
             run_ingestion,
             job_id=job_id,
             doc_id=doc.id,
-            use_falkor=use_falkor,
+            use_neo4j=use_neo4j,
             save_markdown=save_markdown
         )
 
@@ -745,10 +745,18 @@ async def get_quality_summary():
 async def run_ingestion(
     job_id: str,
     doc_id: str,
-    use_falkor: bool,
+    use_neo4j: bool,
     save_markdown: bool
 ):
-    """Background task for running document ingestion."""
+    """Background task for running document ingestion.
+
+    Args:
+        job_id: Unique job identifier
+        doc_id: Document ID to ingest
+        use_neo4j: If True, use Neo4j for DIKW layer storage (recommended).
+                   If False, use FalkorDB (for episodic memory only).
+        save_markdown: Whether to save markdown output
+    """
     job = active_jobs.get(job_id)
     if not job:
         return
@@ -767,20 +775,17 @@ async def run_ingestion(
         # Update document status
         document_tracker.update_document(doc_id, status="processing")
 
-        if use_falkor:
-            # Import here to avoid circular imports
-            from application.services.simple_pdf_ingestion import SimplePDFIngestionService, PDFDocument
+        if use_neo4j:
+            # Neo4j ingestion - stores entities in DIKW knowledge graph
+            from application.services.neo4j_pdf_ingestion import Neo4jPDFIngestionService, PDFDocument
 
             openai_api_key = os.environ.get("OPENAI_API_KEY")
             if not openai_api_key:
                 raise ValueError("OPENAI_API_KEY not found in environment")
 
-            service = SimplePDFIngestionService(
+            service = Neo4jPDFIngestionService(
                 pdf_directory=PDF_DIRECTORY,
                 openai_api_key=openai_api_key,
-                falkor_host="localhost",
-                falkor_port=6379,
-                graph_name="medical_knowledge",
                 model="gpt-4o-mini"
             )
 
@@ -796,7 +801,7 @@ async def run_ingestion(
             job["message"] = "Converting PDF to markdown..."
             job["progress"] = 0.2
 
-            # Run ingestion
+            # Run ingestion to Neo4j
             result = await service.ingest_document(
                 pdf_doc,
                 save_markdown=save_markdown,
@@ -852,12 +857,94 @@ async def run_ingestion(
             job["entities_added"] = result.get("entities_added", 0)
             job["relationships_added"] = result.get("relationships_added", 0)
 
-            logger.info(f"Ingestion completed for {doc.filename}: {result.get('entities_added', 0)} entities, {result.get('relationships_added', 0)} relationships")
+            logger.info(f"Ingestion completed for {doc.filename}: {result.get('entities_added', 0)} entities, {result.get('relationships_added', 0)} relationships (Neo4j)")
 
         else:
-            # Placeholder for other ingestion methods
-            job["status"] = "failed"
-            job["error"] = "No ingestion method selected"
+            # FalkorDB ingestion - for episodic memory (not recommended for document entities)
+            from application.services.simple_pdf_ingestion import SimplePDFIngestionService, PDFDocument as FalkorPDFDocument
+
+            openai_api_key = os.environ.get("OPENAI_API_KEY")
+            if not openai_api_key:
+                raise ValueError("OPENAI_API_KEY not found in environment")
+
+            service = SimplePDFIngestionService(
+                pdf_directory=PDF_DIRECTORY,
+                openai_api_key=openai_api_key,
+                falkor_host="localhost",
+                falkor_port=6379,
+                graph_name="medical_knowledge",
+                model="gpt-4o-mini"
+            )
+
+            # Create PDFDocument
+            pdf_path = Path(doc.path)
+            pdf_doc = FalkorPDFDocument(
+                path=pdf_path,
+                filename=pdf_path.name,
+                category=doc.category,
+                size_bytes=pdf_path.stat().st_size
+            )
+
+            job["message"] = "Converting PDF to markdown..."
+            job["progress"] = 0.2
+
+            # Run ingestion to FalkorDB
+            result = await service.ingest_document(
+                pdf_doc,
+                save_markdown=save_markdown,
+                markdown_output_dir=MARKDOWN_DIRECTORY if save_markdown else None
+            )
+
+            job["progress"] = 0.8
+            job["message"] = "Ingestion complete, assessing quality..."
+
+            markdown_path = str(MARKDOWN_DIRECTORY / f"{pdf_path.stem}.md") if save_markdown else None
+
+            # Update document record
+            document_tracker.update_document(
+                doc_id,
+                status="completed",
+                ingested_at=datetime.now().isoformat(),
+                entity_count=result.get("entities_added", 0),
+                relationship_count=result.get("relationships_added", 0),
+                markdown_path=markdown_path,
+                error_message=None
+            )
+
+            # Auto-assess quality if markdown is available
+            quality_score = None
+            quality_level = None
+            if markdown_path and Path(markdown_path).exists():
+                try:
+                    markdown_content = Path(markdown_path).read_text(encoding='utf-8')
+                    quality_result = await quick_quality_check(markdown_content, doc.filename)
+
+                    quality_score = quality_result.get("overall_score")
+                    quality_level = quality_result.get("quality_level")
+
+                    # Update document with quality data
+                    document_tracker.update_document(
+                        doc_id,
+                        quality_score=quality_score,
+                        quality_level=quality_level,
+                        quality_assessed_at=datetime.now().isoformat()
+                    )
+
+                    job["quality_score"] = quality_score
+                    job["quality_level"] = quality_level
+
+                    logger.info(f"Quality assessed for {doc.filename}: {quality_level} ({quality_score:.2f})")
+
+                except Exception as qe:
+                    logger.warning(f"Quality assessment failed for {doc.filename}: {qe}")
+
+            job["progress"] = 1.0
+            job["message"] = "Complete"
+            job["status"] = "completed"
+            job["entities_added"] = result.get("entities_added", 0)
+            job["relationships_added"] = result.get("relationships_added", 0)
+
+            logger.info(f"Ingestion completed for {doc.filename}: {result.get('entities_added', 0)} entities, {result.get('relationships_added', 0)} relationships (FalkorDB)")
 
     except Exception as e:
         logger.error(f"Ingestion failed for {doc.filename}: {e}", exc_info=True)

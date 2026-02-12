@@ -32,6 +32,12 @@ interface Job {
   status: string;
   progress: number;
   message: string;
+  started_at?: string;
+  entities_added?: number;
+  relationships_added?: number;
+  quality_score?: number;
+  quality_level?: string;
+  error?: string;
 }
 
 interface Statistics {
@@ -117,20 +123,29 @@ export function DocumentManagement() {
     }
   };
 
+  // Dynamic polling - faster when jobs are active
+  const hasActiveJobs = activeJobs.some(j => j.status === 'processing' || j.status === 'queued');
+  const pollingInterval = hasActiveJobs ? 1500 : 5000; // 1.5s when active, 5s when idle
+
   useEffect(() => {
     fetchDocuments();
     fetchStatistics();
     fetchCategories();
     fetchJobs();
+  }, [fetchDocuments]);
 
-    // Poll for job updates
+  // Separate effect for polling with dynamic interval
+  useEffect(() => {
     const interval = setInterval(() => {
       fetchJobs();
-      fetchDocuments();
-    }, 5000);
+      // Only refresh documents when jobs might have changed status
+      if (hasActiveJobs) {
+        fetchDocuments();
+      }
+    }, pollingInterval);
 
     return () => clearInterval(interval);
-  }, [fetchDocuments]);
+  }, [pollingInterval, hasActiveJobs]);
 
   useEffect(() => {
     fetchDocuments();
@@ -328,16 +343,28 @@ export function DocumentManagement() {
       {/* Active Jobs */}
       {activeJobs.length > 0 && (
         <Card className="p-4 mb-6 border-blue-200 bg-blue-50">
-          <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Active Ingestion Jobs
-          </h3>
-          <div className="space-y-2">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+              {hasActiveJobs ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              )}
+              Ingestion Jobs ({activeJobs.length})
+            </h3>
+            <span className="text-xs text-blue-600">
+              Updating every {pollingInterval / 1000}s
+            </span>
+          </div>
+
+          {/* Batch progress summary for multiple jobs */}
+          {activeJobs.length > 1 && (
+            <BatchProgressSummary jobs={activeJobs} />
+          )}
+
+          <div className="space-y-3">
             {activeJobs.map((job) => (
-              <div key={job.job_id} className="flex items-center justify-between bg-white rounded p-2">
-                <span className="text-sm font-medium">{job.filename}</span>
-                <span className="text-sm text-gray-600">{job.message}</span>
-              </div>
+              <JobCard key={job.job_id} job={job} />
             ))}
           </div>
         </Card>
@@ -401,17 +428,17 @@ export function DocumentManagement() {
           </Button>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <table className="w-full">
+        <Card className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Document</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quality</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entities</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Size</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Quality</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Entities</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -439,11 +466,11 @@ export function DocumentManagement() {
                       {doc.entity_count || 0} / {doc.relationship_count || 0}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
                       <a
                         href={`/admin/documents/${doc.id}`}
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-gray-100 transition-colors"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-gray-100 transition-colors flex-shrink-0"
                         title="Open full detail page"
                       >
                         <ExternalLink className="h-4 w-4 text-blue-600" />
@@ -453,6 +480,7 @@ export function DocumentManagement() {
                         size="sm"
                         onClick={() => setShowDetails(doc.id)}
                         title="Quick preview"
+                        className="flex-shrink-0"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -463,6 +491,7 @@ export function DocumentManagement() {
                           onClick={() => handleIngest(doc)}
                           disabled={ingesting === doc.id}
                           title="Start ingestion"
+                          className="flex-shrink-0"
                         >
                           {ingesting === doc.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -476,6 +505,7 @@ export function DocumentManagement() {
                         size="sm"
                         onClick={() => setDeleteTarget(doc)}
                         title="Delete document"
+                        className="flex-shrink-0"
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
@@ -579,6 +609,170 @@ export function DocumentManagement() {
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+// Batch Progress Summary for multiple jobs
+function BatchProgressSummary({ jobs }: { jobs: Job[] }) {
+  const completed = jobs.filter(j => j.status === 'completed').length;
+  const failed = jobs.filter(j => j.status === 'failed').length;
+  const processing = jobs.filter(j => j.status === 'processing').length;
+  const queued = jobs.filter(j => j.status === 'queued').length;
+  const total = jobs.length;
+
+  // Calculate overall progress
+  const totalProgress = jobs.reduce((sum, job) => sum + (job.progress || 0), 0);
+  const overallProgress = Math.round((totalProgress / total) * 100);
+
+  const totalEntities = jobs.reduce((sum, job) => sum + (job.entities_added || 0), 0);
+  const totalRelationships = jobs.reduce((sum, job) => sum + (job.relationships_added || 0), 0);
+
+  return (
+    <div className="bg-white rounded-lg p-3 mb-3 border border-blue-100">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium text-gray-700">
+          Batch Progress: {completed}/{total} complete
+          {failed > 0 && <span className="text-red-500 ml-1">({failed} failed)</span>}
+        </span>
+        <span className="text-sm font-bold text-blue-600">{overallProgress}%</span>
+      </div>
+
+      {/* Overall progress bar */}
+      <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+        <div className="h-full flex">
+          {/* Completed portion (green) */}
+          <div
+            className="bg-green-500 transition-all duration-300"
+            style={{ width: `${(completed / total) * 100}%` }}
+          />
+          {/* Failed portion (red) */}
+          <div
+            className="bg-red-500 transition-all duration-300"
+            style={{ width: `${(failed / total) * 100}%` }}
+          />
+          {/* Processing portion (blue, animated) */}
+          <div
+            className="bg-blue-500 transition-all duration-300 animate-pulse"
+            style={{ width: `${(processing / total) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="flex items-center gap-4 text-xs text-gray-600">
+        {processing > 0 && <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> {processing} processing</span>}
+        {queued > 0 && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {queued} queued</span>}
+        {totalEntities > 0 && <span className="text-green-600 font-medium">{totalEntities} entities extracted</span>}
+        {totalRelationships > 0 && <span className="text-purple-600 font-medium">{totalRelationships} relationships</span>}
+      </div>
+    </div>
+  );
+}
+
+// Job Card Component with progress bar
+function JobCard({ job }: { job: Job }) {
+  const progressPercent = Math.round((job.progress || 0) * 100);
+
+  const getElapsedTime = () => {
+    if (!job.started_at) return null;
+    const started = new Date(job.started_at);
+    const elapsed = Math.floor((Date.now() - started.getTime()) / 1000);
+    if (elapsed < 60) return `${elapsed}s`;
+    return `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`;
+  };
+
+  const getStatusColor = () => {
+    switch (job.status) {
+      case 'completed': return 'bg-green-500';
+      case 'failed': return 'bg-red-500';
+      case 'processing': return 'bg-blue-500';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (job.status) {
+      case 'completed': return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'failed': return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'processing': return <Loader2 className="h-4 w-4 animate-spin text-blue-600" />;
+      default: return <Clock className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const elapsedTime = getElapsedTime();
+
+  return (
+    <div className={`bg-white rounded-lg p-3 shadow-sm border ${
+      job.status === 'failed' ? 'border-red-200' :
+      job.status === 'completed' ? 'border-green-200' : 'border-gray-200'
+    }`}>
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {getStatusIcon()}
+          <span className="text-sm font-medium truncate max-w-[200px]" title={job.filename}>
+            {job.filename}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          {elapsedTime && (
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {elapsedTime}
+            </span>
+          )}
+          <span className="font-medium text-gray-700">{progressPercent}%</span>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+        <div
+          className={`h-full transition-all duration-300 ease-out ${getStatusColor()}`}
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
+      {/* Status message */}
+      <div className="flex items-center justify-between">
+        <span className={`text-xs ${job.status === 'failed' ? 'text-red-600' : 'text-gray-600'}`}>
+          {job.message}
+        </span>
+
+        {/* Show results for completed jobs */}
+        {job.status === 'completed' && (job.entities_added !== undefined || job.quality_score !== undefined) && (
+          <div className="flex items-center gap-2 text-xs">
+            {job.entities_added !== undefined && (
+              <span className="text-green-600 font-medium">
+                {job.entities_added} entities
+              </span>
+            )}
+            {job.relationships_added !== undefined && job.relationships_added > 0 && (
+              <span className="text-purple-600 font-medium">
+                {job.relationships_added} rels
+              </span>
+            )}
+            {job.quality_level && (
+              <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                job.quality_level === 'excellent' ? 'bg-green-100 text-green-700' :
+                job.quality_level === 'good' ? 'bg-blue-100 text-blue-700' :
+                job.quality_level === 'acceptable' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                {job.quality_level}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Show error for failed jobs */}
+        {job.status === 'failed' && job.error && (
+          <span className="text-xs text-red-500 truncate max-w-[200px]" title={job.error}>
+            {job.error}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

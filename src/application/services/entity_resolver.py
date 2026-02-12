@@ -8,10 +8,17 @@ This service provides entity deduplication and linking using multiple strategies
 
 The service helps maintain canonical entities in the knowledge graph and prevents
 duplicate creation of the same business concept or data entity.
+
+Enhanced for Crystallization Pipeline:
+- Cross-database resolution (FalkorDB/Graphiti → Neo4j/DIKW)
+- Medical terminology normalization
+- DIKW layer-aware matching
+- Observation count tracking for entity merging
 """
 
 from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 import logging
 
@@ -36,6 +43,28 @@ class EntityMatch:
     strategy: ResolutionStrategy
     properties: Dict[str, Any]
     confidence: float
+
+
+@dataclass
+class CrystallizationMatch:
+    """Result of entity matching for crystallization pipeline."""
+    found: bool
+    entity_id: Optional[str] = None
+    entity_data: Optional[Dict[str, Any]] = None
+    match_type: str = "none"  # "exact", "fuzzy", "type_only"
+    similarity_score: float = 0.0
+    match_details: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class MergeResult:
+    """Result of entity merge operation during crystallization."""
+    success: bool
+    entity_id: str
+    properties_added: List[str] = field(default_factory=list)
+    properties_updated: List[str] = field(default_factory=list)
+    observation_count: int = 1
+    merged_at: datetime = field(default_factory=datetime.utcnow)
 
 
 @dataclass
@@ -528,4 +557,350 @@ class EntityResolver:
             "status": "success",
             "canonical_entity_id": target_entity_id,
             "merged_entity_id": source_entity_id
+        }
+
+    # ========================================================================
+    # CRYSTALLIZATION PIPELINE METHODS
+    # Methods for Graphiti → Neo4j DIKW entity resolution
+    # ========================================================================
+
+    # Entity type mappings between Graphiti and DIKW
+    GRAPHITI_TO_DIKW_TYPES = {
+        "medication": "Medication",
+        "drug": "Medication",
+        "medicine": "Medication",
+        "diagnosis": "Diagnosis",
+        "condition": "Diagnosis",
+        "disease": "Diagnosis",
+        "symptom": "Symptom",
+        "allergy": "Allergy",
+        "allergen": "Allergy",
+        "patient": "Patient",
+        "person": "Patient",
+        "procedure": "Procedure",
+        "treatment": "Treatment",
+        "lab_result": "LabResult",
+        "vital_sign": "VitalSign",
+        "observation": "Observation",
+    }
+
+    # Medical abbreviation expansions
+    MEDICAL_ABBREVIATIONS = {
+        "htn": "hypertension",
+        "dm": "diabetes mellitus",
+        "dm2": "diabetes mellitus type 2",
+        "t2dm": "diabetes mellitus type 2",
+        "chf": "congestive heart failure",
+        "copd": "chronic obstructive pulmonary disease",
+        "ckd": "chronic kidney disease",
+        "cad": "coronary artery disease",
+        "afib": "atrial fibrillation",
+        "mi": "myocardial infarction",
+        "bp": "blood pressure",
+        "hr": "heart rate",
+        "rx": "prescription",
+        "mg": "milligrams",
+        "mcg": "micrograms",
+    }
+
+    def normalize_entity_name(self, name: str) -> str:
+        """
+        Normalize entity name for matching.
+
+        Handles:
+        - Case normalization
+        - Whitespace normalization
+        - Common medical abbreviation expansion
+        """
+        if not name:
+            return ""
+
+        normalized = name.strip().lower()
+        normalized = " ".join(normalized.split())  # Normalize whitespace
+
+        # Expand if entire name is an abbreviation
+        if normalized in self.MEDICAL_ABBREVIATIONS:
+            normalized = self.MEDICAL_ABBREVIATIONS[normalized]
+
+        return normalized
+
+    def normalize_entity_type(self, entity_type: str) -> str:
+        """
+        Normalize entity type from Graphiti to DIKW standard types.
+
+        Args:
+            entity_type: Raw entity type from Graphiti
+
+        Returns:
+            Normalized DIKW entity type
+        """
+        if not entity_type:
+            return "Entity"
+
+        normalized = entity_type.strip().lower().replace(" ", "_")
+        return self.GRAPHITI_TO_DIKW_TYPES.get(normalized, entity_type.title())
+
+    async def find_existing_for_crystallization(
+        self,
+        name: str,
+        entity_type: str,
+        layer: str = "PERCEPTION"
+    ) -> CrystallizationMatch:
+        """
+        Find existing entity in Neo4j for crystallization pipeline.
+
+        First checks exact match, then fuzzy match if enabled.
+
+        Args:
+            name: Entity name to search for
+            entity_type: Entity type (will be normalized)
+            layer: DIKW layer to search in (or "ANY" for all layers)
+
+        Returns:
+            CrystallizationMatch with entity data if found
+        """
+        normalized_name = self.normalize_entity_name(name)
+        normalized_type = self.normalize_entity_type(entity_type)
+
+        # Build query for exact match
+        layer_filter = ""
+        params = {
+            "normalized_name": normalized_name,
+            "entity_type": normalized_type,
+        }
+
+        if layer != "ANY":
+            layer_filter = "AND (n.dikw_layer = $layer OR $layer IN labels(n))"
+            params["layer"] = layer
+
+        exact_query = f"""
+        MATCH (n:Entity)
+        WHERE toLower(n.name) = $normalized_name
+          AND n.entity_type = $entity_type
+          {layer_filter}
+        RETURN n.id as id, n.name as name, n as properties, labels(n) as labels
+        LIMIT 1
+        """
+
+        try:
+            result = await self.backend.query(exact_query, params)
+
+            # Check if we have results
+            rows = result.get("rows", [])
+            if rows:
+                row = rows[0]
+                match_result = CrystallizationMatch(
+                    found=True,
+                    entity_id=row.get("id"),
+                    entity_data={
+                        "id": row.get("id"),
+                        "name": row.get("name"),
+                        "properties": row.get("properties", {}),
+                        "labels": row.get("labels", [])
+                    },
+                    match_type="exact",
+                    similarity_score=1.0,
+                    match_details={"query": "exact_name_type", "layer": layer}
+                )
+                logger.info(f"Exact match found for '{name}' ({entity_type}): {row.get('id')}")
+                return match_result
+
+            # Try fuzzy matching
+            fuzzy_matches = await self._find_similar_for_crystallization(
+                name,
+                entity_type=normalized_type,
+                threshold=self.fuzzy_threshold,
+                limit=1
+            )
+
+            if fuzzy_matches:
+                best_match = fuzzy_matches[0]
+                match_result = CrystallizationMatch(
+                    found=True,
+                    entity_id=best_match["id"],
+                    entity_data=best_match,
+                    match_type="fuzzy",
+                    similarity_score=best_match.get("similarity", 0.0),
+                    match_details={"matched_name": best_match.get("name")}
+                )
+                logger.info(
+                    f"Fuzzy match found for '{name}': "
+                    f"'{best_match.get('name')}' (score: {best_match.get('similarity', 0):.2f})"
+                )
+                return match_result
+
+        except Exception as e:
+            logger.error(f"Error finding entity '{name}': {e}")
+
+        # No match found
+        return CrystallizationMatch(found=False)
+
+    async def _find_similar_for_crystallization(
+        self,
+        name: str,
+        entity_type: Optional[str] = None,
+        threshold: float = 0.8,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Find similar entities using fuzzy matching for crystallization.
+
+        Args:
+            name: Name to search for
+            entity_type: Optional entity type filter
+            threshold: Minimum similarity score (0.0-1.0)
+            limit: Maximum number of results
+
+        Returns:
+            List of matching entities with similarity scores
+        """
+        try:
+            from difflib import SequenceMatcher
+        except ImportError:
+            return []
+
+        # Query candidates from Neo4j
+        type_filter = ""
+        params = {"limit": limit * 10}  # Get more candidates for filtering
+
+        if entity_type:
+            type_filter = "WHERE n.entity_type = $entity_type"
+            params["entity_type"] = self.normalize_entity_type(entity_type)
+
+        query = f"""
+        MATCH (n:Entity)
+        {type_filter}
+        RETURN n.id as id, n.name as name, n.entity_type as entity_type,
+               n.dikw_layer as layer, n.confidence as confidence,
+               n.observation_count as observation_count
+        LIMIT $limit
+        """
+
+        try:
+            result = await self.backend.query(query, params)
+            normalized_search = self.normalize_entity_name(name)
+
+            candidates = []
+            for row in result.get("rows", []):
+                candidate_name = row.get("name", "")
+                normalized_candidate = self.normalize_entity_name(candidate_name)
+
+                # Calculate similarity
+                similarity = SequenceMatcher(
+                    None, normalized_search, normalized_candidate
+                ).ratio()
+
+                if similarity >= threshold:
+                    candidates.append({
+                        "id": row.get("id"),
+                        "name": candidate_name,
+                        "entity_type": row.get("entity_type"),
+                        "layer": row.get("layer"),
+                        "confidence": row.get("confidence"),
+                        "observation_count": row.get("observation_count", 1),
+                        "similarity": similarity
+                    })
+
+            # Sort by similarity and limit
+            candidates.sort(key=lambda x: x["similarity"], reverse=True)
+            return candidates[:limit]
+
+        except Exception as e:
+            logger.error(f"Error in fuzzy search for '{name}': {e}")
+            return []
+
+    async def merge_for_crystallization(
+        self,
+        existing_id: str,
+        new_data: Dict[str, Any]
+    ) -> MergeResult:
+        """
+        Merge new Graphiti data into an existing Neo4j entity.
+
+        Updates observation count, last_observed timestamp,
+        and merges properties (new properties added, existing preserved).
+
+        Args:
+            existing_id: ID of existing entity in Neo4j
+            new_data: New properties from Graphiti to merge
+
+        Returns:
+            MergeResult with details of merged properties
+        """
+        try:
+            # Get existing entity
+            existing_query = """
+            MATCH (n:Entity {id: $entity_id})
+            RETURN n as properties
+            """
+            result = await self.backend.query(existing_query, {"entity_id": existing_id})
+
+            rows = result.get("rows", [])
+            if not rows:
+                logger.warning(f"Entity not found for merge: {existing_id}")
+                return MergeResult(success=False, entity_id=existing_id)
+
+            existing_props = rows[0].get("properties", {})
+
+            # Determine what to update
+            properties_added = []
+            properties_updated = []
+            updates = {}
+
+            for key, value in new_data.items():
+                if key in ["id", "created_at", "first_observed"]:
+                    continue  # Don't overwrite these
+
+                if key not in existing_props:
+                    properties_added.append(key)
+                    updates[key] = value
+                elif key == "confidence":
+                    # Update confidence if new value is higher
+                    if value > existing_props.get("confidence", 0):
+                        properties_updated.append(key)
+                        updates[key] = value
+
+            # Always update observation tracking
+            current_count = existing_props.get("observation_count", 1)
+            updates["observation_count"] = current_count + 1
+            updates["last_observed"] = datetime.utcnow().isoformat()
+
+            # Update in Neo4j
+            if updates:
+                update_query = """
+                MATCH (n:Entity {id: $entity_id})
+                SET n += $updates
+                RETURN n.observation_count as observation_count
+                """
+                await self.backend.query(
+                    update_query,
+                    {"entity_id": existing_id, "updates": updates}
+                )
+
+            logger.info(
+                f"Merged entity {existing_id}: "
+                f"+{len(properties_added)} added, ~{len(properties_updated)} updated, "
+                f"observation_count={updates['observation_count']}"
+            )
+
+            return MergeResult(
+                success=True,
+                entity_id=existing_id,
+                properties_added=properties_added,
+                properties_updated=properties_updated,
+                observation_count=updates["observation_count"]
+            )
+
+        except Exception as e:
+            logger.error(f"Error merging entity {existing_id}: {e}")
+            return MergeResult(success=False, entity_id=existing_id)
+
+    async def get_crystallization_stats(self) -> Dict[str, Any]:
+        """Get statistics about entity resolution for crystallization."""
+        return {
+            "embedding_cache_size": len(self._embedding_cache),
+            "fuzzy_threshold": self.fuzzy_threshold,
+            "semantic_threshold": self.semantic_threshold,
+            "type_mappings_count": len(self.GRAPHITI_TO_DIKW_TYPES),
+            "abbreviations_count": len(self.MEDICAL_ABBREVIATIONS)
         }

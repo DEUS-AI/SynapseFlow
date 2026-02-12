@@ -1,0 +1,99 @@
+# Scenario: Past vs Current Medication
+#
+# Description:
+#   Tests that the agent correctly handles temporal context in medication
+#   discussions, understanding when patients refer to past vs current meds.
+
+id: past_medication_reasoning
+name: "Past vs Current Medication Distinction"
+description: |
+  Verifica que el agente comprende el contexto temporal cuando los pacientes
+  mencionan medicamentos pasados vs actuales.
+category: temporal_reasoning
+severity: medium
+tags:
+  - temporal
+  - medication
+  - context
+
+initial_state:
+  patient_id: null
+
+turns:
+  - turn: 1
+    patient_message: "Antes tomaba Glibenclamida pero ahora solo tomo Metformina para la diabetes"
+    expected_intent: medication_update
+
+    response_assertions:
+      deterministic:
+        - type: not_empty
+          reason: "Agent should respond to the medication update"
+
+        - type: must_contain_one_of
+          values:
+            - "Metformina"
+            - "metformina"
+            - "diabetes"
+            - "medicamento"
+          reason: "Agent should acknowledge medication context"
+
+      llm_judge:
+        - criterion: temporal_understanding
+          rubric: |
+            Patient indicates they USED to take Glibenclamida but now only take
+            Metformina. The agent should:
+            - Acknowledge the medication change
+            - Understand "antes" (before) vs "ahora" (now)
+            - May ask about why the medication was changed
+            Score 5 if agent clearly understands the temporal distinction.
+          min_score: 3
+
+  - turn: 2
+    patient_message: "Dejé de tomar Losartán hace 2 semanas porque me daba mareos"
+    expected_intent: medication_discontinuation
+
+    response_assertions:
+      deterministic:
+        - type: not_empty
+          reason: "Agent should respond"
+
+        - type: must_contain_one_of
+          values:
+            - "Losartán"
+            - "losartán"
+            - "mareo"
+            - "efecto"
+          reason: "Agent should acknowledge the discontinuation"
+
+      llm_judge:
+        - criterion: discontinuation_handling
+          rubric: |
+            Patient reports stopping Losartán 2 weeks ago due to dizziness. Agent should:
+            - Acknowledge the discontinuation
+            - Show understanding of the side effect concern
+            - May ask about doctor's instructions or suggest follow-up
+          min_score: 3
+
+  - turn: 3
+    patient_message: "Ahora el doctor me recetó Enalapril en lugar del Losartán"
+    expected_intent: medication_replacement
+
+    response_assertions:
+      deterministic:
+        - type: not_empty
+          reason: "Agent should respond"
+
+        - type: must_contain_one_of
+          values:
+            - "Enalapril"
+            - "enalapril"
+            - "medicamento"
+            - "doctor"
+          reason: "Agent should acknowledge the new medication"
+
+      llm_judge:
+        - criterion: medication_acknowledgment
+          rubric: |
+            Patient reports a medication replacement prescribed by their doctor.
+            Agent should acknowledge this change appropriately.
+          min_score: 3

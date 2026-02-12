@@ -1,0 +1,119 @@
+%% SynapseFlow Reasoning Flow Diagram
+%% This diagram shows the complete reasoning flow from query to response
+
+flowchart TB
+    subgraph INPUT["User Input"]
+        Q[/"User Query"/]
+        PC[/"Patient Context"/]
+    end
+
+    subgraph ROUTING["Query Routing Layer"]
+        DR[DIKWRouter]
+        IC{Intent Classification}
+
+        DR --> IC
+        IC -->|FACTUAL| L_SEM[SEMANTIC Layer]
+        IC -->|RELATIONAL| L_SEM
+        IC -->|INFERENTIAL| L_REASON[REASONING Layer]
+        IC -->|ACTIONABLE| L_APP[APPLICATION Layer]
+        IC -->|EXPLORATORY| L_ALL[All Layers]
+    end
+
+    subgraph STRATEGY["Strategy Selection"]
+        NQS[NeurosymbolicQueryService]
+
+        QT{Query Type}
+        QT -->|Drug Interaction| SO[SYMBOLIC_ONLY]
+        QT -->|Contraindication| SO
+        QT -->|Symptom Interp.| NF[NEURAL_FIRST]
+        QT -->|Treatment Rec.| CO[COLLABORATIVE]
+        QT -->|Data Catalog| SF[SYMBOLIC_FIRST]
+        QT -->|General| CO
+    end
+
+    subgraph REASONING["Reasoning Engine"]
+        RE[ReasoningEngine]
+
+        subgraph RULES["Rule Categories"]
+            CR[Critical Rules<br/>contraindication_check]
+            HR[High Priority Rules<br/>ontology_mapping<br/>medical_validation<br/>cross_graph_inference]
+            MR[Medium Priority Rules<br/>entity_classification<br/>symptom_tracking]
+            LR[Low Priority Rules<br/>llm_inference<br/>semantic_linking]
+        end
+
+        subgraph STRATEGIES["Execution Strategies"]
+            S_NF[Neural-First<br/>LLM → Symbolic Validation]
+            S_SF[Symbolic-First<br/>Rules → LLM Gap Fill]
+            S_CO[Collaborative<br/>Parallel → Confidence Weight]
+        end
+
+        RE --> RULES
+        RE --> STRATEGIES
+    end
+
+    subgraph CONFIDENCE["Confidence Tracking"]
+        CT[ConfidenceTracker]
+        CP[ConfidencePropagation]
+        CR_CONF[CrossLayerConfidence]
+
+        CT --> CP
+        CP --> CR_CONF
+    end
+
+    subgraph DIKW["DIKW Knowledge Graph"]
+        subgraph APP["APPLICATION Layer"]
+            APP_N[(Cached Results<br/>Query Patterns<br/>User Feedback)]
+        end
+
+        subgraph REAS["REASONING Layer"]
+            REAS_N[(Inferred Knowledge<br/>Drug Interactions<br/>Contraindications<br/>Symptom Patterns)]
+        end
+
+        subgraph SEM["SEMANTIC Layer"]
+            SEM_N[(Validated Concepts<br/>SNOMED-CT Mapped<br/>Ontology Aligned)]
+        end
+
+        subgraph PERC["PERCEPTION Layer"]
+            PERC_N[(Raw Extractions<br/>PDF Data<br/>Episode Entities)]
+        end
+
+        APP_N --> REAS_N
+        REAS_N --> SEM_N
+        SEM_N --> PERC_N
+    end
+
+    subgraph OUTPUT["Response Generation"]
+        AGG[Result Aggregation]
+        CONF_SCORE[Confidence Scoring]
+        WARN[Warnings & Disclaimers]
+        RESP[/"Final Response"/]
+    end
+
+    %% Main flow
+    Q --> DR
+    PC --> NQS
+    DR --> NQS
+    NQS --> RE
+    RE --> DIKW
+    DIKW --> AGG
+    RE --> CT
+    CT --> CONF_SCORE
+    AGG --> CONF_SCORE
+    CONF_SCORE --> WARN
+    WARN --> RESP
+
+    %% Styling
+    style INPUT fill:#e1f5fe,stroke:#01579b
+    style ROUTING fill:#f3e5f5,stroke:#4a148c
+    style STRATEGY fill:#fff3e0,stroke:#e65100
+    style REASONING fill:#e8f5e9,stroke:#1b5e20
+    style CONFIDENCE fill:#fce4ec,stroke:#880e4f
+    style DIKW fill:#e3f2fd,stroke:#0d47a1
+    style OUTPUT fill:#f1f8e9,stroke:#33691e
+
+    style CR fill:#ffcdd2,stroke:#b71c1c
+    style SO fill:#ffcdd2,stroke:#b71c1c
+    style APP_N fill:#c8e6c9,stroke:#2e7d32
+    style REAS_N fill:#bbdefb,stroke:#1565c0
+    style SEM_N fill:#dcedc8,stroke:#558b2f
+    style PERC_N fill:#fff9c4,stroke:#f57f17

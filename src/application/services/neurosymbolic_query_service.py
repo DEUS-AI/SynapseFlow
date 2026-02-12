@@ -13,7 +13,7 @@ Query Types and Strategies:
 - Treatment recommendation: Collaborative (hybrid knowledge)
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -30,6 +30,12 @@ from domain.confidence_models import (
 )
 from domain.event import KnowledgeEvent
 from domain.roles import Role
+from domain.temporal_models import TemporalQueryContext, TemporalWindow
+from domain.query_intent_models import QueryIntent, DIKWLayer, RoutingDecision
+
+if TYPE_CHECKING:
+    from application.services.temporal_scoring import TemporalScoringService
+    from application.services.dikw_router import DIKWRouter
 
 logger = logging.getLogger(__name__)
 
@@ -136,8 +142,12 @@ class NeurosymbolicQueryService:
         backend: Any,  # Neo4jBackend or compatible
         reasoning_engine: Optional[Any] = None,
         confidence_propagator: Optional[CrossLayerConfidencePropagation] = None,
+        temporal_scoring: Optional["TemporalScoringService"] = None,
+        dikw_router: Optional["DIKWRouter"] = None,
         enable_caching: bool = True,
         cache_ttl_seconds: int = 300,
+        enable_temporal_scoring: bool = True,
+        enable_intent_routing: bool = True,
     ):
         """
         Initialize neurosymbolic query service.
@@ -146,14 +156,22 @@ class NeurosymbolicQueryService:
             backend: Knowledge graph backend with layer-aware methods
             reasoning_engine: ReasoningEngine for applying rules
             confidence_propagator: Cross-layer confidence handler
+            temporal_scoring: Optional temporal scoring service
+            dikw_router: Optional DIKW router for intent-based layer selection
             enable_caching: Whether to cache APPLICATION layer results
             cache_ttl_seconds: Cache time-to-live
+            enable_temporal_scoring: Whether to apply temporal decay to results
+            enable_intent_routing: Whether to use intent-based layer routing
         """
         self.backend = backend
         self.reasoning_engine = reasoning_engine
         self.confidence_propagator = confidence_propagator or CrossLayerConfidencePropagation()
+        self.temporal_scoring = temporal_scoring
+        self.dikw_router = dikw_router
         self.enable_caching = enable_caching
         self.cache_ttl = cache_ttl_seconds
+        self.enable_temporal_scoring = enable_temporal_scoring
+        self.enable_intent_routing = enable_intent_routing
 
         # Query cache (APPLICATION layer)
         self._query_cache: Dict[str, Tuple[Any, datetime]] = {}
@@ -162,8 +180,11 @@ class NeurosymbolicQueryService:
         self.stats = {
             "total_queries": 0,
             "cache_hits": 0,
+            "temporal_adjustments": 0,
+            "intent_routed": 0,
             "by_strategy": {s.value: 0 for s in QueryStrategy},
             "by_layer": {l.value: 0 for l in KnowledgeLayer},
+            "by_intent": {intent.value: 0 for intent in QueryIntent},
         }
 
         self._query_counter = 0
@@ -194,15 +215,27 @@ class NeurosymbolicQueryService:
         self.stats["total_queries"] += 1
         query_id = f"query_{self._query_counter:06d}"
 
-        # Detect query type and select strategy
-        query_type = self._detect_query_type(query_text)
-        strategy = force_strategy or self.QUERY_TYPE_STRATEGIES.get(
-            query_type, QueryStrategy.COLLABORATIVE
-        )
+        # Use intent-based routing if enabled and router available
+        routing_decision = None
+        if self.enable_intent_routing and self.dikw_router and not force_strategy:
+            routing_decision = self.dikw_router.route_query(query_text)
+            strategy = self._map_routing_to_strategy(routing_decision.strategy)
+            self.stats["intent_routed"] += 1
+            self.stats["by_intent"][routing_decision.intent.primary_intent.value] += 1
+            logger.info(
+                f"Query {query_id} routed by intent: {routing_decision.intent.primary_intent.value}, "
+                f"confidence={routing_decision.intent.confidence:.2f}"
+            )
+        else:
+            # Fall back to query type detection
+            query_type = self._detect_query_type(query_text)
+            strategy = force_strategy or self.QUERY_TYPE_STRATEGIES.get(
+                query_type, QueryStrategy.COLLABORATIVE
+            )
 
         self.stats["by_strategy"][strategy.value] += 1
 
-        logger.info(f"Executing query {query_id}: type={query_type.value}, strategy={strategy.value}")
+        logger.info(f"Executing query {query_id}: strategy={strategy.value}")
 
         # Initialize trace
         trace = QueryTrace(
@@ -235,6 +268,13 @@ class NeurosymbolicQueryService:
                 layer_confidences
             )
 
+        # Apply temporal scoring to adjust entity relevance
+        temporal_context = None
+        if self.enable_temporal_scoring and self.temporal_scoring:
+            temporal_context = self.temporal_scoring.parse_temporal_query(query_text)
+            result = self._apply_temporal_scoring(result, temporal_context)
+            self.stats["temporal_adjustments"] += 1
+
         # Calculate total time
         total_time = (time.time() - start_time) * 1000
         trace.total_time_ms = total_time
@@ -245,6 +285,24 @@ class NeurosymbolicQueryService:
         result["layers_traversed"] = [l.value for l in trace.layers_traversed]
         result["confidence"] = trace.final_confidence.score
         result["execution_time_ms"] = total_time
+
+        # Add temporal context info if available
+        if temporal_context:
+            result["temporal_context"] = {
+                "window": temporal_context.window.value,
+                "duration_hours": temporal_context.duration_hours,
+                "confidence": temporal_context.confidence,
+            }
+
+        # Add routing decision info if available
+        if routing_decision:
+            result["routing"] = {
+                "intent": routing_decision.intent.primary_intent.value,
+                "intent_confidence": routing_decision.intent.confidence,
+                "recommended_layers": [l.value for l in routing_decision.layers],
+                "matched_patterns": routing_decision.intent.matched_patterns[:3],
+                "requires_inference": routing_decision.intent.requires_inference,
+            }
 
         # Extract entity IDs for feedback tracking
         entity_ids = []
@@ -272,6 +330,16 @@ class NeurosymbolicQueryService:
                 return query_type
 
         return QueryType.GENERAL
+
+    def _map_routing_to_strategy(self, routing_strategy: str) -> QueryStrategy:
+        """Map DIKW router strategy to QueryStrategy enum."""
+        strategy_map = {
+            "symbolic_only": QueryStrategy.SYMBOLIC_ONLY,
+            "symbolic_first": QueryStrategy.SYMBOLIC_FIRST,
+            "neural_first": QueryStrategy.NEURAL_FIRST,
+            "collaborative": QueryStrategy.COLLABORATIVE,
+        }
+        return strategy_map.get(routing_strategy, QueryStrategy.COLLABORATIVE)
 
     async def _execute_symbolic_only(
         self,
@@ -641,6 +709,47 @@ class NeurosymbolicQueryService:
 
         return terms[:10]  # Limit to 10 terms
 
+    def _apply_temporal_scoring(
+        self,
+        result: Dict[str, Any],
+        temporal_context: TemporalQueryContext,
+    ) -> Dict[str, Any]:
+        """Apply temporal scoring to query results.
+
+        Adjusts entity relevance based on temporal decay and query context.
+        Symptoms mentioned "ahora" (now) should prioritize recent observations,
+        while historical queries should include older data.
+
+        Args:
+            result: Query result with entities and relationships
+            temporal_context: Parsed temporal context from query
+
+        Returns:
+            Result with temporal scores added to entities
+        """
+        if not self.temporal_scoring or not result.get("entities"):
+            return result
+
+        # Apply temporal scoring to entities
+        entities = result.get("entities", [])
+        scored_entities = self.temporal_scoring.adjust_query_results(
+            entities, temporal_context
+        )
+
+        # Update result with scored entities
+        result["entities"] = scored_entities
+
+        # Add temporal scoring summary
+        if scored_entities:
+            avg_score = sum(e.get("temporal_score", 0) for e in scored_entities) / len(scored_entities)
+            result["temporal_summary"] = {
+                "entities_scored": len(scored_entities),
+                "average_temporal_score": round(avg_score, 3),
+                "temporal_window": temporal_context.window.value,
+            }
+
+        return result
+
     def _detect_conflicts(
         self,
         inferences: List[Dict[str, Any]],
@@ -724,14 +833,26 @@ class NeurosymbolicQueryService:
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get query statistics."""
-        return {
+        stats = {
             **self.stats,
             "cache_size": len(self._query_cache),
             "cache_hit_rate": (
                 self.stats["cache_hits"] / self.stats["total_queries"]
                 if self.stats["total_queries"] > 0 else 0
             ),
+            "temporal_scoring_enabled": self.enable_temporal_scoring,
+            "intent_routing_enabled": self.enable_intent_routing,
         }
+
+        # Add temporal scoring stats if available
+        if self.temporal_scoring:
+            stats["temporal_scoring_config"] = self.temporal_scoring.get_stats()
+
+        # Add DIKW router stats if available
+        if self.dikw_router:
+            stats["dikw_router_stats"] = self.dikw_router.get_statistics()
+
+        return stats
 
     def clear_cache(self) -> None:
         """Clear the query cache."""

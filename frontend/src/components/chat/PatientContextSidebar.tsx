@@ -18,9 +18,17 @@ import {
 
 interface PatientContextSidebarProps {
   patientId: string;
+  /** Increment to trigger memory refresh */
+  memoryRefreshTrigger?: number;
+  /** Show processing indicator while extracting facts */
+  isProcessingMemory?: boolean;
 }
 
-export function PatientContextSidebar({ patientId }: PatientContextSidebarProps) {
+export function PatientContextSidebar({
+  patientId,
+  memoryRefreshTrigger = 0,
+  isProcessingMemory = false,
+}: PatientContextSidebarProps) {
   const { context, loading, loadContext } = usePatientStore();
   const [showGraphModal, setShowGraphModal] = useState(false);
 
@@ -169,7 +177,12 @@ export function PatientContextSidebar({ patientId }: PatientContextSidebarProps)
             badgeColor="purple"
             defaultExpanded={true}
           >
-            <PatientMemoriesPanel patientId={patientId} maxVisible={3} />
+            <PatientMemoriesPanel
+              patientId={patientId}
+              maxVisible={3}
+              refreshTrigger={memoryRefreshTrigger}
+              isProcessing={isProcessingMemory}
+            />
           </CollapsibleSection>
 
           {/* Medical Graph (NEW) */}

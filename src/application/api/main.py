@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 import logging
+import asyncio
 from typing import Dict, Set, List, Any, Optional
 import tempfile
 import os
@@ -16,12 +17,14 @@ from enum import Enum as PyEnum
 
 from .kg_router import router as kg_router
 from .document_router import router as document_router
+from .crystallization_router import router as crystallization_router
 from .dependencies import (
     get_chat_service,
     get_patient_memory,
     get_kg_backend,
     get_event_bus,
     initialize_layer_services,
+    initialize_crystallization_pipeline,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +47,22 @@ app.add_middleware(
 # Include routers
 app.include_router(kg_router)
 app.include_router(document_router)
+app.include_router(crystallization_router)
+
+# ========================================
+# Evaluation Framework (Conditional)
+# ========================================
+# Only register evaluation endpoints when SYNAPSEFLOW_EVAL_MODE=true
+# These endpoints allow automated testing of agent behavior
+
+EVAL_MODE_ENABLED = os.getenv("SYNAPSEFLOW_EVAL_MODE", "false").lower() in ("true", "1", "yes")
+
+if EVAL_MODE_ENABLED:
+    from .evaluation_router import router as evaluation_router
+    app.include_router(evaluation_router)
+    logger.info("🧪 Evaluation endpoints enabled (SYNAPSEFLOW_EVAL_MODE=true)")
+else:
+    logger.debug("Evaluation endpoints disabled (set SYNAPSEFLOW_EVAL_MODE=true to enable)")
 
 
 # ========================================
@@ -62,6 +81,14 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Failed to initialize layer services: {e}")
         # Don't fail startup - allow API to run without auto-promotion
+
+    # Initialize crystallization pipeline (Graphiti → Neo4j DIKW)
+    try:
+        await initialize_crystallization_pipeline()
+        logger.info("✅ Crystallization pipeline initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
+        # Don't fail startup - crystallization is optional
 
 
 # ========================================
@@ -211,20 +238,30 @@ async def chat_websocket_endpoint(
                 )
 
                 # Send response back with response_id for feedback
-                await manager.send_personal_message(
-                    {
-                        "type": "message",
-                        "role": "assistant",
-                        "content": response.answer,
-                        "confidence": response.confidence,
-                        "sources": [{"type": s.get("type", "KnowledgeGraph"), "name": s.get("name", "")} for s in response.sources],
-                        "reasoning_trail": response.reasoning_trail,
-                        "related_concepts": response.related_concepts,
-                        "query_time": response.query_time_seconds,
-                        "response_id": response_id  # Include for feedback tracking
-                    },
-                    client_id
-                )
+                # Phase 6: Include enhanced metadata from Crystallization Pipeline
+                ws_response = {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": response.answer,
+                    "confidence": response.confidence,
+                    "sources": [{"type": s.get("type", "KnowledgeGraph"), "name": s.get("name", "")} for s in response.sources],
+                    "reasoning_trail": response.reasoning_trail,
+                    "related_concepts": response.related_concepts,
+                    "query_time": response.query_time_seconds,
+                    "response_id": response_id,  # Include for feedback tracking
+                }
+
+                # Add Phase 6 enhanced fields if available
+                if hasattr(response, 'medical_alerts') and response.medical_alerts:
+                    ws_response["medical_alerts"] = response.medical_alerts
+                if hasattr(response, 'routing') and response.routing:
+                    ws_response["routing"] = response.routing
+                if hasattr(response, 'temporal_context') and response.temporal_context:
+                    ws_response["temporal_context"] = response.temporal_context
+                if hasattr(response, 'entities') and response.entities:
+                    ws_response["entities"] = response.entities
+
+                await manager.send_personal_message(ws_response, client_id)
 
                 # Auto-generate title after 3rd message if still "New Conversation"
                 try:
@@ -235,18 +272,36 @@ async def chat_websocket_endpoint(
                     if session_meta and session_meta.message_count >= 3:
                         if not session_meta.title or session_meta.title == "New Conversation":
                             logger.info(f"Auto-generating title for session {session_id} (message_count={session_meta.message_count})")
-                            new_title = await history_service.auto_generate_title(session_id)
+
+                            # Retry logic for title generation (max 2 attempts)
+                            new_title = None
+                            for attempt in range(2):
+                                new_title = await history_service.auto_generate_title(session_id)
+                                if new_title:
+                                    break
+                                if attempt == 0:
+                                    logger.info(f"Title generation attempt 1 failed, retrying...")
+                                    await asyncio.sleep(0.5)
 
                             if new_title:
-                                # Notify frontend of title update
-                                await manager.send_personal_message(
-                                    {
-                                        "type": "title_updated",
-                                        "session_id": session_id,
-                                        "title": new_title
-                                    },
-                                    client_id
-                                )
+                                # Verify the title was persisted before notifying frontend
+                                await asyncio.sleep(0.1)  # Small delay for Neo4j consistency
+
+                                # Read back to verify persistence
+                                updated_meta = await history_service.get_session_metadata(session_id)
+                                if updated_meta and updated_meta.title == new_title:
+                                    # Notify frontend of title update
+                                    await manager.send_personal_message(
+                                        {
+                                            "type": "title_updated",
+                                            "session_id": session_id,
+                                            "title": new_title
+                                        },
+                                        client_id
+                                    )
+                                    logger.info(f"Title update confirmed and notified: '{new_title}'")
+                                else:
+                                    logger.warning(f"Title persistence verification failed for session {session_id}")
                 except Exception as title_error:
                     # Don't fail the message if title generation fails
                     logger.warning(f"Auto-title generation failed: {title_error}")
@@ -355,6 +410,8 @@ async def get_patient_memories(
     Get raw Mem0 memories for a patient with timestamps.
 
     Used for displaying memory history in the patient context panel.
+
+    Returns an empty list if the patient has no memories yet (collection doesn't exist).
     """
     try:
         # Get memories from Mem0 (using the isolated manager)
@@ -385,8 +442,24 @@ async def get_patient_memories(
             "total_count": len(filtered_memories)
         }
     except Exception as e:
+        error_str = str(e).lower()
+        # Handle "collection doesn't exist" gracefully - return empty list
+        # This happens when a patient has no memories yet (fresh patient or after cleanup)
+        if "doesn't exist" in error_str or "not found" in error_str or "collection" in error_str:
+            logger.info(f"No memory collection for patient {patient_id} yet (will be created on first memory)")
+            return {
+                "patient_id": patient_id,
+                "memories": [],
+                "total_count": 0
+            }
+        # For other errors, still log but return empty (don't break the UI)
         logger.error(f"Error fetching patient memories: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "patient_id": patient_id,
+            "memories": [],
+            "total_count": 0,
+            "error": "Failed to fetch memories"
+        }
 
 
 @app.get("/api/patients/{patient_id}/graph")
@@ -2686,11 +2759,6 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
     try:
         result = await quick_ontology_check(kg_backend)
 
-        # Get relationship count from Neo4j
-        rel_query = "MATCH ()-[r]->() RETURN count(r) as count"
-        rel_result = await kg_backend.query_raw(rel_query, {})
-        relationship_count = rel_result[0]["count"] if rel_result else 0
-
         # Wrap in structure expected by frontend
         return {
             "has_assessment": True,
@@ -2701,11 +2769,11 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
                 "quality_level": result.get("quality_level", "unknown"),
                 "coverage_ratio": result.get("coverage_ratio", 0),
                 "compliance_ratio": result.get("compliance_ratio", 0),
-                "coherence_ratio": 1.0 - (result.get("entity_count", 0) / max(result.get("entity_count", 1), 1) * 0.1),  # Estimate based on orphan ratio
-                "consistency_ratio": result.get("compliance_ratio", 0),  # Use compliance as proxy
+                "coherence_ratio": result.get("coherence_ratio", 1.0),
+                "consistency_ratio": result.get("consistency_ratio", 1.0),
                 "entity_count": result.get("entity_count", 0),
-                "relationship_count": relationship_count,
-                "orphan_nodes": result.get("entity_count", 0),  # From quick check, all may appear orphan
+                "relationship_count": result.get("relationship_count", 0),
+                "orphan_nodes": result.get("orphan_nodes", 0),
                 "critical_issues": result.get("critical_issues", []),
                 "recommendations": result.get("top_recommendations", []),
                 "assessed_at": datetime.utcnow().isoformat() + "Z",
@@ -2852,6 +2920,207 @@ async def get_unmapped_entities(
     except Exception as e:
         logger.error(f"Error getting unmapped entities: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ontology/coverage/detailed")
+async def get_detailed_ontology_coverage(
+    kg_backend = Depends(get_kg_backend)
+):
+    """
+    Get detailed ontology coverage metrics.
+
+    Returns comprehensive coverage statistics including:
+    - Overall coverage (all entities)
+    - Knowledge-only coverage (excluding structural entities like Chunk, Document)
+    - Breakdown by DIKW layer
+    - Breakdown by entity type
+    - Health indicators
+    """
+    try:
+        # Query for detailed coverage metrics
+        query = """
+        MATCH (n)
+        WHERE n.id IS NOT NULL
+        WITH n,
+             labels(n) as nodeLabels,
+             coalesce(n._exclude_from_ontology, false) as excluded,
+             coalesce(n._ontology_mapped, false) as mapped,
+             coalesce(n._is_structural, false) as is_structural,
+             coalesce(n._is_noise, false) as is_noise,
+             n.layer as layer,
+             n.type as entityType
+        WITH n, nodeLabels, excluded, mapped, is_structural, is_noise, layer, entityType,
+             any(label IN nodeLabels WHERE label IN ['Chunk', 'StructuralChunk', 'Document', 'DocumentQuality', 'ExtractedEntity']) as has_structural_label
+        WITH
+            // Totals
+            count(n) as total_entities,
+            sum(CASE WHEN mapped THEN 1 ELSE 0 END) as total_mapped,
+
+            // Knowledge entities (excluding structural and noise)
+            sum(CASE WHEN NOT has_structural_label AND NOT is_structural AND NOT is_noise THEN 1 ELSE 0 END) as knowledge_entities,
+            sum(CASE WHEN NOT has_structural_label AND NOT is_structural AND NOT is_noise AND mapped THEN 1 ELSE 0 END) as knowledge_mapped,
+
+            // Structural breakdown
+            sum(CASE WHEN has_structural_label OR is_structural THEN 1 ELSE 0 END) as structural_entities,
+            sum(CASE WHEN is_noise THEN 1 ELSE 0 END) as noise_entities,
+
+            // By layer (for knowledge entities only)
+            sum(CASE WHEN layer = 'PERCEPTION' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as perception_count,
+            sum(CASE WHEN layer = 'SEMANTIC' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as semantic_count,
+            sum(CASE WHEN layer = 'REASONING' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as reasoning_count,
+            sum(CASE WHEN layer = 'APPLICATION' AND NOT has_structural_label AND NOT is_structural THEN 1 ELSE 0 END) as application_count
+
+        RETURN
+            total_entities,
+            total_mapped,
+            knowledge_entities,
+            knowledge_mapped,
+            structural_entities,
+            noise_entities,
+            perception_count,
+            semantic_count,
+            reasoning_count,
+            application_count,
+            CASE WHEN total_entities > 0 THEN round(toFloat(total_mapped) / total_entities * 100, 2) ELSE 0.0 END as overall_coverage_pct,
+            CASE WHEN knowledge_entities > 0 THEN round(toFloat(knowledge_mapped) / knowledge_entities * 100, 2) ELSE 0.0 END as knowledge_coverage_pct
+        """
+
+        result = await kg_backend.query_raw(query, {})
+        record = result[0] if result else {}
+
+        # Get unmapped types breakdown
+        unmapped_query = """
+        MATCH (n)
+        WHERE n.id IS NOT NULL
+          AND NOT coalesce(n._ontology_mapped, false)
+          AND NOT coalesce(n._is_structural, false)
+          AND NOT coalesce(n._is_noise, false)
+          AND NOT any(label IN labels(n) WHERE label IN ['Chunk', 'Document', 'ExtractedEntity'])
+        RETURN n.type as type, count(n) as count
+        ORDER BY count DESC
+        LIMIT 15
+        """
+        unmapped_result = await kg_backend.query_raw(unmapped_query, {})
+        unmapped_by_type = {r["type"]: r["count"] for r in unmapped_result} if unmapped_result else {}
+
+        # Calculate DIKW layer distribution health
+        total_layered = (
+            record.get("perception_count", 0) +
+            record.get("semantic_count", 0) +
+            record.get("reasoning_count", 0) +
+            record.get("application_count", 0)
+        )
+
+        layer_distribution = {}
+        if total_layered > 0:
+            layer_distribution = {
+                "PERCEPTION": {
+                    "count": record.get("perception_count", 0),
+                    "pct": round(record.get("perception_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "30-50%",
+                },
+                "SEMANTIC": {
+                    "count": record.get("semantic_count", 0),
+                    "pct": round(record.get("semantic_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "25-40%",
+                },
+                "REASONING": {
+                    "count": record.get("reasoning_count", 0),
+                    "pct": round(record.get("reasoning_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "10-20%",
+                },
+                "APPLICATION": {
+                    "count": record.get("application_count", 0),
+                    "pct": round(record.get("application_count", 0) / total_layered * 100, 1),
+                    "healthy_range": "5-15%",
+                },
+            }
+
+        # Determine health status
+        knowledge_coverage = record.get("knowledge_coverage_pct", 0)
+        if knowledge_coverage >= 80:
+            health_status = "HEALTHY"
+        elif knowledge_coverage >= 60:
+            health_status = "MODERATE"
+        elif knowledge_coverage >= 40:
+            health_status = "NEEDS_IMPROVEMENT"
+        else:
+            health_status = "CRITICAL"
+
+        return {
+            "coverage": {
+                "overall": {
+                    "total_entities": record.get("total_entities", 0),
+                    "mapped_entities": record.get("total_mapped", 0),
+                    "coverage_pct": record.get("overall_coverage_pct", 0),
+                },
+                "knowledge_only": {
+                    "total_entities": record.get("knowledge_entities", 0),
+                    "mapped_entities": record.get("knowledge_mapped", 0),
+                    "coverage_pct": record.get("knowledge_coverage_pct", 0),
+                },
+                "excluded": {
+                    "structural_entities": record.get("structural_entities", 0),
+                    "noise_entities": record.get("noise_entities", 0),
+                },
+            },
+            "layer_distribution": layer_distribution,
+            "unmapped_by_type": unmapped_by_type,
+            "health": {
+                "status": health_status,
+                "knowledge_coverage_pct": knowledge_coverage,
+                "target_coverage_pct": 80,
+                "recommendations": _get_coverage_recommendations(
+                    knowledge_coverage,
+                    unmapped_by_type,
+                    layer_distribution
+                ),
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting detailed coverage: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _get_coverage_recommendations(
+    coverage_pct: float,
+    unmapped_types: dict,
+    layer_distribution: dict
+) -> list:
+    """Generate recommendations for improving coverage."""
+    recommendations = []
+
+    if coverage_pct < 80:
+        recommendations.append(
+            f"Knowledge coverage is {coverage_pct}%. Target is 80%+. "
+            "Run batch remediation to map existing entities."
+        )
+
+    if unmapped_types:
+        top_unmapped = list(unmapped_types.keys())[:3]
+        recommendations.append(
+            f"Top unmapped types: {', '.join(top_unmapped)}. "
+            "Consider adding these to the ontology registry."
+        )
+
+    # Check layer balance
+    if layer_distribution:
+        perception_pct = layer_distribution.get("PERCEPTION", {}).get("pct", 0)
+        if perception_pct > 60:
+            recommendations.append(
+                f"PERCEPTION layer is {perception_pct}% (should be 30-50%). "
+                "Promote validated entities to SEMANTIC layer."
+            )
+
+        reasoning_pct = layer_distribution.get("REASONING", {}).get("pct", 0)
+        if reasoning_pct < 5:
+            recommendations.append(
+                "REASONING layer is underrepresented. "
+                "Enable inference rules to generate reasoning-layer knowledge."
+            )
+
+    return recommendations
 
 
 # ========================================

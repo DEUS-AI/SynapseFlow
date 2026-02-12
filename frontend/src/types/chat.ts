@@ -9,6 +9,48 @@ export interface ChatMessage {
   related_concepts?: string[];
   query?: string;  // The original user query (for assistant messages)
   feedback?: MessageFeedback;
+  // Phase 6: Enhanced metadata from Crystallization Pipeline
+  medical_alerts?: MedicalAlert[];
+  routing?: RoutingInfo;
+  temporal_context?: TemporalContextInfo;
+  entities?: EntityInfo[];
+}
+
+// Medical safety alerts from MedicalRulesEngine
+export interface MedicalAlert {
+  severity: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW' | 'INFO';
+  category: 'drug_interaction' | 'contraindication' | 'allergy' | 'symptom_pattern';
+  message: string;
+  recommendation?: string;
+  triggered_by?: string[];
+  rule_id?: string;
+}
+
+// Query routing info from DIKWRouter
+export interface RoutingInfo {
+  intent: 'factual' | 'relational' | 'inferential' | 'actionable' | 'exploratory';
+  intent_confidence: number;
+  layers: string[];  // DIKW layers used
+  matched_patterns?: string[];
+  requires_inference?: boolean;
+}
+
+// Temporal context from TemporalScoringService
+export interface TemporalContextInfo {
+  window: 'immediate' | 'recent' | 'short_term' | 'medium_term' | 'long_term' | 'historical';
+  duration_hours?: number;
+  confidence: number;
+}
+
+// Enhanced entity info with temporal scores
+export interface EntityInfo {
+  id: string;
+  name: string;
+  entity_type: string;
+  dikw_layer?: string;
+  temporal_score?: number;
+  last_observed?: string;
+  observation_count?: number;
 }
 
 export interface MessageFeedback {
@@ -66,4 +108,9 @@ export interface WebSocketChatMessage {
   session_id?: string;   // For title_updated events
   title?: string;        // For title_updated events
   message?: string;      // For error events
+  // Phase 6: Enhanced metadata from Crystallization Pipeline
+  medical_alerts?: MedicalAlert[];
+  routing?: RoutingInfo;
+  temporal_context?: TemporalContextInfo;
+  entities?: EntityInfo[];
 }

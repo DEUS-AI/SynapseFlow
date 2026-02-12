@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, Brain, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Clock, Brain, ChevronDown, Sparkles, RefreshCw } from 'lucide-react';
 
 interface PatientMemory {
   id: string;
@@ -15,6 +15,10 @@ interface PatientMemory {
 interface PatientMemoriesPanelProps {
   patientId: string;
   maxVisible?: number;
+  /** Increment this to trigger a refresh */
+  refreshTrigger?: number;
+  /** Show processing indicator */
+  isProcessing?: boolean;
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -55,39 +59,70 @@ function getMemoryTypeColor(type?: string): string {
   }
 }
 
-export function PatientMemoriesPanel({ patientId, maxVisible = 3 }: PatientMemoriesPanelProps) {
+export function PatientMemoriesPanel({
+  patientId,
+  maxVisible = 3,
+  refreshTrigger = 0,
+  isProcessing = false,
+}: PatientMemoriesPanelProps) {
   const [memories, setMemories] = useState<PatientMemory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [newMemoryCount, setNewMemoryCount] = useState(0);
 
-  useEffect(() => {
-    async function fetchMemories() {
-      if (!patientId) return;
+  const fetchMemories = useCallback(async (isRefresh = false) => {
+    if (!patientId) return;
 
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
       setLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch(
-          `/api/patients/${encodeURIComponent(patientId)}/memories?limit=20`
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch memories');
-        }
-
-        const data = await response.json();
-        setMemories(data.memories || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
-      }
     }
+    setError(null);
 
-    fetchMemories();
+    try {
+      const response = await fetch(
+        `/api/patients/${encodeURIComponent(patientId)}/memories?limit=20`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch memories');
+      }
+
+      const data = await response.json();
+      const newMemories = data.memories || [];
+
+      // Track new memories for animation
+      if (isRefresh && newMemories.length > memories.length) {
+        setNewMemoryCount(newMemories.length - memories.length);
+        // Reset animation flag after a delay
+        setTimeout(() => setNewMemoryCount(0), 2000);
+      }
+
+      setMemories(newMemories);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [patientId, memories.length]);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchMemories(false);
   }, [patientId]);
+
+  // Refresh when trigger changes (after new messages)
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      // Small delay to allow backend to process
+      const timer = setTimeout(() => fetchMemories(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [refreshTrigger]);
 
   if (loading) {
     return (
@@ -97,18 +132,63 @@ export function PatientMemoriesPanel({ patientId, maxVisible = 3 }: PatientMemor
     );
   }
 
+  // On error, show empty state instead of error message to keep sidebar visible
   if (error) {
     return (
-      <div className="text-red-400 text-sm py-2">
-        Error: {error}
+      <div className="space-y-2">
+        {isProcessing && <ProcessingIndicator />}
+        {isRefreshing && <RefreshingIndicator />}
+        <div className="text-center py-4">
+          <Brain className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+          <p className="text-slate-500 text-sm">No memories yet</p>
+          <p className="text-slate-600 text-xs mt-1">
+            As you chat, I'll learn and remember important details
+          </p>
+        </div>
       </div>
     );
   }
 
+  // Processing indicator when extracting facts from conversation
+  const ProcessingIndicator = () => (
+    <div className="flex items-center gap-2 py-2 px-3 bg-purple-900/30 rounded-lg border border-purple-700/50 mb-2 animate-pulse">
+      <Sparkles className="w-4 h-4 text-purple-400 animate-spin" />
+      <span className="text-purple-300 text-sm">Extracting facts from conversation...</span>
+    </div>
+  );
+
+  // Refreshing indicator
+  const RefreshingIndicator = () => (
+    <div className="flex items-center justify-center gap-2 py-2 text-slate-400 text-sm">
+      <RefreshCw className="w-3 h-3 animate-spin" />
+      <span>Checking for new memories...</span>
+    </div>
+  );
+
+  // New memories notification
+  const NewMemoriesNotification = () => (
+    newMemoryCount > 0 ? (
+      <div className="flex items-center gap-2 py-1.5 px-3 bg-green-900/30 rounded-lg border border-green-700/50 mb-2 animate-fade-in">
+        <Sparkles className="w-3 h-3 text-green-400" />
+        <span className="text-green-300 text-xs">
+          {newMemoryCount} new {newMemoryCount === 1 ? 'memory' : 'memories'} learned!
+        </span>
+      </div>
+    ) : null
+  );
+
   if (memories.length === 0) {
     return (
-      <div className="text-slate-500 text-sm py-2 text-center">
-        No memories stored yet
+      <div className="space-y-2">
+        {isProcessing && <ProcessingIndicator />}
+        {isRefreshing && <RefreshingIndicator />}
+        <div className="text-center py-4">
+          <Brain className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+          <p className="text-slate-500 text-sm">No memories yet</p>
+          <p className="text-slate-600 text-xs mt-1">
+            As you chat, I'll learn and remember important details
+          </p>
+        </div>
       </div>
     );
   }
@@ -118,6 +198,11 @@ export function PatientMemoriesPanel({ patientId, maxVisible = 3 }: PatientMemor
 
   return (
     <div className="space-y-2">
+      {/* Processing/Refreshing indicators */}
+      {isProcessing && <ProcessingIndicator />}
+      {isRefreshing && <RefreshingIndicator />}
+      <NewMemoriesNotification />
+
       {visibleMemories.map((memory, index) => (
         <div
           key={memory.id || index}

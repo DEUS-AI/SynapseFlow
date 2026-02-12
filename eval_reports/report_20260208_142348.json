@@ -1,0 +1,734 @@
+{
+  "name": "Pytest Evaluation Run",
+  "timestamp": "2026-02-08T14:23:48.420283+00:00",
+  "summary": {
+    "duration_seconds": 105.51,
+    "total_scenarios": 6,
+    "passed_scenarios": 0,
+    "failed_scenarios": 6,
+    "pass_rate": 0.0,
+    "total_assertions": 53,
+    "passed_assertions": 44,
+    "failed_assertions": 9,
+    "assertion_pass_rate": 83.0,
+    "all_passed": false
+  },
+  "by_category": {
+    "regression": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3
+    },
+    "memory_pollution": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    },
+    "entity_extraction": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    },
+    "temporal_reasoning": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    }
+  },
+  "by_severity": {
+    "critical": {
+      "total": 3,
+      "passed": 0,
+      "failed": 3
+    },
+    "high": {
+      "total": 2,
+      "passed": 0,
+      "failed": 2
+    },
+    "medium": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    }
+  },
+  "scenarios": [
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": false,
+      "duration_seconds": 19.23,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tu problema de estómago. Es importante que cualquier tratamiento sea adecuado para tus necesidades e",
+          "passed": true,
+          "response_time_ms": 11824.9,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "memory_diff_check",
+              "passed": true,
+              "reason": "No entities should be created from an unverified typo",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por mencionar el Omeprazol. Es un medicamento comúnmente utilizado para tratar problemas relacionados con el ácido estomacal, como ",
+          "passed": false,
+          "response_time_ms": 6617.8,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should acknowledge the correct medication name",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "gibberish_rejection",
+      "scenario_name": "Gibberish Input Rejection",
+      "category": "memory_pollution",
+      "severity": "high",
+      "passed": false,
+      "duration_seconds": 29.95,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando asdfghjk de 500 xyzwq",
+          "agent_response": "ChatResponse(answer=\"Hello! I'm Matucha, your medical assistant. I'm here to ensure you feel supported and informed. What's on your mind today?\", confidence=0.9, sources=[], related_concepts=[], reaso",
+          "passed": true,
+          "response_time_ms": 14193.0,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm gibberish as valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "regex_match",
+              "passed": true,
+              "reason": "Agent should indicate confusion or ask for clarification",
+              "details": "Pattern matched: '?'",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: gibberish_handling",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Gibberish should never be stored as an entity",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of gibberish patterns should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of gibberish patterns should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "memory_diff_check",
+              "passed": true,
+              "reason": "No entities should be created from gibberish input",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdona, me equivoqué. Tomo Atorvastatina",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo, gracias por aclarar que estás tomando Atorvastatina. Este medicamento se utiliza comúnmente para reducir el colesterol y prevenir",
+          "passed": false,
+          "response_time_ms": 7357.0,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should acknowledge the valid medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Valid medication should be stored after clarification",
+              "details": "Entity not found: Atorvastatina",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Gibberish should never be stored, even after correction",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Valid medication should be stored after clarification",
+              "details": "Entity not found: Atorvastatina",
+              "score": null,
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "turn_number": 3,
+          "patient_message": "Mi doctor me dijo que tengo !!@@##$$",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Lamento que te sientas confundido sobre lo que te dijo tu doctor. Parece que hay un error tipográfico en el nombre de la condición que menc",
+          "passed": true,
+          "response_time_ms": 7974.3,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not store symbols as conditions",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: special_char_handling",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Special characters should not be stored as entities",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "memory_diff_check",
+              "passed": true,
+              "reason": "Special character input should not create entities",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        }
+      ]
+    },
+    {
+      "scenario_id": "basic_medication_extraction",
+      "scenario_name": "Basic Medication Extraction",
+      "category": "entity_extraction",
+      "severity": "high",
+      "passed": false,
+      "duration_seconds": 19.47,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Ibuprofeno de 400mg cada 8 horas para el dolor de cabeza",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando ibuprofeno para manejar el dolor de cabeza. El ibuprofeno de 400 mg cada 8 horas es una dosis común, pero es imp",
+          "passed": false,
+          "response_time_ms": 11493.6,
+          "assertions": [
+            {
+              "type": "not_empty",
+              "passed": true,
+              "reason": "Agent should provide a response",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should acknowledge the medication by name",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should be extracted and stored",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_property_check",
+              "passed": false,
+              "reason": "Dosage should be captured correctly",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should be extracted and stored",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_property_check",
+              "passed": false,
+              "reason": "Dosage should be captured correctly",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "También tomo Paracetamol cuando el dolor es muy fuerte",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás usando paracetamol para manejar el dolor. Es importante asegurarse de no exceder la dosis recomendada, ya que el paracet",
+          "passed": false,
+          "response_time_ms": 7572.6,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should acknowledge the additional medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Paracetamol should be extracted and stored",
+              "details": "Entity not found: Paracetamol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should still be in memory",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "relationship_must_exist",
+              "passed": false,
+              "reason": "Medications should be linked to the condition they treat",
+              "details": "Relationship not found",
+              "score": null,
+              "severity": "medium"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Paracetamol should be extracted and stored",
+              "details": "Entity not found: Paracetamol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Ibuprofeno should still be in memory",
+              "details": "Entity not found: Ibuprofeno",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "relationship_must_exist",
+              "passed": false,
+              "reason": "Medications should be linked to the condition they treat",
+              "details": "Relationship not found",
+              "score": null,
+              "severity": "medium"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "past_medication_reasoning",
+      "scenario_name": "Past vs Current Medication Distinction",
+      "category": "temporal_reasoning",
+      "severity": "medium",
+      "passed": false,
+      "duration_seconds": 0.44,
+      "error": "Failed to setup scenario: HTTP error seeding state: Client error '422 Unprocessable Content' for url 'http://localhost:8000/api/eval/seed-state'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422",
+      "turns": []
+    },
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": false,
+      "duration_seconds": 18.41,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tratar un problema de estómago. Es importante asegurarnos de que cualquier medicamento que tomes sea",
+          "passed": true,
+          "response_time_ms": 10114.3,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "memory_diff_check",
+              "passed": true,
+              "reason": "No entities should be created from an unverified typo",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Gracias por la aclaración sobre el Omeprazol. Este medicamento se usa comúnmente para reducir la cantidad de ácido en el estómago y tratar ",
+          "passed": false,
+          "response_time_ms": 7876.8,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should acknowledge the correct medication name",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "muriel_bug_regression",
+      "scenario_name": "Muriel Typo Medication Bug",
+      "category": "regression",
+      "severity": "critical",
+      "passed": false,
+      "duration_seconds": 18.01,
+      "error": null,
+      "turns": [
+        {
+          "turn_number": 1,
+          "patient_message": "Estoy tomando Muriel para mi problema de estómago",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo que estás tomando Muriel para tratar un problema de estómago y espero que te sientas mejor pronto. Es importante asegurarse de que",
+          "passed": true,
+          "response_time_ms": 9943.7,
+          "assertions": [
+            {
+              "type": "must_not_contain",
+              "passed": true,
+              "reason": "Agent must not confirm Muriel as a valid medication",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should ask a clarifying question about the unknown medication",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: clarification_request",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Muriel is a typo, not a valid medication - must not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Any variation of Muriel should not be stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "memory_diff_check",
+              "passed": true,
+              "reason": "No entities should be created from an unverified typo",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": []
+        },
+        {
+          "turn_number": 2,
+          "patient_message": "Perdón, quise decir Omeprazol",
+          "agent_response": "ChatResponse(answer='Hola, soy Matucha, tu asistente médica. Entiendo, gracias por aclarar. El Omeprazol es un medicamento comúnmente utilizado para tratar problemas como el reflujo ácido y las úlcera",
+          "passed": false,
+          "response_time_ms": 7610.8,
+          "assertions": [
+            {
+              "type": "must_contain",
+              "passed": true,
+              "reason": "Agent should acknowledge the correct medication name",
+              "details": "",
+              "score": null,
+              "severity": "medium"
+            },
+            {
+              "type": "llm_judge",
+              "passed": true,
+              "reason": "LLM Judge: medication_acknowledgment",
+              "details": "Score: 4/5 - Mock evaluation - looks good!",
+              "score": 0.8,
+              "severity": "medium"
+            },
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            },
+            {
+              "type": "entity_must_not_exist",
+              "passed": true,
+              "reason": "Even after correction, Muriel should never have been stored",
+              "details": "",
+              "score": null,
+              "severity": "high"
+            }
+          ],
+          "failed_assertions": [
+            {
+              "type": "entity_must_exist",
+              "passed": false,
+              "reason": "Omeprazol is a valid medication that was clarified by the patient",
+              "details": "Entity not found: Omeprazol",
+              "score": null,
+              "severity": "high"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

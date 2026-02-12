@@ -272,79 +272,122 @@ Extract entities and relationships as JSON:"""
         self,
         extraction_result: ExtractionResult
     ) -> Dict[str, Any]:
-        """Persist extracted knowledge to Neo4j with PERCEPTION layer structure."""
+        """Persist extracted knowledge to Neo4j with proper Document→Chunk→ExtractedEntity structure.
+
+        Creates the standard graph pattern used throughout SynapseFlow:
+        - (Document)-[:HAS_CHUNK]->(Chunk)-[:MENTIONS]->(ExtractedEntity)
+        - (ExtractedEntity)-[:LINKS_TO]->(ExtractedEntity)
+        """
+        import hashlib
 
         entities_added = 0
         relationships_added = 0
         skipped = 0
+        doc = extraction_result.document
+        doc_name = doc.filename
 
         with self.driver.session() as session:
-            # Add entities to PERCEPTION layer
+            # Step 1: Create Document node
+            session.run(
+                """
+                MERGE (d:Document {name: $name})
+                SET d.path = $path,
+                    d.category = $category,
+                    d.size_bytes = $size_bytes,
+                    d.ingested_at = datetime(),
+                    d.entity_count = $entity_count,
+                    d.relationship_count = $rel_count
+                """,
+                name=doc_name,
+                path=str(doc.path),
+                category=doc.category or "general",
+                size_bytes=doc.size_bytes,
+                entity_count=len(extraction_result.entities),
+                rel_count=len(extraction_result.relationships)
+            )
+
+            # Step 2: Create a Chunk node for the document content
+            chunk_id = hashlib.sha256(f"{doc_name}:chunk:0".encode()).hexdigest()[:16]
+            session.run(
+                """
+                MATCH (d:Document {name: $doc_name})
+                MERGE (c:Chunk {id: $chunk_id})
+                SET c.chunk_num = 0,
+                    c.source_document = $doc_name
+                MERGE (d)-[:HAS_CHUNK]->(c)
+                """,
+                doc_name=doc_name,
+                chunk_id=chunk_id
+            )
+
+            # Step 3: Create ExtractedEntity nodes
+            entity_id_map = {}  # normalized_name -> entity_id
             for entity in extraction_result.entities:
                 entity_type = entity.get("type", "Entity")
                 entity_name_raw = entity.get("name", "Unknown")
-
-                # Normalize entity name (same logic as before)
                 entity_name = self._normalize_entity_name(entity_name_raw)
-
-                # Sanitize entity type for label
                 sanitized_type = self._sanitize_label(entity_type)
 
-                properties = {
-                    "name": entity_name,
-                    "type": entity_type,
-                    "description": entity.get("description", ""),
-                    "confidence": entity.get("confidence", 0.5),
-                    "source_document": extraction_result.document.filename,
-                    "category": extraction_result.document.category,
-                    "layer": "PERCEPTION",  # Mark as PERCEPTION layer
-                    "created_at": datetime.now().isoformat()
-                }
-
-                try:
-                    # Create with MedicalEntity label + type-specific label
-                    session.run(
-                        f"""
-                        MERGE (n:MedicalEntity:{sanitized_type} {{name: $name}})
-                        SET n.type = $type,
-                            n.description = $description,
-                            n.confidence = $confidence,
-                            n.source_document = $source_document,
-                            n.category = $category,
-                            n.layer = $layer,
-                            n.created_at = $created_at
-                        """,
-                        **properties
-                    )
-                    entities_added += 1
-                except Exception as e:
-                    logger.warning(f"Failed to add entity {entity_name}: {e}")
-
-            # Build entity lookup map with abbreviations
-            entity_map = {}
-            for entity in extraction_result.entities:
-                entity_name_raw = entity.get("name", "Unknown")
-                entity_name = self._normalize_entity_name(entity_name_raw)
-
-                entity_map[entity_name] = entity_name
-                entity_map[entity_name_raw] = entity_name
-                entity_map[entity_name.lower()] = entity_name
+                # Create stable entity ID
+                entity_id = f"extracted:{entity_name.lower().replace(' ', '_')}"
+                entity_id_map[entity_name] = entity_id
+                entity_id_map[entity_name_raw] = entity_id
+                entity_id_map[entity_name.lower()] = entity_id
 
                 # Add abbreviation mappings
                 for abbrev, full_name in self.ABBREVIATION_MAP.items():
                     if entity_name.lower() == full_name.lower():
-                        entity_map[abbrev] = entity_name
-                        entity_map[abbrev.lower()] = entity_name
+                        entity_id_map[abbrev] = entity_id
+                        entity_id_map[abbrev.lower()] = entity_id
 
-            # Add relationships to PERCEPTION layer
+                try:
+                    # Create with ExtractedEntity label + type-specific label
+                    session.run(
+                        f"""
+                        MERGE (e:ExtractedEntity:{sanitized_type} {{name: $name}})
+                        SET e.id = $id,
+                            e.type = $type,
+                            e.description = $description,
+                            e.confidence = $confidence,
+                            e.extraction_confidence = $confidence,
+                            e.source_document = $source_document,
+                            e.category = $category,
+                            e.layer = 'PERCEPTION',
+                            e.created_at = $created_at
+                        """,
+                        name=entity_name.lower().replace(' ', '_'),
+                        id=entity_id,
+                        type=entity_type,
+                        description=entity.get("description", ""),
+                        confidence=entity.get("confidence", 0.5),
+                        source_document=doc_name,
+                        category=doc.category or "general",
+                        created_at=datetime.now().isoformat()
+                    )
+
+                    # Link entity to chunk via MENTIONS
+                    session.run(
+                        """
+                        MATCH (c:Chunk {id: $chunk_id})
+                        MATCH (e:ExtractedEntity {id: $entity_id})
+                        MERGE (c)-[:MENTIONS]->(e)
+                        """,
+                        chunk_id=chunk_id,
+                        entity_id=entity_id
+                    )
+
+                    entities_added += 1
+                except Exception as e:
+                    logger.warning(f"Failed to add entity {entity_name}: {e}")
+
+            # Step 4: Create relationships between entities
             for rel in extraction_result.relationships:
                 source_name = rel.get("source", "")
                 target_name = rel.get("target", "")
                 rel_type = rel.get("type", "RELATED_TO")
 
-                # Lookup entity names
-                source_id = entity_map.get(source_name) or entity_map.get(source_name.lower())
-                target_id = entity_map.get(target_name) or entity_map.get(target_name.lower())
+                source_id = entity_id_map.get(source_name) or entity_id_map.get(source_name.lower())
+                target_id = entity_id_map.get(target_name) or entity_id_map.get(target_name.lower())
 
                 if not source_id or not target_id:
                     logger.debug(f"Skipping relationship {source_name} -> {target_name} (entity not found)")
@@ -352,20 +395,20 @@ Extract entities and relationships as JSON:"""
                     continue
 
                 try:
-                    # Sanitize relationship type
                     rel_type_sanitized = self._sanitize_label(rel_type)
-
                     session.run(
                         f"""
-                        MATCH (source:MedicalEntity {{name: $source_name}})
-                        MATCH (target:MedicalEntity {{name: $target_name}})
-                        MERGE (source)-[r:{rel_type_sanitized}]->(target)
-                        SET r.description = $description,
+                        MATCH (source:ExtractedEntity {{id: $source_id}})
+                        MATCH (target:ExtractedEntity {{id: $target_id}})
+                        MERGE (source)-[r:LINKS_TO]->(target)
+                        SET r.type = $rel_type,
+                            r.description = $description,
                             r.layer = 'PERCEPTION',
                             r.created_at = $created_at
                         """,
-                        source_name=source_id,
-                        target_name=target_id,
+                        source_id=source_id,
+                        target_id=target_id,
+                        rel_type=rel_type,
                         description=rel.get("description", ""),
                         created_at=datetime.now().isoformat()
                     )
@@ -394,3 +437,101 @@ Extract entities and relationships as JSON:"""
         if not sanitized:
             sanitized = "Entity"
         return sanitized
+
+    def convert_and_clean(self, document: PDFDocument) -> str:
+        """Convert PDF to Markdown and clean."""
+        logger.info(f"Converting: {document.filename}")
+
+        # Convert
+        result = self.converter.convert(str(document.path))
+        markdown = result.text_content
+
+        # Clean
+        cleaned = self._clean_markdown(markdown)
+
+        logger.info(
+            f"Converted {document.filename}: {len(cleaned)} chars, "
+            f"{len(cleaned.split())} words"
+        )
+
+        return cleaned
+
+    def _clean_markdown(self, markdown: str) -> str:
+        """Clean Markdown content."""
+        # Remove excessive newlines
+        cleaned = re.sub(r'\n{3,}', '\n\n', markdown)
+
+        # Remove trailing whitespace
+        cleaned = re.sub(r'[ \t]+\n', '\n', cleaned)
+
+        # Remove horizontal rules (metadata separators)
+        cleaned = re.sub(r'---+', '', cleaned)
+
+        # Normalize bold/italic
+        cleaned = re.sub(r'\*\*\*(.+?)\*\*\*', r'**\1**', cleaned)
+        cleaned = re.sub(r'__(.+?)__', r'**\1**', cleaned)
+
+        # Remove very short lines (artifacts)
+        lines = cleaned.split('\n')
+        filtered_lines = [
+            line for line in lines
+            if len(line.strip()) > 2 or line.strip() in ['', '#']
+        ]
+        cleaned = '\n'.join(filtered_lines)
+
+        return cleaned.strip()
+
+    async def ingest_document(
+        self,
+        document: PDFDocument,
+        save_markdown: bool = False,
+        markdown_output_dir: Optional[Path] = None
+    ) -> Dict[str, Any]:
+        """Ingest a single PDF document to Neo4j.
+
+        Args:
+            document: The PDF document to ingest
+            save_markdown: Whether to save the markdown output
+            markdown_output_dir: Directory to save markdown files
+
+        Returns:
+            Dictionary with ingestion statistics
+        """
+        logger.info(f"Ingesting to Neo4j: {document.filename}")
+
+        start_time = datetime.now()
+
+        try:
+            # Step 1: Convert PDF to cleaned Markdown
+            cleaned_markdown = self.convert_and_clean(document)
+
+            # Optionally save Markdown
+            if save_markdown and markdown_output_dir:
+                markdown_output_dir.mkdir(parents=True, exist_ok=True)
+                markdown_path = markdown_output_dir / f"{document.path.stem}.md"
+                markdown_path.write_text(cleaned_markdown, encoding='utf-8')
+                logger.info(f"Saved Markdown: {markdown_path}")
+
+            # Step 2: Extract entities with LLM
+            extraction_result = await self.extract_knowledge(cleaned_markdown, document)
+
+            # Step 3: Persist to Neo4j
+            persistence_stats = await self.persist_to_neo4j(extraction_result)
+
+            total_time = (datetime.now() - start_time).total_seconds()
+
+            return {
+                "document": document.filename,
+                "category": document.category,
+                "size_mb": document.size_mb,
+                "markdown_chars": len(cleaned_markdown),
+                "markdown_words": len(cleaned_markdown.split()),
+                "extraction_time_seconds": extraction_result.extraction_time_seconds,
+                "total_time_seconds": total_time,
+                "entities_added": persistence_stats.get("entities_added", 0),
+                "relationships_added": persistence_stats.get("relationships_added", 0),
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to ingest {document.filename}: {e}")
+            raise

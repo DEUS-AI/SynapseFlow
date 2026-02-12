@@ -73,6 +73,11 @@ class ChatResponse:
     related_concepts: List[str]
     reasoning_trail: List[str]
     query_time_seconds: float
+    # Phase 6: Enhanced metadata from Crystallization Pipeline
+    medical_alerts: List[Dict[str, Any]] = field(default_factory=list)
+    routing: Optional[Dict[str, Any]] = None
+    temporal_context: Optional[Dict[str, Any]] = None
+    entities: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class IntelligentChatService:
@@ -440,13 +445,50 @@ Answer:"""
             except Exception as e:
                 logger.error(f"Failed to store conversation: {e}")
 
+        # Phase 6: Extract medical alerts from reasoning result
+        medical_alerts = []
+        reasoning_inferences = reasoning_result.get("inferences", [])
+        for inference in reasoning_inferences:
+            if inference.get("severity") in ("critical", "high", "medium"):
+                medical_alerts.append({
+                    "severity": inference.get("severity", "MODERATE").upper(),
+                    "category": self._infer_alert_category(inference.get("type", "")),
+                    "message": inference.get("reason") or inference.get("message", "Medical alert"),
+                    "recommendation": inference.get("recommendation"),
+                    "triggered_by": inference.get("triggered_by", []),
+                    "rule_id": inference.get("rule_id"),
+                })
+
+        # Phase 6: Extract routing info if available
+        routing_info = reasoning_result.get("routing")
+
+        # Phase 6: Extract temporal context if available
+        temporal_info = reasoning_result.get("temporal_context")
+
+        # Phase 6: Extract entities with metadata
+        entity_list = []
+        for entity in medical_context.get("entities", []):
+            if isinstance(entity, dict):
+                entity_list.append({
+                    "id": entity.get("id"),
+                    "name": entity.get("name"),
+                    "entity_type": entity.get("entity_type") or entity.get("type"),
+                    "dikw_layer": entity.get("dikw_layer"),
+                    "temporal_score": entity.get("temporal_score"),
+                    "last_observed": entity.get("last_observed"),
+                })
+
         return ChatResponse(
             answer=answer,
             confidence=confidence,
             sources=sources,
             related_concepts=related_concepts,
             reasoning_trail=reasoning_result.get("provenance", []),
-            query_time_seconds=query_time
+            query_time_seconds=query_time,
+            medical_alerts=medical_alerts,
+            routing=routing_info,
+            temporal_context=temporal_info,
+            entities=entity_list,
         )
 
     async def _extract_entities(self, question: str) -> List[str]:
@@ -502,19 +544,31 @@ Return a JSON object with these arrays (empty if none found):
 - stopped_medications: [{name: "drug name", reason: "why stopped if mentioned"}]
 - resolved_conditions: [{condition: "condition name", details: "any info about when/how resolved"}]
 - allergies: [{substance: "allergen", reaction: "if mentioned", severity: "mild/moderate/severe if mentioned"}]
+- procedures: [{name: "procedure name", type: "test/surgery/screening/imaging", scheduled_date: "if mentioned", status: "scheduled/completed/cancelled", notes: "any details"}]
+- medical_devices: [{name: "device name", type: "stoma/implant/prosthetic/pump/monitor", status: "active/removed", location: "body location if mentioned", notes: "any details"}]
+
+PROCEDURES & TESTS - Extract these:
+- "I have a colonoscopy scheduled" → add to procedures with status="scheduled"
+- "I had an MRI last week" → add to procedures with status="completed"
+- "I need to get a blood test" → add to procedures with status="scheduled"
+- "my colonoscopy is next month" → add to procedures with scheduled_date
+- Examples: colonoscopy, endoscopy, MRI, CT scan, blood test, biopsy, EKG, ultrasound, X-ray, surgery
+
+MEDICAL DEVICES & IMPLANTS - Extract these (VERY IMPORTANT for care planning):
+- "I have a colostomy" / "I have a colostomy bag" → add to medical_devices with type="stoma"
+- "I have an ileostomy" / "I have an ostomy" → add to medical_devices with type="stoma"
+- "I have a pacemaker" → add to medical_devices with type="implant"
+- "I use an insulin pump" → add to medical_devices with type="pump"
+- "I have a feeding tube" / "I have a port" → add to medical_devices
+- Examples: colostomy, ileostomy, urostomy, pacemaker, insulin pump, cochlear implant, feeding tube, port-a-cath
 
 IMPORTANT: Distinguish between:
 - "I take ibuprofen" → add to medications
-- "I stopped taking ibuprofen" / "I no longer take ibuprofen" / "I discontinued ibuprofen" → add to stopped_medications
-- "I'm not taking ibuprofen anymore" → add to stopped_medications
+- "I stopped taking ibuprofen" / "I no longer take ibuprofen" → add to stopped_medications
 
-IMPORTANT: Detect RESOLVED conditions (symptoms/diagnoses that are no longer present):
+IMPORTANT: Detect RESOLVED conditions:
 - "I no longer have knee pain" → add to resolved_conditions
 - "my headache is gone" → add to resolved_conditions
-- "the pain went away" → add to resolved_conditions
-- "my back is much better now" / "it has cleared up" → add to resolved_conditions
-- "I don't have that pain anymore" → add to resolved_conditions
-- "my X has resolved" / "X is better" → add to resolved_conditions
 
 Only extract facts the patient explicitly states about THEMSELVES (not general questions).
 Be precise - "I have Crohn's disease" is a diagnosis, "what is Crohn's disease" is NOT.
@@ -548,17 +602,48 @@ Patient message: """ + message
                     except Exception as e:
                         logger.warning(f"Failed to store diagnosis {dx['condition']}: {e}")
 
-            # Store extracted medications
+            # Store extracted medications (with validation)
+            from application.services.medication_validator import get_medication_validator
+            validator = get_medication_validator()
+
             for med in result.get("medications", []):
                 if med.get("name"):
                     try:
-                        await self.patient_memory.add_medication(
-                            patient_id=patient_id,
-                            name=med["name"],
-                            dosage=med.get("dosage", "unknown"),
-                            frequency=med.get("frequency", "unknown")
-                        )
-                        logger.info(f"Extracted and stored medication: {med['name']} for {patient_id}")
+                        # Validate medication before storing
+                        validation = validator.validate(med["name"])
+
+                        if validation.is_valid:
+                            # Use the validated/corrected name
+                            await self.patient_memory.add_medication(
+                                patient_id=patient_id,
+                                name=validation.validated_name,
+                                dosage=med.get("dosage", "unknown"),
+                                frequency=med.get("frequency", "unknown")
+                            )
+                            if validation.confidence < 1.0:
+                                logger.info(
+                                    f"Extracted and stored medication (fuzzy match): "
+                                    f"'{med['name']}' -> '{validation.validated_name}' "
+                                    f"(confidence: {validation.confidence:.0%}) for {patient_id}"
+                                )
+                            else:
+                                logger.info(f"Extracted and stored medication: {validation.validated_name} for {patient_id}")
+                        else:
+                            # Log unrecognized medications for review
+                            logger.warning(
+                                f"Unrecognized medication rejected: '{med['name']}' "
+                                f"for {patient_id}. Suggestions: {validation.suggestions}. "
+                                f"Message: {validation.message}"
+                            )
+                            # Store in pending state for review
+                            await self.patient_memory.add_pending_medication(
+                                patient_id=patient_id,
+                                name=med["name"],
+                                suggestions=validation.suggestions,
+                                confidence=validation.confidence,
+                                dosage=med.get("dosage", "unknown"),
+                                frequency=med.get("frequency", "unknown")
+                            )
                     except Exception as e:
                         logger.warning(f"Failed to store medication {med['name']}: {e}")
 
@@ -601,6 +686,38 @@ Patient message: """ + message
                         logger.info(f"Extracted and stored allergy: {allergy['substance']} for {patient_id}")
                     except Exception as e:
                         logger.warning(f"Failed to store allergy {allergy['substance']}: {e}")
+
+            # Store extracted procedures and tests
+            for procedure in result.get("procedures", []):
+                if procedure.get("name"):
+                    try:
+                        await self.patient_memory.add_procedure(
+                            patient_id=patient_id,
+                            name=procedure["name"],
+                            procedure_type=procedure.get("type", "test"),
+                            scheduled_date=procedure.get("scheduled_date"),
+                            status=procedure.get("status", "scheduled"),
+                            notes=procedure.get("notes")
+                        )
+                        logger.info(f"Extracted and stored procedure: {procedure['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store procedure {procedure['name']}: {e}")
+
+            # Store extracted medical devices (colostomy, ileostomy, pacemaker, etc.)
+            for device in result.get("medical_devices", []):
+                if device.get("name"):
+                    try:
+                        await self.patient_memory.add_medical_device(
+                            patient_id=patient_id,
+                            name=device["name"],
+                            device_type=device.get("type", "device"),
+                            status=device.get("status", "active"),
+                            location=device.get("location"),
+                            notes=device.get("notes")
+                        )
+                        logger.info(f"Extracted and stored medical device: {device['name']} for {patient_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to store medical device {device['name']}: {e}")
 
         except Exception as e:
             logger.warning(f"Medical fact extraction failed: {e}")
@@ -1202,3 +1319,22 @@ Patient message: """ + message
         logger.debug(f"Final confidence: {final_confidence:.2f} (base: 0.4)")
 
         return final_confidence
+
+    def _infer_alert_category(self, inference_type: str) -> str:
+        """
+        Infer the alert category from the inference type.
+
+        Maps inference types to alert categories for frontend display.
+        """
+        type_lower = inference_type.lower()
+
+        if "drug" in type_lower or "interaction" in type_lower:
+            return "drug_interaction"
+        elif "contraindication" in type_lower:
+            return "contraindication"
+        elif "allergy" in type_lower or "allergic" in type_lower:
+            return "allergy"
+        elif "symptom" in type_lower or "pattern" in type_lower:
+            return "symptom_pattern"
+        else:
+            return "contraindication"  # Default fallback

@@ -1,0 +1,173 @@
+%% SynapseFlow Pitch Deck - Key Diagrams for Slides
+%% Use these diagrams in presentation software
+
+%% ============================================
+%% SLIDE 1: The Problem - Knowledge Silos
+%% ============================================
+---
+title: "Current State: Knowledge Silos"
+---
+flowchart TB
+    subgraph SILOS["Isolated Knowledge Silos"]
+        direction LR
+        PDF[("📄 Medical<br/>Documents")]
+        CHAT[("💬 Patient<br/>History")]
+        RULES[("⚙️ Clinical<br/>Rules")]
+    end
+
+    PDF --> V1[("Vector Store")]
+    CHAT --> V2[("Chat DB")]
+    RULES --> V3[("Rule Engine")]
+
+    V1 -.-x V2
+    V2 -.-x V3
+    V1 -.-x V3
+
+    style SILOS fill:#ffebee,stroke:#c62828
+    style V1 fill:#ffcdd2,stroke:#e53935
+    style V2 fill:#ffcdd2,stroke:#e53935
+    style V3 fill:#ffcdd2,stroke:#e53935
+
+%% ============================================
+%% SLIDE 3: DIKW Pyramid
+%% ============================================
+---
+title: "Innovation #1: DIKW Knowledge Pyramid"
+---
+flowchart TB
+    subgraph DIKW["Knowledge Evolution"]
+        APP["🎯 APPLICATION<br/>Validated • Query Patterns"]
+        REA["🧠 REASONING<br/>conf ≥ 0.92 • Inferred Facts"]
+        SEM["📚 SEMANTIC<br/>conf ≥ 0.85 • SNOMED Aligned"]
+        PER["📝 PERCEPTION<br/>conf ~0.7 • Raw Extraction"]
+
+        PER -->|"conf ≥ 0.85<br/>2+ observations<br/>SNOMED match"| SEM
+        SEM -->|"conf ≥ 0.92<br/>3+ observations<br/>48h stable"| REA
+        REA -->|"Rules validated"| APP
+    end
+
+    style APP fill:#1b5e20,stroke:#fff,color:#fff
+    style REA fill:#1565c0,stroke:#fff,color:#fff
+    style SEM fill:#6a1b9a,stroke:#fff,color:#fff
+    style PER fill:#e65100,stroke:#fff,color:#fff
+
+%% ============================================
+%% SLIDE 4: Hypergraph Bridge
+%% ============================================
+---
+title: "Innovation #2: Hypergraph Bridge"
+---
+flowchart LR
+    subgraph DOC["Document Graph<br/>(Neural)"]
+        TXT["'Metformin treats<br/>Type 2 Diabetes<br/>in obese patients'"]
+    end
+
+    subgraph BRIDGE["Bridge Layer"]
+        FACT{{"FactUnit<br/>─────────<br/>Metformin<br/>Diabetes<br/>Obesity<br/>─────────<br/>conf: 0.87"}}
+    end
+
+    subgraph KG["Knowledge Graph<br/>(Symbolic)"]
+        D1["💊 Metformin"]
+        D2["🏥 Type 2 Diabetes"]
+        D3["⚠️ Obesity"]
+
+        D1 -->|MAY_TREAT| D2
+        D2 -->|COMORBID| D3
+    end
+
+    TXT --> FACT
+    FACT --> D1
+    FACT --> D2
+    FACT --> D3
+
+    style DOC fill:#e3f2fd,stroke:#1565c0
+    style BRIDGE fill:#fff3e0,stroke:#ef6c00
+    style KG fill:#e8f5e9,stroke:#2e7d32
+    style FACT fill:#ffcc80,stroke:#f57c00
+
+%% ============================================
+%% SLIDE 5: Reasoning Strategies
+%% ============================================
+---
+title: "Innovation #3: Adaptive Reasoning Strategies"
+---
+flowchart TB
+    Q["🔍 User Query"] --> R{"Intent<br/>Router"}
+
+    R -->|"Drug Safety"| S1["🔴 SYMBOLIC ONLY<br/>Deterministic Rules<br/>No LLM Risk"]
+    R -->|"Symptoms"| S2["🟡 NEURAL FIRST<br/>LLM Context<br/>Rule Validation"]
+    R -->|"Recommendations"| S3["🟢 COLLABORATIVE<br/>Parallel Execution<br/>Confidence Fusion"]
+
+    style Q fill:#e1f5fe,stroke:#0288d1
+    style R fill:#f3e5f5,stroke:#7b1fa2
+    style S1 fill:#ffcdd2,stroke:#c62828
+    style S2 fill:#fff9c4,stroke:#f9a825
+    style S3 fill:#c8e6c9,stroke:#388e3c
+
+%% ============================================
+%% SLIDE 6: Safety Architecture
+%% ============================================
+---
+title: "Innovation #4: Safety by Design"
+---
+flowchart TB
+    subgraph PRIORITY["Rule Priority Hierarchy"]
+        direction TB
+        C["🔴 CRITICAL<br/>Contraindications<br/>Drug Interactions<br/>Allergies"]
+        H["🟠 HIGH<br/>Medical Validation<br/>Ontology Alignment"]
+        M["🟡 MEDIUM<br/>Symptom Tracking<br/>Temporal Context"]
+        L["🟢 LOW<br/>LLM Enrichment<br/>Semantic Inference"]
+
+        C --> H --> M --> L
+    end
+
+    C -.->|"ALWAYS FIRST<br/>NO LLM"| SAFE["✅ Safe to<br/>Proceed"]
+
+    style C fill:#b71c1c,stroke:#fff,color:#fff
+    style H fill:#e65100,stroke:#fff,color:#fff
+    style M fill:#f9a825,stroke:#000
+    style L fill:#2e7d32,stroke:#fff,color:#fff
+    style SAFE fill:#c8e6c9,stroke:#388e3c
+
+%% ============================================
+%% SLIDE 7: Complete Architecture
+%% ============================================
+---
+title: "SynapseFlow: Complete Architecture"
+---
+flowchart TB
+    subgraph UI["Presentation Layer"]
+        CHAT["💬 Patient Chat"]
+        DASH["📊 Dashboard"]
+        API["🔌 API"]
+    end
+
+    subgraph REASON["Reasoning Engine"]
+        ROUTER["Intent Router"]
+        STRAT["Strategy Selector"]
+        CONF["Confidence Tracker"]
+
+        ROUTER --> STRAT --> CONF
+    end
+
+    subgraph KNOW["Knowledge Layer"]
+        DIKW["DIKW<br/>Pyramid"]
+        HYPER["Hypergraph<br/>Bridge"]
+
+        DIKW <--> HYPER
+    end
+
+    subgraph DATA["Data Layer"]
+        NEO[("Neo4j")]
+        FALK[("FalkorDB")]
+        QDRANT[("Qdrant")]
+    end
+
+    UI --> REASON
+    REASON --> KNOW
+    KNOW --> DATA
+
+    style UI fill:#e1f5fe,stroke:#0288d1
+    style REASON fill:#f3e5f5,stroke:#7b1fa2
+    style KNOW fill:#fff3e0,stroke:#ef6c00
+    style DATA fill:#e8f5e9,stroke:#2e7d32

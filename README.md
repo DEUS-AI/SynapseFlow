@@ -333,10 +333,10 @@ make build ROLE=arx
 
 ## 📖 **Documentation**
 
-- **[Modeling Command Guide](docs/MODELING_COMMAND_GUIDE.md)**: Comprehensive user guide
-- **[Technical Specification](MODELING_COMMAND_SPEC.md)**: Detailed technical docs
-- **[Product Requirements](PRD.md)**: Product requirements document
-- **[Development Plan](PLAN.md)**: Development roadmap and tasks
+- **[Modeling Command Guide](docs/guides/MODELING_COMMAND_GUIDE.md)**: Comprehensive user guide
+- **[Technical Specification](docs/specs/MODELING_COMMAND_SPEC.md)**: Detailed technical docs
+- **[Product Requirements](docs/specs/PRD.md)**: Product requirements document
+- **[Architecture](docs/architecture/)**: Architecture documentation
 
 ## 🔧 **Development**
 

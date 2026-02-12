@@ -66,6 +66,7 @@ class MemoryContextBuilder:
         logger.debug(f"Building memory context for patient: {patient_id}")
 
         # 1. Get patient profile from Neo4j (via PatientMemoryService)
+        # This includes patient_name extracted from Mem0 memories
         patient_context = await self.memory.get_patient_context(patient_id)
 
         # 2. Get recent memories from Mem0
@@ -91,14 +92,24 @@ class MemoryContextBuilder:
         )
         pending_followups = self._extract_pending_followups(filtered_topics, last_session_summary)
 
-        # 8. Build unified context
+        # 8. Determine if this is a returning user using multiple signals
+        is_returning = self._determine_returning_user(
+            days_since_last=days_since_last,
+            recent_topics=filtered_topics,
+            last_session_summary=last_session_summary,
+            session_count=await self._get_session_count(patient_id),
+            mem0_memories=patient_context.mem0_memories
+        )
+
+        # 9. Build unified context
+        # Use patient_name from PatientContext (extracted from Mem0 memories)
         context = MemoryContext(
             patient_id=patient_id,
-            patient_name=self._extract_patient_name(patient_id),
+            patient_name=patient_context.patient_name,  # Now properly populated!
             # Mem0 data (filtered to exclude resolved conditions)
             recent_topics=filtered_topics,
             last_session_summary=last_session_summary,
-            days_since_last_session=days_since_last,
+            days_since_last_session=days_since_last if is_returning else None,  # Only set if returning
             last_session_date=last_session_date,
             # Neo4j data
             active_conditions=[d.get("condition", "") for d in patient_context.diagnoses if d],
@@ -116,7 +127,8 @@ class MemoryContextBuilder:
         )
 
         logger.info(f"Memory context built: {len(filtered_topics)} topics (filtered from {len(recent_topics)}), "
-                   f"{len(context.active_conditions)} conditions, returning_user={context.is_returning_user()}")
+                   f"{len(context.active_conditions)} conditions, returning_user={context.is_returning_user()}, "
+                   f"patient_name={context.patient_name or 'unknown'}")
         return context
 
     async def _get_mem0_memories(
@@ -267,19 +279,87 @@ class MemoryContextBuilder:
         delta = now - last_session_date
         return delta.days
 
-    def _extract_patient_name(self, patient_id: str) -> Optional[str]:
+    def _determine_returning_user(
+        self,
+        days_since_last: Optional[int],
+        recent_topics: List[str],
+        last_session_summary: Optional[str],
+        session_count: int,
+        mem0_memories: List[str]
+    ) -> bool:
         """
-        Extract patient name from patient ID or stored data.
+        Determine if this is a returning user using multiple signals.
+
+        Uses a multi-signal approach for robust detection:
+        1. Days since last session (if available)
+        2. Presence of recent topics in memory
+        3. Previous session summary exists
+        4. Session count > 1
+        5. Mem0 memories exist
+
+        Args:
+            days_since_last: Days since last session (None if unknown)
+            recent_topics: List of recent conversation topics
+            last_session_summary: Summary of last session
+            session_count: Number of previous sessions
+            mem0_memories: Raw Mem0 memories
+
+        Returns:
+            True if user is returning, False if new user
+        """
+        signals = []
+
+        # Signal 1: Days since last session is known
+        if days_since_last is not None:
+            signals.append(True)
+            logger.debug(f"Returning user signal: days_since_last={days_since_last}")
+
+        # Signal 2: Has recent topics in memory
+        if recent_topics and len(recent_topics) > 0:
+            signals.append(True)
+            logger.debug(f"Returning user signal: {len(recent_topics)} recent topics")
+
+        # Signal 3: Has a session summary
+        if last_session_summary and len(last_session_summary) > 10:
+            signals.append(True)
+            logger.debug("Returning user signal: has session summary")
+
+        # Signal 4: Has previous sessions
+        if session_count > 1:
+            signals.append(True)
+            logger.debug(f"Returning user signal: {session_count} previous sessions")
+
+        # Signal 5: Has Mem0 memories (excluding registration message)
+        meaningful_memories = [
+            m for m in mem0_memories
+            if m and "registered in system" not in m.lower()
+        ]
+        if meaningful_memories:
+            signals.append(True)
+            logger.debug(f"Returning user signal: {len(meaningful_memories)} Mem0 memories")
+
+        # User is returning if ANY signal is positive
+        is_returning = len(signals) > 0
+        logger.debug(f"Returning user detection: {len(signals)} positive signals -> is_returning={is_returning}")
+
+        return is_returning
+
+    async def _get_session_count(self, patient_id: str) -> int:
+        """
+        Get the number of previous sessions for a patient.
 
         Args:
             patient_id: Patient identifier
 
         Returns:
-            Patient name or None
+            Number of sessions (0 if none or error)
         """
-        # For now, return None (could be enhanced to query Neo4j for stored name)
-        # In a real system, this would query the patient record
-        return None
+        try:
+            sessions = await self.memory.get_sessions_by_patient(patient_id, limit=10)
+            return len(sessions) if sessions else 0
+        except Exception as e:
+            logger.debug(f"Could not get session count: {e}")
+            return 0
 
     def _filter_resolved_topics(
         self,

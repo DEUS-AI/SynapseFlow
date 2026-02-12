@@ -38,6 +38,9 @@ class PatientContext:
     # Patient identity (extracted from Mem0 memories)
     patient_name: Optional[str] = None  # Extracted from user introductions
     mem0_memories: List[str] = field(default_factory=list)  # Raw Mem0 memories for LLM context
+    # Procedures and medical devices (Phase 2B)
+    procedures: List[Dict[str, Any]] = field(default_factory=list)  # Tests, surgeries, screenings
+    medical_devices: List[Dict[str, Any]] = field(default_factory=list)  # Colostomy, ileostomy, pacemaker, etc.
 
 
 @dataclass
@@ -181,17 +184,22 @@ class PatientMemoryService:
 
         # 3. Get from Neo4j (permanent medical record)
         # Include resolved diagnoses to track recently_resolved
+        # Include procedures and medical devices
         query = """
         MATCH (p:Patient {id: $patient_id})
         OPTIONAL MATCH (p)-[:HAS_DIAGNOSIS]->(dx:Diagnosis)
         OPTIONAL MATCH (p)-[:CURRENT_MEDICATION]->(med:Medication)
             WHERE med.status IS NULL OR med.status = 'active'
         OPTIONAL MATCH (p)-[:HAS_ALLERGY]->(allergy:Allergy)
+        OPTIONAL MATCH (p)-[:HAS_PROCEDURE]->(proc:Procedure)
+        OPTIONAL MATCH (p)-[:HAS_DEVICE]->(device:MedicalDevice)
         RETURN
             p,
             collect(DISTINCT dx) as diagnoses,
             collect(DISTINCT med) as medications,
-            collect(DISTINCT allergy.substance) as allergies
+            collect(DISTINCT allergy.substance) as allergies,
+            collect(DISTINCT proc) as procedures,
+            collect(DISTINCT device) as medical_devices
         """
 
         result = await self.neo4j.query_raw(query, {"patient_id": patient_id})
@@ -265,6 +273,31 @@ class PatientMemoryService:
         # 9. Keep raw Mem0 memories for LLM context (last 10)
         raw_memories = [m.get("memory", "") for m in sorted_memories[:10] if m.get("memory")]
 
+        # 10. Parse procedures and medical devices
+        procedures = []
+        for proc in record.get("procedures", []):
+            if proc:
+                procedures.append({
+                    "name": proc.get("name", ""),
+                    "type": proc.get("procedure_type", "test"),
+                    "status": proc.get("status", "scheduled"),
+                    "scheduled_date": proc.get("scheduled_date"),
+                    "completion_date": proc.get("completion_date"),
+                    "notes": proc.get("notes")
+                })
+
+        medical_devices = []
+        for device in record.get("medical_devices", []):
+            if device:
+                medical_devices.append({
+                    "name": device.get("name", ""),
+                    "type": device.get("device_type", "device"),
+                    "status": device.get("status", "active"),
+                    "body_location": device.get("body_location"),
+                    "placement_date": device.get("placement_date"),
+                    "notes": device.get("notes")
+                })
+
         context = PatientContext(
             patient_id=patient_id,
             diagnoses=[d for d in all_diagnoses if d.get("status") != "resolved"],
@@ -279,11 +312,14 @@ class PatientMemoryService:
             context_timestamp=now.isoformat(),
             patient_name=patient_name,
             mem0_memories=raw_memories,
+            procedures=procedures,
+            medical_devices=medical_devices,
         )
 
         logger.info(f"Patient context retrieved: {len(context.diagnoses)} diagnoses "
                    f"({len(recent_conditions)} recent, {len(historical_conditions)} historical), "
                    f"{len(context.medications)} medications, {len(context.allergies)} allergies, "
+                   f"{len(procedures)} procedures, {len(medical_devices)} medical devices, "
                    f"{len(recently_resolved)} recently resolved")
 
         return context
@@ -430,27 +466,79 @@ class PatientMemoryService:
             Patient name if found, None otherwise
         """
         import re
+        from application.services.medication_validator import get_medication_validator
 
-        # Patterns to match name introductions
+        # Get medication validator to filter out medication names
+        try:
+            validator = get_medication_validator()
+        except Exception:
+            validator = None
+
+        # Patterns to match name introductions (ordered by specificity)
+        # More explicit patterns are matched first
         name_patterns = [
-            r"(?:i'm|i am|my name is|call me|this is)\s+([A-Z][a-z]+)",
-            r"(?:hi|hello|hey),?\s+(?:i'm|i am)\s+([A-Z][a-z]+)",
-            r"^([A-Z][a-z]+)\s+here",
+            # Highest priority: Explicit name introductions
+            (r"my name is\s+([A-Z][a-z]+)", 3),  # "my name is Pablo"
+            (r"i am\s+([A-Z][a-z]+)(?:\s+and|\s*$)", 3),  # "I am Pablo and..."
+            (r"(?:hi|hello|hey),?\s+(?:my name is|i'm|i am)\s+([A-Z][a-z]+)", 3),
+            (r"call me\s+([A-Z][a-z]+)", 3),
+
+            # Medium priority: Less specific introductions
+            (r"i'm\s+([A-Z][a-z]+)(?:\s+and|\s*,|\s*$)", 2),  # "I'm Pablo,"
+            (r"this is\s+([A-Z][a-z]+)(?:\s+speaking|\s*$)", 2),
+
+            # Lower priority: Ambiguous patterns (more likely false positives)
+            (r"^([A-Z][a-z]+)\s+here", 1),
         ]
 
-        for memory in sorted_memories[:20]:  # Check last 20 memories
+        # Common false positives to filter out (lowercase)
+        excluded_words = {
+            # System/role words
+            "matucha", "assistant", "doctor", "nurse", "patient", "user",
+            # Common responses
+            "help", "okay", "yes", "no", "thanks", "thank", "please",
+            # Medical terms that might look like names
+            "chronic", "acute", "severe", "mild", "moderate",
+            # Time-related words
+            "morning", "evening", "night", "today", "yesterday", "monday", "tuesday",
+            "wednesday", "thursday", "friday", "saturday", "sunday",
+        }
+
+        candidates = []  # (name, priority)
+
+        for memory in sorted_memories[:30]:  # Check last 30 memories
             memory_text = memory.get("memory", "")
 
-            for pattern in name_patterns:
+            for pattern, priority in name_patterns:
                 match = re.search(pattern, memory_text, re.IGNORECASE)
                 if match:
                     name = match.group(1).strip()
-                    # Filter out common false positives
-                    if name.lower() not in ["matucha", "assistant", "doctor", "nurse", "help", "okay", "yes", "no"]:
-                        logger.info(f"Extracted patient name from memories: {name}")
-                        return name
+                    name_lower = name.lower()
 
-        return None
+                    # Skip if it's in the exclusion list
+                    if name_lower in excluded_words:
+                        continue
+
+                    # Skip if it looks like a medication name
+                    if validator and validator.is_likely_medication(name):
+                        logger.debug(f"Skipping potential name '{name}' - looks like a medication")
+                        continue
+
+                    # Skip if the name is too short (likely abbreviation)
+                    if len(name) < 3:
+                        continue
+
+                    candidates.append((name, priority))
+
+        if not candidates:
+            return None
+
+        # Sort by priority (highest first) and return best candidate
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        best_name = candidates[0][0]
+
+        logger.info(f"Extracted patient name from memories: {best_name} (priority: {candidates[0][1]})")
+        return best_name
 
     # ========================================
     # Medical History Management
@@ -588,6 +676,97 @@ class PatientMemoryService:
 
         logger.info(f"Medication added successfully: {med_id}")
         return med_id
+
+    async def add_pending_medication(
+        self,
+        patient_id: str,
+        name: str,
+        suggestions: List[str],
+        confidence: float,
+        dosage: str = "unknown",
+        frequency: str = "unknown"
+    ) -> str:
+        """
+        Record an unrecognized medication in pending state for review.
+
+        This is used when medication validation fails but the user mentioned
+        a medication-like term. It allows for manual review and correction.
+
+        Args:
+            patient_id: Patient identifier
+            name: Original medication name (unvalidated)
+            suggestions: List of suggested valid medications
+            confidence: Confidence score from validation (0.0 to 1.0)
+            dosage: Medication dosage
+            frequency: Frequency of administration
+
+        Returns:
+            str: Pending medication ID
+        """
+        logger.info(f"Adding pending medication for patient {patient_id}: {name} (confidence: {confidence})")
+
+        pending_id = f"pending_med:{uuid.uuid4().hex[:12]}"
+
+        # Store in Neo4j as PendingMedication node
+        await self.neo4j.add_entity(
+            pending_id,
+            {
+                "original_name": name,
+                "suggestions": ",".join(suggestions) if suggestions else "",
+                "confidence": confidence,
+                "dosage": dosage,
+                "frequency": frequency,
+                "status": "pending_review",
+                "created_at": datetime.now().isoformat()
+            },
+            labels=["PendingMedication"]
+        )
+
+        await self.neo4j.add_relationship(
+            patient_id,
+            "PENDING_MEDICATION",
+            pending_id,
+            {"created_at": datetime.now().isoformat()}
+        )
+
+        logger.info(f"Pending medication stored for review: {pending_id}")
+        return pending_id
+
+    async def remove_pending_medication(
+        self,
+        patient_id: str,
+        medication_name: str
+    ) -> bool:
+        """
+        Remove a pending medication from review queue.
+
+        Called when a medication is corrected or denied by the patient.
+
+        Args:
+            patient_id: Patient identifier
+            medication_name: Original medication name to remove
+
+        Returns:
+            bool: True if removed, False if not found
+        """
+        try:
+            query = """
+            MATCH (p:Patient {id: $patient_id})-[:PENDING_MEDICATION]->(pm:PendingMedication)
+            WHERE toLower(pm.original_name) = toLower($med_name)
+            DETACH DELETE pm
+            RETURN count(*) as deleted
+            """
+            results = await self.neo4j.query_raw(query, {
+                "patient_id": patient_id,
+                "med_name": medication_name
+            })
+            deleted = results[0]["deleted"] if results else 0
+            if deleted > 0:
+                logger.info(f"Removed pending medication '{medication_name}' for {patient_id}")
+            return deleted > 0
+        except Exception as e:
+            logger.warning(f"Error removing pending medication: {e}")
+            return False
 
     async def _find_existing_medication(
         self, patient_id: str, medication_name: str
@@ -795,6 +974,328 @@ class PatientMemoryService:
         logger.info(f"Allergy added successfully: {allergy_id}")
         return allergy_id
 
+    async def remove_allergy(
+        self,
+        patient_id: str,
+        substance: str,
+        reason: Optional[str] = None
+    ) -> bool:
+        """
+        Remove an allergy record from patient.
+
+        Used when patient denies having an allergy that was previously recorded.
+
+        Args:
+            patient_id: Patient identifier
+            substance: Allergen substance to remove
+            reason: Reason for removal (optional)
+
+        Returns:
+            bool: True if removed, False if not found
+        """
+        logger.info(f"Removing allergy '{substance}' for patient {patient_id}")
+
+        try:
+            # Find and update the allergy status to "denied" or delete
+            query = """
+            MATCH (p:Patient {id: $patient_id})-[r:HAS_ALLERGY]->(a:Allergy)
+            WHERE toLower(a.substance) = toLower($substance)
+            SET a.status = 'denied',
+                a.denial_reason = $reason,
+                a.denied_at = datetime()
+            DELETE r
+            RETURN count(*) as updated
+            """
+            results = await self.neo4j.query_raw(query, {
+                "patient_id": patient_id,
+                "substance": substance,
+                "reason": reason or "Patient denied allergy"
+            })
+
+            updated = results[0]["updated"] if results else 0
+            if updated > 0:
+                logger.info(f"Allergy '{substance}' removed for patient {patient_id}")
+            else:
+                logger.info(f"Allergy '{substance}' not found for patient {patient_id}")
+
+            return updated > 0
+
+        except Exception as e:
+            logger.error(f"Error removing allergy: {e}")
+            return False
+
+    # ========================================
+    # Procedures and Tests
+    # ========================================
+
+    async def add_procedure(
+        self,
+        patient_id: str,
+        name: str,
+        procedure_type: str = "test",  # test, surgery, screening, imaging
+        scheduled_date: Optional[str] = None,
+        status: str = "scheduled",  # scheduled, completed, cancelled
+        location: Optional[str] = None,
+        notes: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Record a medical procedure or test for patient.
+
+        Examples: colonoscopy, endoscopy, MRI, blood test, CT scan, biopsy, surgery
+
+        Args:
+            patient_id: Patient identifier
+            name: Procedure name (e.g., "colonoscopy", "MRI", "blood test")
+            procedure_type: Type of procedure (test, surgery, screening, imaging)
+            scheduled_date: When procedure is/was scheduled
+            status: Current status (scheduled, completed, cancelled)
+            location: Where the procedure takes place
+            notes: Additional notes
+            metadata: Additional metadata
+
+        Returns:
+            str: Procedure ID
+        """
+        procedure_id = f"procedure:{uuid.uuid4().hex[:12]}"
+        logger.info(f"Adding procedure for patient {patient_id}: {name} ({procedure_type})")
+
+        # Normalize the name
+        normalized_name = name.strip().lower()
+
+        # Store in Neo4j
+        await self.neo4j.add_entity(
+            procedure_id,
+            {
+                "name": name,
+                "normalized_name": normalized_name,
+                "procedure_type": procedure_type,
+                "status": status,
+                "scheduled_date": scheduled_date,
+                "location": location,
+                "notes": notes,
+                "created_at": datetime.now().isoformat(),
+                **(metadata or {})
+            },
+            labels=["Procedure", "MedicalEvent"]
+        )
+
+        await self.neo4j.add_relationship(
+            patient_id,
+            "HAS_PROCEDURE",
+            procedure_id,
+            {
+                "recorded_at": datetime.now().isoformat(),
+                "status": status
+            }
+        )
+
+        # Store in Mem0 for conversational recall
+        status_text = f"is scheduled for" if status == "scheduled" else f"had"
+        self.mem0.add(
+            f"Patient {status_text} a {name} ({procedure_type})" +
+            (f" on {scheduled_date}" if scheduled_date else ""),
+            user_id=patient_id,
+            metadata={
+                "type": "procedure",
+                "name": name,
+                "procedure_type": procedure_type,
+                "status": status
+            }
+        )
+
+        logger.info(f"Procedure added successfully: {procedure_id}")
+        return procedure_id
+
+    async def update_procedure_status(
+        self,
+        patient_id: str,
+        procedure_name: str,
+        new_status: str,
+        completion_date: Optional[str] = None,
+        results: Optional[str] = None
+    ) -> bool:
+        """
+        Update the status of a procedure.
+
+        Args:
+            patient_id: Patient identifier
+            procedure_name: Name of the procedure
+            new_status: New status (completed, cancelled)
+            completion_date: When completed
+            results: Results if completed
+
+        Returns:
+            bool: True if updated
+        """
+        logger.info(f"Updating procedure '{procedure_name}' status to '{new_status}' for patient {patient_id}")
+
+        try:
+            query = """
+            MATCH (p:Patient {id: $patient_id})-[r:HAS_PROCEDURE]->(proc:Procedure)
+            WHERE toLower(proc.name) CONTAINS toLower($procedure_name)
+               OR toLower(proc.normalized_name) CONTAINS toLower($procedure_name)
+            SET proc.status = $new_status,
+                proc.completion_date = $completion_date,
+                proc.results = $results,
+                proc.updated_at = $updated_at,
+                r.status = $new_status
+            RETURN count(proc) as updated
+            """
+
+            results_data = await self.neo4j.query_raw(query, {
+                "patient_id": patient_id,
+                "procedure_name": procedure_name.lower(),
+                "new_status": new_status,
+                "completion_date": completion_date,
+                "results": results,
+                "updated_at": datetime.now().isoformat()
+            })
+
+            updated = results_data[0]["updated"] if results_data else 0
+            return updated > 0
+
+        except Exception as e:
+            logger.error(f"Error updating procedure status: {e}")
+            return False
+
+    # ========================================
+    # Medical Devices and Implants
+    # ========================================
+
+    async def add_medical_device(
+        self,
+        patient_id: str,
+        name: str,
+        device_type: str,  # stoma, implant, prosthetic, pump, monitor
+        placement_date: Optional[str] = None,
+        status: str = "active",  # active, removed, replaced
+        location: Optional[str] = None,  # body location
+        notes: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Record a medical device or implant for patient.
+
+        Examples: colostomy, ileostomy, pacemaker, insulin pump, cochlear implant,
+                  feeding tube, port-a-cath, prosthetic limb
+
+        Args:
+            patient_id: Patient identifier
+            name: Device name (e.g., "colostomy", "pacemaker", "insulin pump")
+            device_type: Type of device (stoma, implant, prosthetic, pump, monitor)
+            placement_date: When device was placed/implanted
+            status: Current status (active, removed, replaced)
+            location: Body location of the device
+            notes: Additional notes
+            metadata: Additional metadata
+
+        Returns:
+            str: Device ID
+        """
+        device_id = f"device:{uuid.uuid4().hex[:12]}"
+        logger.info(f"Adding medical device for patient {patient_id}: {name} ({device_type})")
+
+        # Normalize the name
+        normalized_name = name.strip().lower()
+
+        # Store in Neo4j
+        await self.neo4j.add_entity(
+            device_id,
+            {
+                "name": name,
+                "normalized_name": normalized_name,
+                "device_type": device_type,
+                "status": status,
+                "placement_date": placement_date,
+                "body_location": location,
+                "notes": notes,
+                "created_at": datetime.now().isoformat(),
+                **(metadata or {})
+            },
+            labels=["MedicalDevice", "MedicalEntity"]
+        )
+
+        await self.neo4j.add_relationship(
+            patient_id,
+            "HAS_DEVICE",
+            device_id,
+            {
+                "recorded_at": datetime.now().isoformat(),
+                "status": status
+            }
+        )
+
+        # Store in Mem0 for conversational recall - important for dietary/lifestyle advice
+        self.mem0.add(
+            f"Patient has a {name} ({device_type})" +
+            (f" placed on {placement_date}" if placement_date else "") +
+            (f" at {location}" if location else ""),
+            user_id=patient_id,
+            metadata={
+                "type": "medical_device",
+                "name": name,
+                "device_type": device_type,
+                "status": status,
+                "important": True  # Devices are important for care planning
+            }
+        )
+
+        logger.info(f"Medical device added successfully: {device_id}")
+        return device_id
+
+    async def update_device_status(
+        self,
+        patient_id: str,
+        device_name: str,
+        new_status: str,
+        removal_date: Optional[str] = None,
+        reason: Optional[str] = None
+    ) -> bool:
+        """
+        Update the status of a medical device.
+
+        Args:
+            patient_id: Patient identifier
+            device_name: Name of the device
+            new_status: New status (active, removed, replaced)
+            removal_date: When removed/replaced
+            reason: Reason for status change
+
+        Returns:
+            bool: True if updated
+        """
+        logger.info(f"Updating device '{device_name}' status to '{new_status}' for patient {patient_id}")
+
+        try:
+            query = """
+            MATCH (p:Patient {id: $patient_id})-[r:HAS_DEVICE]->(dev:MedicalDevice)
+            WHERE toLower(dev.name) CONTAINS toLower($device_name)
+               OR toLower(dev.normalized_name) CONTAINS toLower($device_name)
+            SET dev.status = $new_status,
+                dev.removal_date = $removal_date,
+                dev.status_change_reason = $reason,
+                dev.updated_at = $updated_at,
+                r.status = $new_status
+            RETURN count(dev) as updated
+            """
+
+            results = await self.neo4j.query_raw(query, {
+                "patient_id": patient_id,
+                "device_name": device_name.lower(),
+                "new_status": new_status,
+                "removal_date": removal_date,
+                "reason": reason,
+                "updated_at": datetime.now().isoformat()
+            })
+
+            updated = results[0]["updated"] if results else 0
+            return updated > 0
+
+        except Exception as e:
+            logger.error(f"Error updating device status: {e}")
+            return False
+
     # ========================================
     # Diagnosis Status Management
     # ========================================
@@ -824,6 +1325,32 @@ class PatientMemoryService:
             new_status="resolved",
             reason=resolution_reason,
             status_date=resolution_date
+        )
+
+    async def remove_diagnosis(
+        self,
+        patient_id: str,
+        diagnosis_name: str,
+        reason: Optional[str] = None
+    ) -> bool:
+        """
+        Remove a diagnosis record from patient.
+
+        Used when patient denies having a condition that was previously recorded.
+
+        Args:
+            patient_id: Patient identifier
+            diagnosis_name: Name of the condition to remove
+            reason: Reason for removal (optional)
+
+        Returns:
+            bool: True if removed, False if not found
+        """
+        return await self.update_diagnosis_status(
+            patient_id=patient_id,
+            diagnosis_name=diagnosis_name,
+            new_status="denied",
+            reason=reason or "Patient denied having this condition"
         )
 
     async def update_diagnosis_status(
