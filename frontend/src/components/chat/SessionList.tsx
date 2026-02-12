@@ -5,7 +5,7 @@
  * with support for selecting, searching, creating new sessions, and inline title editing.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageSquare, Plus, Search, Clock, AlertCircle, Pencil, Check, X } from 'lucide-react';
 
 interface Session {
@@ -61,20 +61,7 @@ export function SessionList({
   const [saving, setSaving] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  // Load sessions on mount
-  useEffect(() => {
-    loadSessions();
-  }, [patientId]);
-
-  // Focus input when editing starts
-  useEffect(() => {
-    if (editingSessionId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingSessionId]);
-
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -99,7 +86,61 @@ export function SessionList({
     } finally {
       setLoading(false);
     }
-  };
+  }, [patientId]);
+
+  // Load sessions on mount
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
+
+  // Periodic refresh (30s) + visibility change listener
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (!intervalId) {
+        intervalId = setInterval(() => {
+          loadSessions();
+        }, 30000);
+      }
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSessions();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Start polling if tab is currently visible
+    if (document.visibilityState === 'visible') {
+      startPolling();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopPolling();
+    };
+  }, [loadSessions]);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingSessionId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingSessionId]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {

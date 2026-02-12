@@ -18,6 +18,7 @@ from enum import Enum as PyEnum
 from .kg_router import router as kg_router
 from .document_router import router as document_router
 from .crystallization_router import router as crystallization_router
+from .hypergraph_router import router as hypergraph_router
 from .dependencies import (
     get_chat_service,
     get_patient_memory,
@@ -25,6 +26,7 @@ from .dependencies import (
     get_event_bus,
     initialize_layer_services,
     initialize_crystallization_pipeline,
+    get_hypergraph_analytics,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,7 @@ app.add_middleware(
 app.include_router(kg_router)
 app.include_router(document_router)
 app.include_router(crystallization_router)
+app.include_router(hypergraph_router)
 
 # ========================================
 # Evaluation Framework (Conditional)
@@ -89,6 +92,19 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
         # Don't fail startup - crystallization is optional
+
+    # Initialize hypergraph analytics (optional — depends on HyperNetX)
+    try:
+        from .hypergraph_router import set_analytics_service
+        analytics = await get_hypergraph_analytics()
+        if analytics:
+            set_analytics_service(analytics)
+            logger.info("✅ Hypergraph analytics initialized")
+        else:
+            logger.info("ℹ️ Hypergraph analytics not available (HyperNetX not installed)")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize hypergraph analytics: {e}")
+        # Don't fail startup - hypergraph analytics is optional
 
 
 # ========================================
@@ -301,7 +317,11 @@ async def chat_websocket_endpoint(
                                     )
                                     logger.info(f"Title update confirmed and notified: '{new_title}'")
                                 else:
-                                    logger.warning(f"Title persistence verification failed for session {session_id}")
+                                    actual_title = updated_meta.title if updated_meta else None
+                                    logger.warning(
+                                        f"Title persistence verification failed for session {session_id}: "
+                                        f"expected='{new_title}', actual='{actual_title}'"
+                                    )
                 except Exception as title_error:
                     # Don't fail the message if title generation fails
                     logger.warning(f"Auto-title generation failed: {title_error}")

@@ -435,5 +435,242 @@ class TestMessage:
         assert assistant_msg.is_assistant_message() is True
 
 
+class TestFallbackTitleFromMessage:
+    """Test suite for ChatHistoryService._fallback_title_from_message."""
+
+    def test_simple_message(self):
+        result = ChatHistoryService._fallback_title_from_message("my knee hurts a lot")
+        assert result == "My Knee Hurts A Lot"
+
+    def test_strips_hi_greeting(self):
+        result = ChatHistoryService._fallback_title_from_message("Hi, my knee hurts")
+        assert result == "My Knee Hurts"
+
+    def test_strips_hello_greeting(self):
+        result = ChatHistoryService._fallback_title_from_message("Hello, I have a headache")
+        assert result == "I Have A Headache"
+
+    def test_strips_hey_doctor_greeting(self):
+        result = ChatHistoryService._fallback_title_from_message("Hey doctor, my back is sore")
+        assert result == "My Back Is Sore"
+
+    def test_strips_hi_doc_greeting(self):
+        result = ChatHistoryService._fallback_title_from_message("Hi doc, I need help with sleep")
+        assert result == "I Need Help With Sleep"
+
+    def test_truncation_at_word_boundary(self):
+        long_msg = "I have been experiencing severe headaches every morning for the past two weeks and I am worried"
+        result = ChatHistoryService._fallback_title_from_message(long_msg)
+        assert len(result) <= 50
+        # Should not cut mid-word
+        assert not result.endswith("-")
+
+    def test_caps_at_five_words(self):
+        result = ChatHistoryService._fallback_title_from_message("one two three four five six seven")
+        words = result.split()
+        assert len(words) <= 5
+
+    def test_title_case(self):
+        result = ChatHistoryService._fallback_title_from_message("my stomach has been hurting")
+        assert result == "My Stomach Has Been Hurting"
+
+    def test_empty_input(self):
+        assert ChatHistoryService._fallback_title_from_message("") == "New Conversation"
+
+    def test_none_input(self):
+        assert ChatHistoryService._fallback_title_from_message(None) == "New Conversation"
+
+    def test_whitespace_only(self):
+        assert ChatHistoryService._fallback_title_from_message("   ") == "New Conversation"
+
+    def test_greeting_only(self):
+        result = ChatHistoryService._fallback_title_from_message("Hello")
+        # After stripping "Hello" as greeting, falls back
+        assert result == "New Conversation" or result == "Hello"
+
+    def test_strips_trailing_punctuation(self):
+        result = ChatHistoryService._fallback_title_from_message("I have a question.")
+        assert not result.endswith(".")
+
+    def test_short_message(self):
+        result = ChatHistoryService._fallback_title_from_message("headache")
+        assert result == "Headache"
+
+
+class TestAutoGenerateTitle:
+    """Integration tests for auto_generate_title pipeline."""
+
+    @pytest.fixture
+    def mock_memory(self):
+        mock = AsyncMock()
+        mock.get_messages_by_session.return_value = [
+            {
+                "id": "msg-1",
+                "session_id": "session-1",
+                "role": "user",
+                "content": "Can you help me understand my lab results?",
+                "timestamp": datetime.now().isoformat()
+            },
+            {
+                "id": "msg-2",
+                "session_id": "session-1",
+                "role": "assistant",
+                "content": "Of course! Could you share which lab results you'd like to discuss?",
+                "timestamp": datetime.now().isoformat()
+            },
+            {
+                "id": "msg-3",
+                "session_id": "session-1",
+                "role": "user",
+                "content": "My CBC came back with low hemoglobin",
+                "timestamp": datetime.now().isoformat()
+            },
+        ]
+        mock.update_session_title.return_value = True
+        return mock
+
+    @pytest.fixture
+    def mock_openai_response(self):
+        """Create a mock OpenAI chat completion response."""
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Lab Results Discussion"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        return mock_response
+
+    @pytest.mark.asyncio
+    async def test_llm_primary_generates_and_persists(self, mock_memory, mock_openai_response):
+        """6.1: LLM strategy generates title and persists it."""
+        service = ChatHistoryService(
+            patient_memory_service=mock_memory,
+            openai_api_key="test-key"
+        )
+        service.openai_client = AsyncMock()
+        service.openai_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
+
+        result = await service.auto_generate_title("session-1")
+
+        assert result == "Lab Results Discussion"
+        mock_memory.update_session_title.assert_called_once_with("session-1", "Lab Results Discussion")
+
+    @pytest.mark.asyncio
+    async def test_fallback_when_no_openai_client(self, mock_memory, monkeypatch):
+        """6.2: Without OpenAI client, uses fallback title from message."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        service = ChatHistoryService(
+            patient_memory_service=mock_memory,
+        )
+        assert service.openai_client is None
+
+        result = await service.auto_generate_title("session-1")
+
+        assert result is not None
+        assert result != "New Conversation"
+        # Fallback from "Can you help me understand my lab results?"
+        assert "Lab Results" in result or "Help" in result or "Understand" in result
+        mock_memory.update_session_title.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_fallback_when_llm_raises_exception(self, mock_memory):
+        """6.3: LLM exception falls through to fallback."""
+        service = ChatHistoryService(
+            patient_memory_service=mock_memory,
+            openai_api_key="test-key"
+        )
+        service.openai_client = AsyncMock()
+        service.openai_client.chat.completions.create = AsyncMock(
+            side_effect=Exception("API rate limit exceeded")
+        )
+
+        result = await service.auto_generate_title("session-1")
+
+        assert result is not None
+        assert result != "New Conversation"
+        mock_memory.update_session_title.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_fallback_when_llm_returns_empty(self, mock_memory):
+        """6.4: LLM returning empty string falls through to fallback."""
+        mock_choice = MagicMock()
+        mock_choice.message.content = "   "
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+
+        service = ChatHistoryService(
+            patient_memory_service=mock_memory,
+            openai_api_key="test-key"
+        )
+        service.openai_client = AsyncMock()
+        service.openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        result = await service.auto_generate_title("session-1")
+
+        assert result is not None
+        assert result != "New Conversation"
+        mock_memory.update_session_title.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_warning_logs_on_failure_paths(self, mock_memory, caplog):
+        """6.5: WARNING logs emitted for each failure path."""
+        import logging
+
+        # Test: no messages
+        mock_memory_empty = AsyncMock()
+        mock_memory_empty.get_messages_by_session.return_value = []
+        service = ChatHistoryService(patient_memory_service=mock_memory_empty)
+
+        with caplog.at_level(logging.WARNING):
+            result = await service.auto_generate_title("session-empty")
+        assert result is None
+        assert "No messages found for session session-empty" in caplog.text
+        caplog.clear()
+
+        # Test: no user message
+        mock_memory_no_user = AsyncMock()
+        mock_memory_no_user.get_messages_by_session.return_value = [
+            {
+                "id": "msg-1",
+                "session_id": "session-1",
+                "role": "assistant",
+                "content": "Welcome!",
+                "timestamp": datetime.now().isoformat()
+            }
+        ]
+        service2 = ChatHistoryService(patient_memory_service=mock_memory_no_user)
+
+        with caplog.at_level(logging.WARNING):
+            result = await service2.auto_generate_title("session-no-user")
+        assert result is None
+        assert "No user message found" in caplog.text
+        caplog.clear()
+
+        # Test: LLM error logs warning
+        service3 = ChatHistoryService(
+            patient_memory_service=mock_memory,
+            openai_api_key="test-key"
+        )
+        service3.openai_client = AsyncMock()
+        service3.openai_client.chat.completions.create = AsyncMock(
+            side_effect=Exception("Connection timeout")
+        )
+
+        with caplog.at_level(logging.WARNING):
+            await service3.auto_generate_title("session-1")
+        assert "LLM title generation failed" in caplog.text
+        assert "Connection timeout" in caplog.text
+        caplog.clear()
+
+        # Test: persistence failure
+        mock_memory_fail = AsyncMock()
+        mock_memory_fail.get_messages_by_session.return_value = mock_memory.get_messages_by_session.return_value
+        mock_memory_fail.update_session_title.return_value = False
+        service4 = ChatHistoryService(patient_memory_service=mock_memory_fail)
+
+        with caplog.at_level(logging.WARNING):
+            result = await service4.auto_generate_title("session-persist-fail")
+        assert result is None
+        assert "Failed to persist title" in caplog.text
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
