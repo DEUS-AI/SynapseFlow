@@ -6,7 +6,7 @@ de evaluación que permiten la inspección de memoria, seeding de estado,
 y control de pipelines para testing automatizado.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -107,7 +107,7 @@ class Neo4jDIKWLayerSnapshot(BaseModel):
 class MemorySnapshot(BaseModel):
     """Snapshot completo de memoria de un paciente."""
     patient_id: str = Field(..., description="ID del paciente")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Timestamp del snapshot")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Timestamp del snapshot")
     redis: RedisLayerSnapshot = Field(default_factory=RedisLayerSnapshot)
     mem0: Mem0LayerSnapshot = Field(default_factory=Mem0LayerSnapshot)
     graphiti: GraphitiLayerSnapshot = Field(default_factory=GraphitiLayerSnapshot)
@@ -167,7 +167,7 @@ class SeedStateResponse(BaseModel):
     entities_created: int
     relationships_created: int
     errors: List[str] = Field(default_factory=list)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ========================================
@@ -246,7 +246,7 @@ class TestChatResponse(BaseModel):
     entities_extracted: List[Dict[str, Any]] = Field(default_factory=list, description="Entidades extraídas")
     medical_alerts: List[Dict[str, Any]] = Field(default_factory=list, description="Alertas médicas")
     query_time_ms: float = Field(0.0, description="Tiempo de respuesta en ms")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ========================================

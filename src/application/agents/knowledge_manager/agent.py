@@ -5,7 +5,7 @@ and conflict resolution that are beyond the scope of simple agent updates.
 """
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from domain.agent import Agent
 from domain.communication import CommunicationChannel, Message
@@ -55,7 +55,7 @@ class KGUpdateResult:
         self.reasoning_applied = reasoning_applied or []
         self.rollback_performed = rollback_performed
         self.error_message = error_message
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
 
 
 class KGUpdateRequest:
@@ -78,8 +78,8 @@ class KGUpdateRequest:
         self.relationships = relationships
         self.metadata = metadata or {}
         self.priority = priority
-        self.request_id = f"{domain}_{update_type.value}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        self.timestamp = datetime.utcnow()
+        self.request_id = f"{domain}_{update_type.value}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        self.timestamp = datetime.now(timezone.utc)
 
 
 class KnowledgeManagerAgent(Agent):

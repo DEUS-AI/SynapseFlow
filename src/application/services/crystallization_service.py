@@ -21,7 +21,7 @@ Supports both:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from enum import Enum
 
@@ -50,7 +50,7 @@ class CrystallizationResult:
     processing_time_ms: float
     errors: List[str] = field(default_factory=list)
     batch_id: str = ""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -63,7 +63,7 @@ class FlushResult:
     pending_after_flush: int
     processing_time_ms: float
     errors: List[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -87,7 +87,7 @@ class CrystallizedEntity:
     observation_count: int
     is_new: bool
     promotion_eligible: bool
-    crystallized_at: datetime = field(default_factory=datetime.utcnow)
+    crystallized_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -122,6 +122,7 @@ class CrystallizationService:
         event_bus: Any,
         graphiti_client: Optional[Any] = None,
         config: Optional[CrystallizationConfig] = None,
+        hypergraph_adapter=None,
     ):
         """
         Initialize crystallization service.
@@ -138,6 +139,7 @@ class CrystallizationService:
         self.event_bus = event_bus
         self.graphiti = graphiti_client
         self.config = config or CrystallizationConfig()
+        self._hypergraph_adapter = hypergraph_adapter
 
         # State tracking
         self._last_crystallization: Optional[datetime] = None
@@ -214,7 +216,7 @@ class CrystallizationService:
                     "name": entity_name,
                     "source_episode": episode_data.get("episode_id"),
                     "patient_id": episode_data.get("patient_id"),
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                 })
 
             # Check batch threshold in HYBRID mode
@@ -322,7 +324,7 @@ class CrystallizationService:
                         new_data={
                             "confidence": confidence,
                             "graphiti_entity_id": graphiti_id,
-                            "last_seen_in_episodic": datetime.utcnow().isoformat(),
+                            "last_seen_in_episodic": datetime.now(timezone.utc).isoformat(),
                         }
                     )
 
@@ -387,7 +389,7 @@ class CrystallizationService:
                 self._stats["errors"] += 1
 
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
-        self._last_crystallization = datetime.utcnow()
+        self._last_crystallization = datetime.now(timezone.utc)
 
         # Emit crystallization_complete event
         await self._emit_crystallization_complete(
@@ -452,8 +454,8 @@ class CrystallizationService:
             "dikw_layer": "PERCEPTION",
             "confidence": confidence,
             "observation_count": 1,
-            "first_observed": datetime.utcnow().isoformat(),
-            "last_observed": datetime.utcnow().isoformat(),
+            "first_observed": datetime.now(timezone.utc).isoformat(),
+            "last_observed": datetime.now(timezone.utc).isoformat(),
             "source": "graphiti_episodic",
         }
 
@@ -513,7 +515,7 @@ class CrystallizationService:
                 errors=["No Graphiti client configured"],
             )
 
-        since = since or self._last_crystallization or (datetime.utcnow() - timedelta(hours=24))
+        since = since or self._last_crystallization or (datetime.now(timezone.utc) - timedelta(hours=24))
 
         logger.info(f"Querying Graphiti for entities since {since.isoformat()}")
 
@@ -602,7 +604,7 @@ class CrystallizationService:
                 "entities_created": entities_created,
                 "entities_merged": entities_merged,
                 "promotion_candidates": promotion_candidates,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "entities": [
                     {
                         "neo4j_id": e.neo4j_id,
@@ -619,6 +621,14 @@ class CrystallizationService:
 
         await self.event_bus.publish(event)
         logger.debug(f"Emitted crystallization_complete event for {batch_id}")
+
+        # Invalidate hypergraph cache so analytics reflect new data
+        if self._hypergraph_adapter:
+            try:
+                self._hypergraph_adapter.invalidate_cache()
+                logger.debug("Hypergraph cache invalidated after crystallization")
+            except Exception as e:
+                logger.warning(f"Failed to invalidate hypergraph cache: {e}")
 
     async def get_crystallization_stats(self) -> Dict[str, Any]:
         """Get crystallization statistics."""

@@ -35,11 +35,13 @@ class ReasoningEngine:
         backend: KnowledgeGraphBackend,
         llm: Optional[Graphiti] = None,
         enable_confidence_tracking: bool = True,
-        medical_rules_engine: Optional["MedicalRulesEngine"] = None
+        medical_rules_engine: Optional["MedicalRulesEngine"] = None,
+        hypergraph_analytics=None
     ):
         self.backend = backend
         self.llm = llm
         self.ontology_mapper = OntologyMapper()  # Initialize Mapper
+        self.hypergraph_analytics = hypergraph_analytics
         self._reasoning_rules = self._initialize_reasoning_rules()
         self.enable_confidence_tracking = enable_confidence_tracking
 
@@ -152,6 +154,12 @@ class ReasoningEngine:
                     "name": "medication_adherence",
                     "reasoner": self._check_medication_adherence,
                     "priority": "low"
+                },
+                # Hypergraph structural analysis (optional)
+                {
+                    "name": "hypergraph_structural_analysis",
+                    "reasoner": self._hypergraph_structural_analysis,
+                    "priority": "medium"
                 },
                 # General rules
                 {
@@ -978,6 +986,84 @@ class ReasoningEngine:
             }
 
         return None
+
+    async def _hypergraph_structural_analysis(
+        self,
+        event: KnowledgeEvent
+    ) -> Optional[Dict[str, Any]]:
+        """Use hypergraph analytics to enrich reasoning with structural insights.
+
+        Computes centrality and community membership for entities in the query,
+        applying confidence boosts for structurally central entities.
+        """
+        if not self.hypergraph_analytics:
+            return None
+
+        try:
+            # Get entities mentioned in the query
+            medical_entities = event.data.get("medical_entities", [])
+            if not medical_entities:
+                return None
+
+            # Compute centrality for all entities
+            centrality_results = await self.hypergraph_analytics.compute_entity_centrality(s=1)
+            if not centrality_results:
+                return None
+
+            # Build centrality lookup
+            centrality_map = {r.entity_id: r for r in centrality_results}
+
+            # Determine top 20% threshold
+            scores = sorted([r.centrality_score for r in centrality_results], reverse=True)
+            top_20_idx = max(1, len(scores) // 5)
+            centrality_threshold = scores[top_20_idx - 1] if scores else 0
+
+            # Get community info
+            community_result = await self.hypergraph_analytics.detect_knowledge_communities()
+            entity_to_community = {}
+            mean_modularity = 0.0
+            if community_result.communities:
+                mean_modularity = community_result.overall_modularity / max(community_result.total_communities, 1)
+                for comm in community_result.communities:
+                    for eid in comm.member_entity_ids:
+                        entity_to_community[eid] = comm
+
+            inferences = []
+            for entity in medical_entities:
+                entity_id = entity.get("id") or entity.get("name", "")
+                centrality_info = centrality_map.get(entity_id)
+                community_info = entity_to_community.get(entity_id)
+
+                centrality_boost = 0.0
+                community_boost = 0.0
+
+                if centrality_info and centrality_info.centrality_score >= centrality_threshold:
+                    centrality_boost = min(0.05, centrality_info.centrality_score * 0.05)
+
+                if community_info and community_info.modularity_contribution > mean_modularity:
+                    community_boost = min(0.03, community_info.modularity_contribution * 0.03)
+
+                total_boost = min(centrality_boost + community_boost, 0.08)
+
+                if total_boost > 0:
+                    inferences.append({
+                        "type": "structural_confidence_boost",
+                        "entity_id": entity_id,
+                        "boost": round(total_boost, 4),
+                        "centrality_score": centrality_info.centrality_score if centrality_info else 0,
+                        "community_id": community_info.community_id if community_info else None,
+                        "community_size": community_info.member_count if community_info else 0,
+                        "source": "hypergraph_structural_analysis"
+                    })
+
+            if not inferences:
+                return None
+
+            return {"inferences": inferences}
+
+        except Exception as e:
+            logger.warning("Hypergraph structural analysis failed: %s", e)
+            return None
 
     async def _assess_data_availability(
         self,

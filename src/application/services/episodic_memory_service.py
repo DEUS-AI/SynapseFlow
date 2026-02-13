@@ -77,9 +77,19 @@ class EpisodicMemoryService:
 
     Group ID Strategy:
     - patient_id: Top-level partition for patient isolation
-    - Session episodes have group_id = patient_id
-    - Turn episodes have group_id = f"{patient_id}:{session_id}"
+    - Session episodes have group_id = _sanitize_group_id(patient_id)
+    - Turn episodes have group_id = f"{_sanitize_group_id(patient_id)}--{_sanitize_group_id(session_id)}"
+    - IDs are sanitized (colons replaced with dashes) for Graphiti/FalkorDB compatibility
     """
+
+    @staticmethod
+    def _sanitize_group_id(raw_id: str) -> str:
+        """Sanitize an ID for use as a Graphiti group_id.
+
+        Graphiti/FalkorDB only accepts alphanumeric characters, dashes, and underscores.
+        This replaces colons (used in patient:id and session:id formats) with dashes.
+        """
+        return raw_id.replace(":", "-") if raw_id else raw_id
 
     def __init__(
         self,
@@ -156,7 +166,7 @@ class EpisodicMemoryService:
         await self.initialize()
 
         timestamp = timestamp or datetime.now()
-        group_id = f"{patient_id}:{session_id}"
+        group_id = f"{self._sanitize_group_id(patient_id)}--{self._sanitize_group_id(session_id)}"
 
         # Format as Graphiti message format
         episode_body = f"user: {user_message}\nassistant: {assistant_message}"
@@ -325,10 +335,10 @@ class EpisodicMemoryService:
         # Determine group_id based on whether session is specified
         group_ids = []
         if session_id:
-            group_ids.append(f"{patient_id}:{session_id}")
+            group_ids.append(f"{self._sanitize_group_id(patient_id)}--{self._sanitize_group_id(session_id)}")
         else:
             # Include both session-level and turn-level episodes
-            group_ids.append(patient_id)
+            group_ids.append(self._sanitize_group_id(patient_id))
             # Note: We'd need to query for all session-specific group_ids
             # For now, we'll use semantic search which handles this better
 
@@ -369,9 +379,9 @@ class EpisodicMemoryService:
         """
         await self.initialize()
 
-        group_ids = [patient_id]
+        group_ids = [self._sanitize_group_id(patient_id)]
         if session_id:
-            group_ids.append(f"{patient_id}:{session_id}")
+            group_ids.append(f"{self._sanitize_group_id(patient_id)}--{self._sanitize_group_id(session_id)}")
 
         try:
             results: SearchResults = await search(
@@ -558,9 +568,9 @@ class EpisodicMemoryService:
         # Parse group_id to extract session_id
         group_id = ep.group_id
         session_id = None
-        if ":" in group_id:
-            parts = group_id.split(":")
-            if len(parts) >= 2:
+        if "--" in group_id:
+            parts = group_id.split("--", 1)
+            if len(parts) == 2:
                 session_id = parts[1]
 
         # Try to extract turn number from name

@@ -2247,7 +2247,7 @@ class PatientMemoryService:
                 logger.info(f"Session {session_id} title updated to '{result[0].get('new_title')}'")
                 return True
             else:
-                logger.warning(f"Session {session_id} not found for title update")
+                logger.warning(f"Session {session_id} not found for title update (attempted title: '{title}')")
                 return False
 
         except Exception as e:

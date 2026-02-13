@@ -51,15 +51,18 @@ class OntologyQualityService:
         self,
         kg_backend: Any,
         normalizer: Optional[SemanticNormalizer] = None,
+        hypergraph_analytics=None,
     ):
         """Initialize the ontology quality service.
 
         Args:
             kg_backend: Knowledge graph backend for querying entities
             normalizer: Optional semantic normalizer for name analysis
+            hypergraph_analytics: Optional HypergraphAnalyticsService for coherence metric
         """
         self.backend = kg_backend
         self.normalizer = normalizer or SemanticNormalizer()
+        self.hypergraph_analytics = hypergraph_analytics
 
         # Known ontology classes
         self.odin_classes = set(ODIN_SCHEMAS.keys())
@@ -102,6 +105,16 @@ class OntologyQualityService:
             report.normalization = await self._assess_normalization(entities)
             report.cross_reference = await self._assess_cross_references(relationships, entities)
             report.interoperability = await self._assess_interoperability(entities)
+
+            # Optional: hypergraph coherence metric
+            if self.hypergraph_analytics and self.hypergraph_analytics.is_available():
+                try:
+                    coherence = await self._assess_hypergraph_coherence()
+                    if coherence is not None:
+                        report.additional_metrics = getattr(report, "additional_metrics", {})
+                        report.additional_metrics["hypergraph_coherence"] = coherence
+                except Exception as e:
+                    logger.warning(f"Hypergraph coherence assessment skipped: {e}")
 
             # Compute overall score and generate recommendations
             report.compute_overall_score()
@@ -764,6 +777,58 @@ class OntologyQualityService:
         )
 
         return score
+
+    async def _assess_hypergraph_coherence(self) -> Optional[Dict[str, Any]]:
+        """Assess structural coherence via hypergraph community detection.
+
+        Score composed of:
+        - Modularity score (weight 0.4)
+        - Proportion of entities in non-trivial communities (weight 0.3)
+        - Inverse of isolated component ratio (weight 0.3)
+
+        Returns:
+            Dict with score and breakdown, or None if insufficient data
+        """
+        communities = await self.hypergraph_analytics.detect_knowledge_communities()
+        connectivity = await self.hypergraph_analytics.analyze_connectivity(s_values=[1])
+
+        if communities.total_communities == 0:
+            return None
+
+        # Modularity component (0-1, higher is better)
+        modularity_score = max(0.0, min(1.0, communities.overall_modularity))
+
+        # Non-trivial community coverage (communities with 3+ members)
+        total_entities = sum(c.member_count for c in communities.communities)
+        entities_in_nontrivial = sum(
+            c.member_count for c in communities.communities if c.member_count >= 3
+        )
+        nontrivial_ratio = entities_in_nontrivial / max(total_entities, 1)
+
+        # Inverse isolated component ratio
+        if connectivity and connectivity[0].components:
+            islands = sum(
+                1 for c in connectivity[0].components if c.is_knowledge_island
+            )
+            total_components = connectivity[0].component_count
+            isolated_ratio = islands / max(total_components, 1)
+            connectivity_score = 1.0 - isolated_ratio
+        else:
+            connectivity_score = 0.0
+
+        overall = (
+            modularity_score * 0.4
+            + nontrivial_ratio * 0.3
+            + connectivity_score * 0.3
+        )
+
+        return {
+            "score": round(overall, 4),
+            "modularity": round(modularity_score, 4),
+            "nontrivial_community_ratio": round(nontrivial_ratio, 4),
+            "connectivity_score": round(connectivity_score, 4),
+            "total_communities": communities.total_communities,
+        }
 
 
 async def quick_ontology_check(kg_backend: Any) -> Dict[str, Any]:

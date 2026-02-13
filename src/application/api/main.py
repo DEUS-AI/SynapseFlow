@@ -4,6 +4,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPExcept
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from contextlib import asynccontextmanager
 from pathlib import Path
 import logging
 import asyncio
@@ -18,6 +19,7 @@ from enum import Enum as PyEnum
 from .kg_router import router as kg_router
 from .document_router import router as document_router
 from .crystallization_router import router as crystallization_router
+from .hypergraph_router import router as hypergraph_router
 from .dependencies import (
     get_chat_service,
     get_patient_memory,
@@ -25,53 +27,15 @@ from .dependencies import (
     get_event_bus,
     initialize_layer_services,
     initialize_crystallization_pipeline,
+    get_hypergraph_analytics,
 )
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="Medical Knowledge Graph API",
-    description="API for accessing and querying the Layered Knowledge Graph with Patient Memory",
-    version="2.0.0"
-)
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for dev
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
-app.include_router(kg_router)
-app.include_router(document_router)
-app.include_router(crystallization_router)
-
-# ========================================
-# Evaluation Framework (Conditional)
-# ========================================
-# Only register evaluation endpoints when SYNAPSEFLOW_EVAL_MODE=true
-# These endpoints allow automated testing of agent behavior
-
-EVAL_MODE_ENABLED = os.getenv("SYNAPSEFLOW_EVAL_MODE", "false").lower() in ("true", "1", "yes")
-
-if EVAL_MODE_ENABLED:
-    from .evaluation_router import router as evaluation_router
-    app.include_router(evaluation_router)
-    logger.info("🧪 Evaluation endpoints enabled (SYNAPSEFLOW_EVAL_MODE=true)")
-else:
-    logger.debug("Evaluation endpoints disabled (set SYNAPSEFLOW_EVAL_MODE=true to enable)")
-
-
-# ========================================
-# Startup Events
-# ========================================
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on application startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup initialization."""
     logger.info("🚀 Starting Medical Knowledge Graph API...")
 
     # Initialize layer transition services (automatic promotion pipeline)
@@ -89,6 +53,58 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
         # Don't fail startup - crystallization is optional
+
+    # Initialize hypergraph analytics (optional — depends on HyperNetX)
+    try:
+        from .hypergraph_router import set_analytics_service
+        analytics = await get_hypergraph_analytics()
+        if analytics:
+            set_analytics_service(analytics)
+            logger.info("✅ Hypergraph analytics initialized")
+        else:
+            logger.info("ℹ️ Hypergraph analytics not available (HyperNetX not installed)")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize hypergraph analytics: {e}")
+        # Don't fail startup - hypergraph analytics is optional
+
+    yield
+
+app = FastAPI(
+    title="Medical Knowledge Graph API",
+    description="API for accessing and querying the Layered Knowledge Graph with Patient Memory",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(kg_router)
+app.include_router(document_router)
+app.include_router(crystallization_router)
+app.include_router(hypergraph_router)
+
+# ========================================
+# Evaluation Framework (Conditional)
+# ========================================
+# Only register evaluation endpoints when SYNAPSEFLOW_EVAL_MODE=true
+# These endpoints allow automated testing of agent behavior
+
+EVAL_MODE_ENABLED = os.getenv("SYNAPSEFLOW_EVAL_MODE", "false").lower() in ("true", "1", "yes")
+
+if EVAL_MODE_ENABLED:
+    from .evaluation_router import router as evaluation_router
+    app.include_router(evaluation_router)
+    logger.info("🧪 Evaluation endpoints enabled (SYNAPSEFLOW_EVAL_MODE=true)")
+else:
+    logger.debug("Evaluation endpoints disabled (set SYNAPSEFLOW_EVAL_MODE=true to enable)")
 
 
 # ========================================
@@ -301,7 +317,11 @@ async def chat_websocket_endpoint(
                                     )
                                     logger.info(f"Title update confirmed and notified: '{new_title}'")
                                 else:
-                                    logger.warning(f"Title persistence verification failed for session {session_id}")
+                                    actual_title = updated_meta.title if updated_meta else None
+                                    logger.warning(
+                                        f"Title persistence verification failed for session {session_id}: "
+                                        f"expected='{new_title}', actual='{actual_title}'"
+                                    )
                 except Exception as title_error:
                     # Don't fail the message if title generation fails
                     logger.warning(f"Auto-title generation failed: {title_error}")
@@ -2754,7 +2774,7 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
     - Critical issues and recommendations
     """
     from application.services.ontology_quality_service import quick_ontology_check
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     try:
         result = await quick_ontology_check(kg_backend)
@@ -2776,7 +2796,7 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
                 "orphan_nodes": result.get("orphan_nodes", 0),
                 "critical_issues": result.get("critical_issues", []),
                 "recommendations": result.get("top_recommendations", []),
-                "assessed_at": datetime.utcnow().isoformat() + "Z",
+                "assessed_at": datetime.now(timezone.utc).isoformat(),
             },
             "by_quality_level": {
                 result.get("quality_level", "unknown"): 1

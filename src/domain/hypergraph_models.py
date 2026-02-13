@@ -415,3 +415,82 @@ class BridgeStatistics:
             "facts_by_type": self.facts_by_type,
             "facts_by_source": self.facts_by_source,
         }
+
+
+# ─── HyperNetX Analytics Result Models ──────────────────────────────
+
+
+@dataclass
+class CentralityResult:
+    """Centrality score for a single entity in the hypergraph."""
+    entity_id: str
+    entity_name: str
+    entity_type: str
+    centrality_score: float
+    participating_fact_count: int
+
+
+@dataclass
+class CommunityResult:
+    """A detected community of related entities."""
+    community_id: int
+    member_entity_ids: List[str]
+    member_count: int
+    dominant_types: List[str]
+    modularity_contribution: float
+
+
+@dataclass
+class CommunityDetectionResult:
+    """Full community detection output."""
+    total_communities: int
+    overall_modularity: float
+    communities: List[CommunityResult] = field(default_factory=list)
+
+
+@dataclass
+class ConnectivityComponent:
+    """A single s-connected component."""
+    component_id: int
+    size: int
+    entity_ids: List[str]
+    is_knowledge_island: bool = False  # True if size < 3
+
+
+@dataclass
+class ConnectivityResult:
+    """Connectivity analysis at a specific s value."""
+    s_value: int
+    component_count: int
+    components: List[ConnectivityComponent] = field(default_factory=list)
+
+
+@dataclass
+class DistanceResult:
+    """Distance from a source entity to another entity."""
+    entity_id: str
+    entity_name: str
+    distance: float
+    reachable: bool = True
+
+
+@dataclass
+class TopologicalSummary:
+    """Topological summary of the hypergraph."""
+    node_count: int
+    edge_count: int
+    density: float
+    avg_edge_size: float
+    max_edge_size: int
+    avg_node_degree: float
+    diameter: Optional[int] = None
+
+
+@dataclass
+class HypergraphDiff:
+    """Diff between two hypergraph snapshots."""
+    added_edges: List[str] = field(default_factory=list)
+    removed_edges: List[str] = field(default_factory=list)
+    added_nodes: List[str] = field(default_factory=list)
+    removed_nodes: List[str] = field(default_factory=list)
+    modified_edges: List[str] = field(default_factory=list)

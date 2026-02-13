@@ -3,7 +3,7 @@
 from typing import Dict, Any, List, Optional
 from domain.commands import Command
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -37,7 +37,7 @@ class EscalateKGUpdateCommand(Command):
         self.relationships = relationships
         self.metadata = metadata or {}
         self.priority = priority
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
 
 
 class KGQueryCommand(Command):
@@ -90,7 +90,7 @@ class KGUpdateResult(BaseModel):
     
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(timezone.utc)
         if self.validation_errors is None:
             self.validation_errors = []
         if self.reasoning_applied is None:

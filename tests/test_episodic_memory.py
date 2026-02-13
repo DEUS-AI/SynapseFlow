@@ -116,7 +116,7 @@ async def test_store_turn_episode_success(episodic_memory_service, mock_graphiti
     # Verify add_episode was called with correct arguments
     mock_graphiti.add_episode.assert_called_once()
     call_kwargs = mock_graphiti.add_episode.call_args[1]
-    assert "patient-123:session-abc" in call_kwargs["group_id"]
+    assert call_kwargs["group_id"] == "patient-123--session-abc"
     assert "knee pain" in call_kwargs["episode_body"]
     assert call_kwargs["name"] == "Turn 1 (medical_consult)"
 
@@ -185,7 +185,7 @@ async def test_retrieve_recent_episodes_with_results(episodic_memory_service, mo
     mock_episode.content = "user: Hello\nassistant: Hi there!"
     mock_episode.valid_at = datetime(2024, 1, 1, 10, 0, 0)
     mock_episode.created_at = datetime(2024, 1, 1, 10, 0, 0)
-    mock_episode.group_id = "patient-123:session-abc"
+    mock_episode.group_id = "patient-123--session-abc"
     mock_episode.name = "Turn 1 (casual_chat)"
 
     mock_graphiti.retrieve_episodes.return_value = [mock_episode]
@@ -265,7 +265,7 @@ async def test_get_conversation_context(episodic_memory_service, mock_graphiti):
     mock_episode.content = "user: Previous message\nassistant: Previous response"
     mock_episode.valid_at = datetime(2024, 1, 1)
     mock_episode.created_at = datetime(2024, 1, 1)
-    mock_episode.group_id = "patient-123:session-abc"
+    mock_episode.group_id = "patient-123--session-abc"
     mock_episode.name = "Turn 1"
 
     mock_graphiti.retrieve_episodes.return_value = [mock_episode]
@@ -339,7 +339,7 @@ def test_convert_episode():
     mock_episode.content = "user: Hello\nassistant: Hi!"
     mock_episode.valid_at = datetime(2024, 1, 1)
     mock_episode.created_at = datetime(2024, 1, 1)
-    mock_episode.group_id = "patient-123:session-abc"
+    mock_episode.group_id = "patient-123--session-abc"
     mock_episode.name = "Turn 5 (medical_consult)"
 
     result = service._convert_episode(mock_episode, "patient-123")
@@ -373,3 +373,91 @@ def test_episode_to_dict():
     assert result["turn_number"] == 1
     assert result["mode"] == "casual_chat"
     assert result["topics"] == ["greeting"]
+
+
+# ============================================================
+# SANITIZE GROUP ID TESTS
+# ============================================================
+
+class TestSanitizeGroupId:
+    """Tests for _sanitize_group_id static method."""
+
+    def test_colon_replaced_with_dash(self):
+        """Test that colons are replaced with dashes."""
+        assert EpisodicMemoryService._sanitize_group_id("patient:demo") == "patient-demo"
+
+    def test_multiple_colons_replaced(self):
+        """Test that all colons in an ID are replaced."""
+        assert EpisodicMemoryService._sanitize_group_id("session:19e7d4d9-d33b") == "session-19e7d4d9-d33b"
+
+    def test_clean_id_passes_through(self):
+        """Test that IDs without colons are unchanged."""
+        assert EpisodicMemoryService._sanitize_group_id("dda_customer_analytics") == "dda_customer_analytics"
+
+    def test_id_with_dashes_and_underscores(self):
+        """Test that dashes and underscores are preserved."""
+        assert EpisodicMemoryService._sanitize_group_id("my-id_123") == "my-id_123"
+
+    def test_empty_string(self):
+        """Test that empty string returns empty string."""
+        assert EpisodicMemoryService._sanitize_group_id("") == ""
+
+    def test_none_returns_none(self):
+        """Test that None input returns None."""
+        assert EpisodicMemoryService._sanitize_group_id(None) is None
+
+
+# ============================================================
+# CONVERT EPISODE PARSING TESTS
+# ============================================================
+
+class TestConvertEpisodeParsing:
+    """Tests for _convert_episode group_id parsing with new format."""
+
+    def _make_mock_episode(self, group_id, name="Turn 1"):
+        mock_ep = MagicMock()
+        mock_ep.uuid = "ep-test"
+        mock_ep.content = "user: hi\nassistant: hello"
+        mock_ep.valid_at = datetime(2024, 1, 1)
+        mock_ep.created_at = datetime(2024, 1, 1)
+        mock_ep.group_id = group_id
+        mock_ep.name = name
+        return mock_ep
+
+    def test_composite_group_id_extracts_session(self):
+        """Test that composite group_id with -- separator extracts session_id."""
+        service = EpisodicMemoryService(graphiti=MagicMock())
+        mock_ep = self._make_mock_episode("patient-demo--session-abc-123")
+
+        result = service._convert_episode(mock_ep, "patient:demo")
+
+        assert result.session_id == "session-abc-123"
+
+    def test_patient_only_group_id_returns_none_session(self):
+        """Test that patient-only group_id has no session_id."""
+        service = EpisodicMemoryService(graphiti=MagicMock())
+        mock_ep = self._make_mock_episode("patient-demo", name="Session summary")
+
+        result = service._convert_episode(mock_ep, "patient:demo")
+
+        assert result.session_id is None
+
+    def test_legacy_colon_format_returns_none_session(self):
+        """Test that legacy colon-separated group_id doesn't crash and returns None session."""
+        service = EpisodicMemoryService(graphiti=MagicMock())
+        mock_ep = self._make_mock_episode("patient:demo:session:abc")
+
+        result = service._convert_episode(mock_ep, "patient:demo")
+
+        assert result.session_id is None
+
+    def test_composite_with_uuid_session(self):
+        """Test parsing composite group_id with UUID-style session."""
+        service = EpisodicMemoryService(graphiti=MagicMock())
+        mock_ep = self._make_mock_episode(
+            "patient-demo--session-19e7d4d9-d33b-48c1-b351-97511b67bc12"
+        )
+
+        result = service._convert_episode(mock_ep, "patient:demo")
+
+        assert result.session_id == "session-19e7d4d9-d33b-48c1-b351-97511b67bc12"

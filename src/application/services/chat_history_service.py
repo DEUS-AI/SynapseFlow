@@ -77,8 +77,10 @@ class ChatHistoryService:
 
         if self.openai_api_key:
             self.openai_client = AsyncOpenAI(api_key=self.openai_api_key)
+            logger.info("OpenAI client initialised for auto-title generation")
         else:
             self.openai_client = None
+            logger.warning("No OPENAI_API_KEY configured — auto-title generation will use fallback only")
 
         # Log migration mode
         if self.pg_session_repo:
@@ -531,6 +533,56 @@ class ChatHistoryService:
         logger.info(f"Found {len(sessions)} sessions matching '{query}'")
         return sessions
 
+    @staticmethod
+    def _fallback_title_from_message(content: str) -> str:
+        """
+        Generate a fallback title from the first user message when LLM is unavailable.
+
+        Strips greeting filler, extracts significant words, applies title case,
+        and caps at 50 characters at a word boundary.
+        """
+        import re
+
+        if not content or not content.strip():
+            return "New Conversation"
+
+        text = content.strip()
+
+        # Strip common greeting filler at the start
+        greeting_patterns = [
+            r"^(?:hi|hello|hey|good\s+(?:morning|afternoon|evening)),?\s*",
+            r"^(?:hi|hello|hey)\s+(?:doctor|doc|dr\.?),?\s*",
+            r"^(?:dear\s+)?(?:doctor|doc|dr\.?),?\s*",
+        ]
+        for pattern in greeting_patterns:
+            text = re.sub(pattern, "", text, flags=re.IGNORECASE).strip()
+
+        if not text:
+            return "New Conversation"
+
+        # Take first ~50 chars at a word boundary
+        words = text.split()
+        title_words = []
+        char_count = 0
+        for word in words:
+            if char_count + len(word) + (1 if title_words else 0) > 50:
+                break
+            title_words.append(word)
+            char_count += len(word) + (1 if len(title_words) > 1 else 0)
+            if len(title_words) >= 5:
+                break
+
+        if not title_words:
+            # Single very long word — truncate it
+            title_words = [words[0][:50]]
+
+        title = " ".join(title_words).title()
+
+        # Clean up trailing punctuation
+        title = title.rstrip(".,;:!?")
+
+        return title if title else "New Conversation"
+
     async def auto_generate_title(
         self,
         session_id: str
@@ -538,11 +590,9 @@ class ChatHistoryService:
         """
         Auto-generate session title from first 2-3 messages.
 
-        Uses Phase 6 intent classification for faster, more consistent titles.
-
         Strategy:
-        1. Try intent-based title (fast, no LLM call)
-        2. Fallback to LLM generation if no clear intent
+        1. Try LLM generation (primary — works for any topic)
+        2. Fallback to message-based title if LLM is unavailable or fails
 
         Args:
             session_id: Session identifier
@@ -556,48 +606,20 @@ class ChatHistoryService:
         messages = await self.get_session_messages(session_id, limit=3)
 
         if not messages:
+            logger.warning(f"No messages found for session {session_id} — cannot generate title")
             return None
 
         # Get first user message
         first_user_msg = next((m for m in messages if m.is_user_message()), None)
 
         if not first_user_msg:
+            logger.warning(f"No user message found in first 3 messages for session {session_id}")
             return None
 
-        # Try intent-based title first (fast)
-        if self.intent_service:
-            try:
-                intent = await self.intent_service.classify(first_user_msg.content)
-
-                # Generate title from topic hint
-                if intent.topic_hint:
-                    # "knee" → "Knee Pain Discussion"
-                    # "ibuprofen" → "Ibuprofen Query"
-                    topic = intent.topic_hint.title()
-                    if intent.intent_type.value == "symptom_report":
-                        title = f"{topic} Discussion"
-                    elif intent.intent_type.value == "medical_query":
-                        title = f"{topic} Query"
-                    else:
-                        title = f"{topic}"
-
-                    logger.info(f"Generated intent-based title: '{title}'")
-
-                    # Update session title
-                    success = await self.memory.update_session_title(session_id, title)
-                    if success:
-                        return title
-                    else:
-                        logger.warning(f"Failed to persist intent-based title for session {session_id}")
-                        return None
-
-            except Exception as e:
-                logger.warning(f"Intent-based title generation failed: {e}")
-
-        # Fallback to LLM generation
+        # Strategy 1: LLM title generation (primary)
+        llm_title = None
         if self.openai_client:
             try:
-                # Build message context
                 message_context = "\n".join([
                     f"{m.role}: {m.content}" for m in messages[:3]
                 ])
@@ -607,7 +629,7 @@ class ChatHistoryService:
                     messages=[
                         {
                             "role": "system",
-                            "content": "Generate a short (3-5 word) title for this medical conversation. Be specific and descriptive."
+                            "content": "Generate a short (3-5 word) title for this conversation. Be specific and descriptive."
                         },
                         {
                             "role": "user",
@@ -618,21 +640,34 @@ class ChatHistoryService:
                     max_tokens=20
                 )
 
-                title = response.choices[0].message.content.strip().strip('"')
-                logger.info(f"Generated LLM-based title: '{title}'")
+                raw_title = response.choices[0].message.content.strip().strip('"')
 
-                # Update session title
-                success = await self.memory.update_session_title(session_id, title)
-                if success:
-                    return title
+                if raw_title and raw_title.strip():
+                    llm_title = raw_title
+                    logger.info(f"Generated LLM-based title: '{llm_title}'")
                 else:
-                    logger.warning(f"Failed to persist LLM-based title for session {session_id}")
-                    return None
+                    logger.warning(f"LLM returned empty/whitespace title for session {session_id} — falling through to fallback")
 
             except Exception as e:
-                logger.error(f"LLM title generation failed: {e}")
+                logger.warning(f"LLM title generation failed for session {session_id}: {e} — falling through to fallback")
 
-        return None
+        # Strategy 2: Message-based fallback
+        title = llm_title
+        if not title:
+            if not self.openai_client:
+                reason = "no OpenAI client configured"
+            else:
+                reason = "LLM generation failed or returned empty"
+            title = self._fallback_title_from_message(first_user_msg.content)
+            logger.info(f"Using fallback title for session {session_id} ({reason}): '{title}'")
+
+        # Persist the title
+        success = await self.memory.update_session_title(session_id, title)
+        if success:
+            return title
+        else:
+            logger.warning(f"Failed to persist title '{title}' for session {session_id}")
+            return None
 
     async def get_session_summary(
         self,
