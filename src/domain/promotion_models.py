@@ -10,7 +10,7 @@ Used by:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Any, Optional
 
@@ -123,7 +123,7 @@ class PromotionDecision:
     all_criteria_met: bool = False
 
     # Metadata
-    evaluated_at: datetime = field(default_factory=datetime.utcnow)
+    evaluated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     evaluated_by: str = "system"
     reviewer: Optional[str] = None
     reviewed_at: Optional[datetime] = None
@@ -174,7 +174,7 @@ class PendingReview:
     to_layer: str
     risk_level: RiskLevel
     decision: PromotionDecision
-    submitted_at: datetime = field(default_factory=datetime.utcnow)
+    submitted_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     priority: int = 0  # Higher = more urgent
     patient_id: Optional[str] = None
     notes: str = ""
@@ -206,7 +206,7 @@ class ReviewAction:
     reviewer: str
     action: str  # "approve", "reject", "defer"
     reason: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     notes: str = ""
 
 

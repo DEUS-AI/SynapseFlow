@@ -18,7 +18,7 @@ Promotion Paths:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 
@@ -570,7 +570,7 @@ class PromotionGate:
         decision.status = PromotionStatus.APPROVED
         decision.approved = True
         decision.reviewer = reviewer
-        decision.reviewed_at = datetime.utcnow()
+        decision.reviewed_at = datetime.now(timezone.utc)
         decision.notes = notes
         decision.reason = f"Approved by {reviewer}"
 
@@ -621,7 +621,7 @@ class PromotionGate:
         decision.status = PromotionStatus.REJECTED
         decision.approved = False
         decision.reviewer = reviewer
-        decision.reviewed_at = datetime.utcnow()
+        decision.reviewed_at = datetime.now(timezone.utc)
         decision.reason = f"Rejected by {reviewer}: {reason}"
 
         # Record action

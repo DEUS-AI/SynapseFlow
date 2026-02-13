@@ -13,7 +13,7 @@ Features:
 
 import math
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 
@@ -64,7 +64,7 @@ class TemporalScoringService:
         >>> service = TemporalScoringService()
         >>> score = service.compute_temporal_score(
         ...     entity_type="Symptom",
-        ...     last_observed=datetime.utcnow() - timedelta(hours=40),
+        ...     last_observed=datetime.now(timezone.utc) - timedelta(hours=40),
         ...     observation_count=3
         ... )
         >>> print(f"Score: {score.final_score:.2f}")  # ~0.25 (decayed)
@@ -106,7 +106,7 @@ class TemporalScoringService:
         Returns:
             TemporalScore with computed relevance
         """
-        reference_time = reference_time or datetime.utcnow()
+        reference_time = reference_time or datetime.now(timezone.utc)
 
         # Get decay config for entity type
         decay_config = self.decay_configs.get(
@@ -170,9 +170,9 @@ class TemporalScoringService:
                 try:
                     last_observed = datetime.fromisoformat(last_observed.replace("Z", "+00:00"))
                 except ValueError:
-                    last_observed = datetime.utcnow()
+                    last_observed = datetime.now(timezone.utc)
             elif last_observed is None:
-                last_observed = datetime.utcnow()
+                last_observed = datetime.now(timezone.utc)
 
             observation_count = entity.get("observation_count", 1)
 
@@ -212,7 +212,7 @@ class TemporalScoringService:
             >>> ctx = service.parse_temporal_query("¿Cómo me sentí ayer?")
             >>> print(ctx.window)  # TemporalWindow.SHORT_TERM
         """
-        reference_time = reference_time or datetime.utcnow()
+        reference_time = reference_time or datetime.now(timezone.utc)
         query_lower = query.lower()
 
         # Try to match known temporal keywords

@@ -5,7 +5,7 @@ for the temporal scoring service.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, Optional, List
 import math
@@ -154,7 +154,7 @@ class TemporalScore:
     hours_since_observation: float
     observation_count: int
     decay_config: DecayConfig
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def is_stale(self) -> bool:

@@ -11,7 +11,7 @@ This module provides a comprehensive REST API for:
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -173,7 +173,7 @@ async def health_check():
         
         return HealthResponse(
             status="healthy" if backend_status.get("status") == "healthy" else "degraded",
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             backend_status=backend_status,
             event_bus_status=event_bus_status
         )
@@ -209,7 +209,7 @@ async def create_entity(
             id=entity.id,
             properties=entity.properties,
             labels=entity.labels,
-            created_at=datetime.utcnow().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             updated_at=None
         )
         
@@ -300,7 +300,7 @@ async def update_entity(
             properties=entity_update.properties,
             labels=entity_update.labels,
             created_at=None,
-            updated_at=datetime.utcnow().isoformat()
+            updated_at=datetime.now(timezone.utc).isoformat()
         )
         
     except HTTPException:
@@ -442,7 +442,7 @@ async def create_relationship(
             target=relationship.target,
             type=relationship.type,
             properties=relationship.properties,
-            created_at=datetime.utcnow().isoformat()
+            created_at=datetime.now(timezone.utc).isoformat()
         )
         
     except HTTPException:
@@ -682,7 +682,7 @@ async def get_statistics(
             "relationship_count": rel_count,
             "total_nodes": entity_count,
             "total_edges": rel_count,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:

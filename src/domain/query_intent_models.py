@@ -4,7 +4,7 @@ Defines query intent types and their mappings to DIKW layers.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Set
 
@@ -47,7 +47,7 @@ class IntentClassification:
     matched_patterns: List[str] = field(default_factory=list)
     recommended_layers: List[DIKWLayer] = field(default_factory=list)
     requires_inference: bool = False
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def is_high_confidence(self) -> bool:

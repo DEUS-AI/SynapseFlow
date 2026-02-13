@@ -4,6 +4,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPExcept
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from contextlib import asynccontextmanager
 from pathlib import Path
 import logging
 import asyncio
@@ -31,10 +32,48 @@ from .dependencies import (
 
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup initialization."""
+    logger.info("🚀 Starting Medical Knowledge Graph API...")
+
+    # Initialize layer transition services (automatic promotion pipeline)
+    try:
+        await initialize_layer_services()
+        logger.info("✅ Layer services initialized successfully")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize layer services: {e}")
+        # Don't fail startup - allow API to run without auto-promotion
+
+    # Initialize crystallization pipeline (Graphiti → Neo4j DIKW)
+    try:
+        await initialize_crystallization_pipeline()
+        logger.info("✅ Crystallization pipeline initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
+        # Don't fail startup - crystallization is optional
+
+    # Initialize hypergraph analytics (optional — depends on HyperNetX)
+    try:
+        from .hypergraph_router import set_analytics_service
+        analytics = await get_hypergraph_analytics()
+        if analytics:
+            set_analytics_service(analytics)
+            logger.info("✅ Hypergraph analytics initialized")
+        else:
+            logger.info("ℹ️ Hypergraph analytics not available (HyperNetX not installed)")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize hypergraph analytics: {e}")
+        # Don't fail startup - hypergraph analytics is optional
+
+    yield
+
 app = FastAPI(
     title="Medical Knowledge Graph API",
     description="API for accessing and querying the Layered Knowledge Graph with Patient Memory",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -66,45 +105,6 @@ if EVAL_MODE_ENABLED:
     logger.info("🧪 Evaluation endpoints enabled (SYNAPSEFLOW_EVAL_MODE=true)")
 else:
     logger.debug("Evaluation endpoints disabled (set SYNAPSEFLOW_EVAL_MODE=true to enable)")
-
-
-# ========================================
-# Startup Events
-# ========================================
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on application startup."""
-    logger.info("🚀 Starting Medical Knowledge Graph API...")
-
-    # Initialize layer transition services (automatic promotion pipeline)
-    try:
-        await initialize_layer_services()
-        logger.info("✅ Layer services initialized successfully")
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to initialize layer services: {e}")
-        # Don't fail startup - allow API to run without auto-promotion
-
-    # Initialize crystallization pipeline (Graphiti → Neo4j DIKW)
-    try:
-        await initialize_crystallization_pipeline()
-        logger.info("✅ Crystallization pipeline initialized")
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
-        # Don't fail startup - crystallization is optional
-
-    # Initialize hypergraph analytics (optional — depends on HyperNetX)
-    try:
-        from .hypergraph_router import set_analytics_service
-        analytics = await get_hypergraph_analytics()
-        if analytics:
-            set_analytics_service(analytics)
-            logger.info("✅ Hypergraph analytics initialized")
-        else:
-            logger.info("ℹ️ Hypergraph analytics not available (HyperNetX not installed)")
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to initialize hypergraph analytics: {e}")
-        # Don't fail startup - hypergraph analytics is optional
 
 
 # ========================================
@@ -2774,7 +2774,7 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
     - Critical issues and recommendations
     """
     from application.services.ontology_quality_service import quick_ontology_check
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     try:
         result = await quick_ontology_check(kg_backend)
@@ -2796,7 +2796,7 @@ async def get_ontology_quality(kg_backend = Depends(get_kg_backend)):
                 "orphan_nodes": result.get("orphan_nodes", 0),
                 "critical_issues": result.get("critical_issues", []),
                 "recommendations": result.get("top_recommendations", []),
-                "assessed_at": datetime.utcnow().isoformat() + "Z",
+                "assessed_at": datetime.now(timezone.utc).isoformat(),
             },
             "by_quality_level": {
                 result.get("quality_level", "unknown"): 1

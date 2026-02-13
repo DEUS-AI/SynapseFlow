@@ -33,6 +33,9 @@ _entity_resolver = None
 # Temporal scoring service
 _temporal_scoring_service = None
 
+# Hypergraph analytics
+_hypergraph_analytics_instance = None
+
 # DIKW Router
 _dikw_router_instance = None
 
@@ -178,6 +181,37 @@ async def get_dikw_router():
     return _dikw_router_instance
 
 
+async def get_hypergraph_analytics():
+    """
+    Get the HypergraphAnalyticsService instance.
+
+    This service provides hypergraph analytics (centrality, communities,
+    connectivity) using HyperNetX over the Neo4j-persisted FactUnit graph.
+    Returns None if HyperNetX is not installed.
+    """
+    global _hypergraph_analytics_instance
+
+    if _hypergraph_analytics_instance is None:
+        try:
+            from infrastructure.hypernetx_adapter import HyperNetXAdapter, HNX_AVAILABLE
+            from application.services.hypergraph_analytics_service import HypergraphAnalyticsService
+
+            if not HNX_AVAILABLE:
+                print("⚠️ HyperNetX not available — hypergraph analytics disabled")
+                return None
+
+            backend = await get_kg_backend()
+            adapter = HyperNetXAdapter(neo4j_backend=backend)
+            _hypergraph_analytics_instance = HypergraphAnalyticsService(adapter=adapter)
+
+            print("✅ HypergraphAnalyticsService initialized")
+        except ImportError:
+            print("⚠️ HyperNetX not installed — hypergraph analytics disabled")
+            return None
+
+    return _hypergraph_analytics_instance
+
+
 async def get_neurosymbolic_service():
     """Get the NeurosymbolicQueryService instance."""
     global _neurosymbolic_service_instance
@@ -188,7 +222,14 @@ async def get_neurosymbolic_service():
         from domain.confidence_models import CrossLayerConfidencePropagation
 
         backend = await get_kg_backend()
-        reasoning_engine = ReasoningEngine(backend=backend)
+
+        # Get hypergraph analytics for structural reasoning (optional)
+        hypergraph_analytics = await get_hypergraph_analytics()
+
+        reasoning_engine = ReasoningEngine(
+            backend=backend,
+            hypergraph_analytics=hypergraph_analytics,
+        )
         confidence_propagator = CrossLayerConfidencePropagation()
 
         # Get temporal scoring service if enabled
@@ -446,6 +487,11 @@ async def get_crystallization_service():
                 event_bus=event_bus,
             )
         )
+
+        # Wire hypergraph adapter for cache invalidation on crystallization
+        hypergraph_analytics = await get_hypergraph_analytics()
+        if hypergraph_analytics and _crystallization_service:
+            _crystallization_service._hypergraph_adapter = hypergraph_analytics.adapter
 
     return _crystallization_service
 

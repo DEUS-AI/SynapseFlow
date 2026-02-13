@@ -6,7 +6,7 @@ and symptom patterns.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Set, Any
 
@@ -67,7 +67,7 @@ class MedicalRule:
     source: str = "medical_guidelines"
     active: bool = True
     metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert rule to dictionary."""
@@ -218,7 +218,7 @@ class RuleEvaluationResult:
     entities_involved: List[str] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
     confidence: float = 1.0
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def is_critical(self) -> bool:
