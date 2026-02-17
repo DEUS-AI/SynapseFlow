@@ -224,7 +224,7 @@ class OntologyQualityService:
 
         for entity in entities:
             labels = set(entity.get("labels", []))
-            entity_type = entity.get("type") or "Unknown"
+            entity_type = entity.get("type")  # Keep None for null-type entities
             is_structural = self._is_structural_entity(entity)
             is_noise = self._is_noise_entity(entity)
 
@@ -257,10 +257,10 @@ class OntologyQualityService:
                     class_distribution[f"mapped:{canonical}"] += 1
             else:
                 score.unmapped_entities += 1
-                # Only track unmapped types for knowledge entities
-                # Exclude entities flagged _needs_review (intentionally deferred, not missing)
+                # Only track unmapped types for knowledge entities with an actual type value
+                # Skip: structural, noise, _needs_review (deferred), and null-type entities
                 has_needs_review = props.get("_needs_review", False)
-                if not is_structural and not is_noise and not has_needs_review:
+                if entity_type and not is_structural and not is_noise and not has_needs_review:
                     unmapped_types.add(entity_type)
 
             # Knowledge-only metrics (exclude structural and noise)
@@ -565,15 +565,17 @@ class OntologyQualityService:
         score = MappingConsistencyScore()
 
         # Group entities by their raw type
+        # Use only ODIN classes for consistency (not Schema.org types, which are
+        # expected companion labels — e.g., Disease + MedicalEntity is normal)
         type_to_classes = defaultdict(set)
 
         for entity in entities:
-            raw_type = entity.get("type", "Unknown")
+            raw_type = entity.get("type") or "Unknown"
             labels = set(entity.get("labels", []))
-            ontology_classes = labels & (self.odin_classes | self.schema_org_types)
+            odin_classes = labels & self.odin_classes
 
-            if ontology_classes:
-                for oc in ontology_classes:
+            if odin_classes:
+                for oc in odin_classes:
                     type_to_classes[raw_type].add(oc)
             else:
                 # Also consider _canonical_type from remediation when no ODIN labels present
