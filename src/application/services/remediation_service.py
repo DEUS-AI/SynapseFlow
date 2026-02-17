@@ -465,6 +465,40 @@ REMEDIATION_QUERIES: List[Tuple[str, str, str]] = [
         """
     ),
     (
+        "cytokine_mapping",
+        "Map Cytokine variants to protein (cytokines are signaling proteins)",
+        """
+        MATCH (n)
+        WHERE (n.type IN ['Cytokine', 'cytokine', 'Cytokines', 'cytokines']
+               OR any(label IN labels(n) WHERE label IN ['Cytokine']))
+          AND NOT coalesce(n._ontology_mapped, false)
+        SET n._ontology_mapped = true,
+            n._canonical_type = 'protein',
+            n._original_type = n.type,
+            n.layer = COALESCE(n.layer, 'SEMANTIC'),
+            n._remediation_date = datetime(),
+            n._remediation_batch = $batch_id
+        RETURN count(n) as updated
+        """
+    ),
+    (
+        "chemical_mapping",
+        "Map Chemical variants to drug",
+        """
+        MATCH (n)
+        WHERE (n.type IN ['Chemical', 'chemical', 'Chemicals', 'chemicals']
+               OR any(label IN labels(n) WHERE label IN ['Chemical']))
+          AND NOT coalesce(n._ontology_mapped, false)
+        SET n._ontology_mapped = true,
+            n._canonical_type = 'drug',
+            n._original_type = n.type,
+            n.layer = COALESCE(n.layer, 'SEMANTIC'),
+            n._remediation_date = datetime(),
+            n._remediation_batch = $batch_id
+        RETURN count(n) as updated
+        """
+    ),
+    (
         "null_type_label_inference",
         "Infer type for null-type entities from their Neo4j labels",
         """

@@ -437,8 +437,11 @@ class Neo4jBackend(KnowledgeGraphBackend):
         Returns:
             True if deleted, False if not found
         """
+        from infrastructure.cypher_utils import validate_cypher_identifier
+
+        validate_cypher_identifier(relationship_type, "relationship_type")
         driver = await self._get_driver()
-        
+
         query = """
         MATCH (source:Entity {id: $source_id})-[r:`%s`]->(target:Entity {id: $target_id})
         DELETE r

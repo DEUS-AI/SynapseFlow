@@ -102,6 +102,20 @@ class TestResolveMedicalType:
     def test_vitamin_resolves_to_food_component(self):
         assert resolve_medical_type("Vitamin") == "food_component"
 
+    # --- Cytokine and Chemical alias tests (kg-audit-remediation) ---
+
+    def test_cytokine_resolves_to_protein(self):
+        assert resolve_medical_type("Cytokine") == "protein"
+
+    def test_cytokines_resolves_to_protein(self):
+        assert resolve_medical_type("cytokines") == "protein"
+
+    def test_chemical_resolves_to_drug(self):
+        assert resolve_medical_type("Chemical") == "drug"
+
+    def test_chemicals_resolves_to_drug(self):
+        assert resolve_medical_type("chemicals") == "drug"
+
 
 class TestIsMedicalType:
     """Test is_medical_type() recognizes new types."""

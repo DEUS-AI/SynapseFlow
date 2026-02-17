@@ -1,6 +1,10 @@
 
 # src/composition_root.py
 
+from infrastructure.config_validation import validate_config
+
+validate_config()
+
 from typing import Dict, Callable, Tuple, Optional, TYPE_CHECKING
 from application.agents.data_architect.agent import DataArchitectAgent
 from application.agents.data_engineer.agent import DataEngineerAgent
@@ -216,7 +220,7 @@ async def bootstrap_graphiti(agent_name: str | None = None) -> Graphiti:
     graph_config = {
         "uri": os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
         "user": os.environ.get("NEO4J_USERNAME", os.environ.get("NEO4J_USER", "neo4j")),
-        "password": os.environ.get("NEO4J_PASSWORD", "password"),
+        "password": os.environ["NEO4J_PASSWORD"],
     }
     if agent_name:
         graph_config["name"] = agent_name
@@ -268,7 +272,7 @@ async def bootstrap_patient_memory():
             mem0 = create_isolated_memory_manager(
                 neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
                 neo4j_user=os.getenv("NEO4J_USERNAME", "neo4j"),
-                neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
+                neo4j_password=os.environ["NEO4J_PASSWORD"],
                 qdrant_url=os.getenv("QDRANT_URL", "http://localhost:6333"),
                 openai_api_key=os.getenv("OPENAI_API_KEY")
             )
@@ -279,7 +283,7 @@ async def bootstrap_patient_memory():
             mem0 = create_memory_instance(
                 neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
                 neo4j_user=os.getenv("NEO4J_USERNAME", "neo4j"),
-                neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
+                neo4j_password=os.environ["NEO4J_PASSWORD"],
                 qdrant_url=os.getenv("QDRANT_URL", "http://localhost:6333"),
                 openai_api_key=os.getenv("OPENAI_API_KEY")
             )
@@ -289,7 +293,7 @@ async def bootstrap_patient_memory():
         neo4j = Neo4jBackend(
             uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
             username=os.getenv("NEO4J_USERNAME", "neo4j"),
-            password=os.getenv("NEO4J_PASSWORD", "password")
+            password=os.environ["NEO4J_PASSWORD"]
         )
         print("  ✅ Neo4j backend initialized")
 
@@ -582,7 +586,7 @@ async def bootstrap_knowledge_management() -> Tuple[KnowledgeGraphBackend, Event
             graphiti_client = await get_graphiti({
                 "uri": os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
                 "user": os.environ.get("NEO4J_USERNAME", "neo4j"),
-                "password": os.environ.get("NEO4J_PASSWORD", "password"),
+                "password": os.environ["NEO4J_PASSWORD"],
             })
             kg_backend = GraphitiBackend(graphiti_client)
             print(f"✅ Using Graphiti backend")

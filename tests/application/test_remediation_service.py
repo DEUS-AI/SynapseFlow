@@ -111,6 +111,46 @@ class TestConvertToCountQuery:
             )
 
 
+class TestNewRemediationQueries:
+    """Test cytokine_mapping and chemical_mapping queries exist and are well-formed."""
+
+    def test_cytokine_mapping_exists(self):
+        names = [name for name, _, _ in REMEDIATION_QUERIES]
+        assert "cytokine_mapping" in names
+
+    def test_chemical_mapping_exists(self):
+        names = [name for name, _, _ in REMEDIATION_QUERIES]
+        assert "chemical_mapping" in names
+
+    def test_cytokine_mapping_targets_protein(self):
+        for name, desc, query in REMEDIATION_QUERIES:
+            if name == "cytokine_mapping":
+                assert "'protein'" in query
+                assert "_original_type" in query
+                assert "NOT coalesce(n._ontology_mapped, false)" in query
+                break
+
+    def test_chemical_mapping_targets_drug(self):
+        for name, desc, query in REMEDIATION_QUERIES:
+            if name == "chemical_mapping":
+                assert "'drug'" in query
+                assert "_original_type" in query
+                assert "NOT coalesce(n._ontology_mapped, false)" in query
+                break
+
+    def test_cytokine_mapping_skips_already_mapped(self):
+        for name, _, query in REMEDIATION_QUERIES:
+            if name == "cytokine_mapping":
+                assert "NOT coalesce(n._ontology_mapped, false)" in query
+                break
+
+    def test_chemical_mapping_skips_already_mapped(self):
+        for name, _, query in REMEDIATION_QUERIES:
+            if name == "chemical_mapping":
+                assert "NOT coalesce(n._ontology_mapped, false)" in query
+                break
+
+
 class TestRemediationServiceDryRun:
     """Test RemediationService.dry_run()."""
 

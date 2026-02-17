@@ -422,6 +422,14 @@ MEDICAL_TYPE_ALIASES: Dict[str, str] = {
     "model organism": "organism",
     "model_organism": "organism",
 
+    # Cytokine aliases (mapped to protein — cytokines are signaling proteins)
+    "cytokine": "protein",
+    "cytokines": "protein",
+
+    # Chemical aliases (mapped to drug — chemicals in medical context are pharmaceutical)
+    "chemical": "drug",
+    "chemicals": "drug",
+
     # Food Component aliases
     "food component": "food_component",
     "food_component": "food_component",
