@@ -30,6 +30,10 @@ The `MEDICAL_ONTOLOGY_REGISTRY` SHALL include a `"food_component"` entry with `o
 - `"dietary_substance"` → `"food_component"`
 - `"vitamin"` → `"food_component"`
 - `"vitamins"` → `"food_component"`
+- `"cytokine"` → `"protein"`
+- `"cytokines"` → `"protein"`
+- `"chemical"` → `"drug"`
+- `"chemicals"` → `"drug"`
 
 #### Scenario: Genus resolves to organism
 - **WHEN** `resolve_medical_type("Genus")` is called
@@ -50,6 +54,14 @@ The `MEDICAL_ONTOLOGY_REGISTRY` SHALL include a `"food_component"` entry with `o
 #### Scenario: Vitamin resolves to food_component
 - **WHEN** `resolve_medical_type("Vitamin")` is called
 - **THEN** it SHALL return `"food_component"`
+
+#### Scenario: Cytokine resolves to protein
+- **WHEN** `resolve_medical_type("Cytokine")` is called
+- **THEN** it SHALL return `"protein"`
+
+#### Scenario: Chemical resolves to drug
+- **WHEN** `resolve_medical_type("Chemical")` is called
+- **THEN** it SHALL return `"drug"`
 
 ### Requirement: Unknown type entities are flagged for review not mapped
 Entities with `type = 'Unknown'` or `type = 'unknown'` SHALL NOT receive an ontology mapping. The remediation pipeline SHALL flag them with `_needs_review = true` and `_review_reason = 'unknown_type'`. Additionally, the audit SHALL query the graph for ALL distinct type values not covered by any registry (DATA_ONTOLOGY_REGISTRY, MEDICAL_ONTOLOGY_REGISTRY, MEDICAL_TYPE_ALIASES) — not limited to `Unknown` — and produce a complete unmapped type inventory with entity counts per type.
