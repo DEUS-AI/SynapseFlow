@@ -491,6 +491,195 @@ ODIN_SCHEMAS: Dict[str, OntologyClassSchema] = {
         allowed_relationships=["appliesTo", "triggers"],
         description="Validation rule"
     ),
+    # --- Medical Entity Schemas (ODIN Medical Extension) ---
+    # PERCEPTION Layer
+    "Symptom": OntologyClassSchema(
+        class_name="Symptom",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "severity"],
+        allowed_relationships=["INDICATES", "ASSOCIATED_WITH", "LOCATED_IN"],
+        description="Clinical manifestation or sign"
+    ),
+    "Test": OntologyClassSchema(
+        class_name="Test",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "test_type"],
+        allowed_relationships=["INDICATES", "DIAGNOSED_BY"],
+        description="Diagnostic test"
+    ),
+    "Biomarker": OntologyClassSchema(
+        class_name="Biomarker",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "marker_type"],
+        allowed_relationships=["INDICATES", "ASSOCIATED_WITH"],
+        description="Biological marker or indicator"
+    ),
+    "Observation": OntologyClassSchema(
+        class_name="Observation",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["ASSOCIATED_WITH"],
+        description="Clinical observation"
+    ),
+    "Measurement": OntologyClassSchema(
+        class_name="Measurement",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "unit", "value"],
+        allowed_relationships=["INDICATES", "ASSOCIATED_WITH"],
+        description="Vital sign or lab value"
+    ),
+    # SEMANTIC Layer
+    "Disease": OntologyClassSchema(
+        class_name="Disease",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "severity", "stage"],
+        allowed_relationships=["TREATED_BY", "CAUSES", "DIAGNOSED_BY", "ASSOCIATED_WITH"],
+        description="Medical condition, syndrome, or disorder"
+    ),
+    "Condition": OntologyClassSchema(
+        class_name="Condition",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "severity"],
+        allowed_relationships=["TREATED_BY", "ASSOCIATED_WITH", "LOCATED_IN"],
+        description="Health state or disorder"
+    ),
+    "Drug": OntologyClassSchema(
+        class_name="Drug",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "dosage", "route"],
+        allowed_relationships=["TREATS", "INTERACTS_WITH", "TARGETS", "CONTRAINDICATED_FOR"],
+        description="Medication or pharmaceutical compound"
+    ),
+    "Treatment": OntologyClassSchema(
+        class_name="Treatment",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["TREATS", "ASSOCIATED_WITH"],
+        description="Therapy, procedure, or intervention"
+    ),
+    "Anatomy": OntologyClassSchema(
+        class_name="Anatomy",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["LOCATED_IN", "ASSOCIATED_WITH"],
+        description="Body part, organ, or tissue"
+    ),
+    "Protein": OntologyClassSchema(
+        class_name="Protein",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "function"],
+        allowed_relationships=["TARGETS", "INTERACTS_WITH", "ASSOCIATED_WITH"],
+        description="Protein or enzyme"
+    ),
+    "Organism": OntologyClassSchema(
+        class_name="Organism",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["CAUSES", "ASSOCIATED_WITH"],
+        description="Organism, species, or pathogen"
+    ),
+    "Virus": OntologyClassSchema(
+        class_name="Virus",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["CAUSES", "TARGETS", "ASSOCIATED_WITH"],
+        description="Virus or viral agent"
+    ),
+    "CellType": OntologyClassSchema(
+        class_name="CellType",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["LOCATED_IN", "ASSOCIATED_WITH"],
+        description="Cell type or cellular component"
+    ),
+    # REASONING Layer
+    "Pathway": OntologyClassSchema(
+        class_name="Pathway",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["ASSOCIATED_WITH", "TARGETS"],
+        description="Biological pathway or mechanism"
+    ),
+    "Gene": OntologyClassSchema(
+        class_name="Gene",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "chromosome"],
+        allowed_relationships=["ASSOCIATED_WITH", "TARGETS", "CAUSES"],
+        description="Gene or genetic marker"
+    ),
+    "Mechanism": OntologyClassSchema(
+        class_name="Mechanism",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["CAUSES", "ASSOCIATED_WITH"],
+        description="Pathophysiological mechanism"
+    ),
+    "Interaction": OntologyClassSchema(
+        class_name="Interaction",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "interaction_type"],
+        allowed_relationships=["INTERACTS_WITH"],
+        description="Drug-drug or gene-drug interaction"
+    ),
+    # APPLICATION Layer
+    "Guideline": OntologyClassSchema(
+        class_name="Guideline",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "source"],
+        allowed_relationships=["ASSOCIATED_WITH", "PUBLISHED_BY"],
+        description="Clinical practice guideline"
+    ),
+    "Protocol": OntologyClassSchema(
+        class_name="Protocol",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["TREATS", "ASSOCIATED_WITH"],
+        description="Treatment protocol"
+    ),
+    "Study": OntologyClassSchema(
+        class_name="Study",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type", "study_type", "year"],
+        allowed_relationships=["STUDIED_BY", "PUBLISHED_BY", "ASSOCIATED_WITH"],
+        description="Clinical trial or research study"
+    ),
+    "Organization": OntologyClassSchema(
+        class_name="Organization",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["PUBLISHED_BY", "ASSOCIATED_WITH"],
+        description="Research institution or pharma company"
+    ),
+    "FoodComponent": OntologyClassSchema(
+        class_name="FoodComponent",
+        namespace="odin:medical",
+        required_properties=["name", "id"],
+        optional_properties=["description", "layer", "confidence", "_canonical_type"],
+        allowed_relationships=["ASSOCIATED_WITH", "INTERACTS_WITH"],
+        description="Nutrient, vitamin, or dietary substance"
+    ),
 }
 
 # Schema.org mappings
@@ -501,4 +690,22 @@ SCHEMA_ORG_MAPPINGS: Dict[str, str] = {
     "BusinessConcept": "DefinedTerm",
     "Domain": "Organization",
     "Person": "Person",
+    # Medical types
+    "Disease": "MedicalCondition",
+    "Condition": "MedicalCondition",
+    "Drug": "Drug",
+    "Symptom": "MedicalSignOrSymptom",
+    "Treatment": "MedicalTherapy",
+    "Test": "MedicalTest",
+    "Study": "MedicalStudy",
+    "Organization": "Organization",
+    "Gene": "Gene",
+    "Anatomy": "AnatomicalStructure",
+    "Protein": "Protein",
+    "Biomarker": "MedicalTest",
+    "Pathway": "MedicalEntity",
+    "Virus": "InfectiousAgent",
+    "Organism": "Thing",
+    "CellType": "AnatomicalStructure",
+    "FoodComponent": "Thing",
 }

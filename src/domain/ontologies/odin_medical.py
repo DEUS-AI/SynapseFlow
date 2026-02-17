@@ -23,7 +23,8 @@ class ODINMedical:
     # PERCEPTION Layer - Raw clinical observations
     # ========================================
     SYMPTOM = "Symptom"              # Clinical manifestations, signs
-    TEST = "Test"                    # Diagnostic tests, biomarkers
+    TEST = "Test"                    # Diagnostic tests
+    BIOMARKER = "Biomarker"          # Biological markers, indicators
     OBSERVATION = "Observation"      # Clinical observations
     MEASUREMENT = "Measurement"      # Vital signs, lab values
 
@@ -35,6 +36,11 @@ class ODINMedical:
     DRUG = "Drug"                    # Medications, compounds
     TREATMENT = "Treatment"          # Therapies, procedures, interventions
     ANATOMY = "Anatomy"              # Body parts, organs, tissues
+    PROTEIN = "Protein"              # Proteins, enzymes
+    ORGANISM = "Organism"            # Organisms, species, pathogens
+    VIRUS = "Virus"                  # Viruses, viral agents
+    CELL_TYPE = "CellType"           # Cell types, cellular components
+    FOOD_COMPONENT = "FoodComponent"  # Nutrients, vitamins, dietary substances
 
     # ========================================
     # REASONING Layer - Clinical knowledge
@@ -245,6 +251,64 @@ MEDICAL_ONTOLOGY_REGISTRY: Dict[str, Dict[str, Any]] = {
         "hierarchy_path": ["clinical_knowledge", "organization"],
         "confidence_threshold": 0.85,
     },
+
+    # Additional PERCEPTION types
+    "biomarker": {
+        "odin_class": ODINMedical.BIOMARKER,
+        "layer": "PERCEPTION",
+        "parent_type": "clinical_observation",
+        "auto_relationships": ["INDICATES", "ASSOCIATED_WITH"],
+        "external_systems": [MedicalOntologySystem.LOINC, MedicalOntologySystem.MESH],
+        "hierarchy_path": ["clinical_observation", "biomarker"],
+        "confidence_threshold": 0.7,
+    },
+
+    # Additional SEMANTIC types
+    "protein": {
+        "odin_class": ODINMedical.PROTEIN,
+        "layer": "SEMANTIC",
+        "parent_type": "biological_entity",
+        "auto_relationships": ["TARGETS", "INTERACTS_WITH", "ASSOCIATED_WITH"],
+        "external_systems": [MedicalOntologySystem.UMLS, MedicalOntologySystem.MESH],
+        "hierarchy_path": ["biological_entity", "protein"],
+        "confidence_threshold": 0.85,
+    },
+    "organism": {
+        "odin_class": ODINMedical.ORGANISM,
+        "layer": "SEMANTIC",
+        "parent_type": "biological_entity",
+        "auto_relationships": ["CAUSES", "ASSOCIATED_WITH"],
+        "external_systems": [MedicalOntologySystem.MESH, MedicalOntologySystem.SNOMED_CT],
+        "hierarchy_path": ["biological_entity", "organism"],
+        "confidence_threshold": 0.85,
+    },
+    "virus": {
+        "odin_class": ODINMedical.VIRUS,
+        "layer": "SEMANTIC",
+        "parent_type": "biological_entity",
+        "auto_relationships": ["CAUSES", "TARGETS", "ASSOCIATED_WITH"],
+        "external_systems": [MedicalOntologySystem.MESH, MedicalOntologySystem.SNOMED_CT],
+        "hierarchy_path": ["biological_entity", "virus"],
+        "confidence_threshold": 0.85,
+    },
+    "cell_type": {
+        "odin_class": ODINMedical.CELL_TYPE,
+        "layer": "SEMANTIC",
+        "parent_type": "biological_entity",
+        "auto_relationships": ["LOCATED_IN", "ASSOCIATED_WITH"],
+        "external_systems": [MedicalOntologySystem.MESH, MedicalOntologySystem.SNOMED_CT],
+        "hierarchy_path": ["biological_entity", "cell_type"],
+        "confidence_threshold": 0.85,
+    },
+    "food_component": {
+        "odin_class": ODINMedical.FOOD_COMPONENT,
+        "layer": "SEMANTIC",
+        "parent_type": "biological_entity",
+        "auto_relationships": ["ASSOCIATED_WITH", "INTERACTS_WITH"],
+        "external_systems": [MedicalOntologySystem.MESH, MedicalOntologySystem.SNOMED_CT],
+        "hierarchy_path": ["biological_entity", "food_component"],
+        "confidence_threshold": 0.85,
+    },
 }
 
 
@@ -291,7 +355,6 @@ MEDICAL_TYPE_ALIASES: Dict[str, str] = {
     "tests": "test",
     "diagnostic test": "test",
     "diagnostic_test": "test",
-    "biomarker": "test",
     "lab test": "test",
     "laboratory test": "test",
 
@@ -322,6 +385,54 @@ MEDICAL_TYPE_ALIASES: Dict[str, str] = {
     "pharmaceutical company": "organization",
     "university": "organization",
     "hospital": "organization",
+
+    # Biomarker aliases
+    "biomarker": "biomarker",
+    "biomarkers": "biomarker",
+    "biological marker": "biomarker",
+    "biological_marker": "biomarker",
+
+    # Protein aliases
+    "proteins": "protein",
+    "enzyme": "protein",
+    "enzymes": "protein",
+
+    # Organism aliases
+    "organisms": "organism",
+    "species": "organism",
+    "pathogen": "organism",
+    "pathogens": "organism",
+    "bacterium": "organism",
+    "bacteria": "organism",
+
+    # Virus aliases
+    "viruses": "virus",
+    "viral agent": "virus",
+    "viral_agent": "virus",
+
+    # Cell Type aliases
+    "cell type": "cell_type",
+    "cell_type": "cell_type",
+    "cell types": "cell_type",
+    "cell_types": "cell_type",
+    "celltype": "cell_type",
+
+    # Organism additional aliases (taxonomic terms)
+    "genus": "organism",
+    "model organism": "organism",
+    "model_organism": "organism",
+
+    # Food Component aliases
+    "food component": "food_component",
+    "food_component": "food_component",
+    "food components": "food_component",
+    "food_components": "food_component",
+    "nutrient": "food_component",
+    "nutrients": "food_component",
+    "dietary substance": "food_component",
+    "dietary_substance": "food_component",
+    "vitamin": "food_component",
+    "vitamins": "food_component",
 }
 
 
