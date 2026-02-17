@@ -1,0 +1,1 @@
+MATCH (a), (b) WHERE id(a) < id(b) AND a.type IS NOT NULL AND a.type = b.type AND a.name IS NOT NULL AND b.name IS NOT NULL AND toLower(a.name) = toLower(b.name) RETURN a.name AS name_a, b.name AS name_b, a.type AS type, elementId(a) AS id_a, elementId(b) AS id_b ORDER BY a.type, a.name

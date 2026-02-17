@@ -1,0 +1,1 @@
+MATCH (n) WHERE n.layer IS NULL AND n.type IS NOT NULL RETURN n.name AS name, n.type AS type, labels(n) AS labels LIMIT 100

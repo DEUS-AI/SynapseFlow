@@ -1,0 +1,1 @@
+MATCH (n) WHERE n._ontology_mapped IS NOT NULL RETURN n._ontology_mapped AS mapped, n._canonical_type AS canonical_type, count(n) AS count ORDER BY count DESC

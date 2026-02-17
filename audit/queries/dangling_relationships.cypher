@@ -1,0 +1,1 @@
+MATCH ()-[r]->() WITH r, startNode(r) AS src, endNode(r) AS tgt WHERE src IS NULL OR tgt IS NULL RETURN type(r) AS rel_type, id(r) AS rel_id

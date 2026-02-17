@@ -1,0 +1,927 @@
+{
+  "orphan_nodes": {
+    "count": 4400,
+    "data": [
+      {
+        "name": "C3 Complement",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "C4 Complement",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Cd19 B-Cell",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Cd3 T-Cell",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Cd4 T-Cell",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Cd8 T-Cell",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Immunoglobulin A",
+        "type": "Biomarker",
+        "layer": "PERCEPTION",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Immunoglobulin G",
+        "type": "Biomarker",
+        "layer": "PERCEPTION",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Immunoglobulin M",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Natural Killer Cells",
+        "type": "Biomarker",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Biomarker"
+        ]
+      },
+      {
+        "name": "Acute Inflammation",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Alzheimer's Disease",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Asthma",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Cancer",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Chronic Obstructive Lung Diseases",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Chronic Pain",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Chronic Plaque Psoriasis",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Graves\u2019 Disease",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Hashimoto's Thyroiditis",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Hashimoto\u2019S Disease",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Hashimoto\u2019S Thyroiditis",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Heart Disease",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Lennox-Gastaut Syndrome",
+        "type": "Disease",
+        "layer": "SEMANTIC",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Lupus",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      },
+      {
+        "name": "Myositis",
+        "type": "Disease",
+        "layer": "REASONING",
+        "labels": [
+          "MedicalEntity",
+          "Disease"
+        ]
+      }
+    ]
+  },
+  "dangling_relationships": {
+    "count": 0,
+    "data": []
+  },
+  "invalid_layers": {
+    "count": 0,
+    "data": []
+  },
+  "null_layers_with_type": {
+    "count": 0,
+    "data": []
+  },
+  "layer_confidence_issues": {
+    "count": 0,
+    "data": []
+  },
+  "duplicate_entities": {
+    "count": 131,
+    "data": [
+      {
+        "name_a": "Platelets",
+        "name_b": "platelets",
+        "type": "Cell Type",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1967",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:2746"
+      },
+      {
+        "name_a": "Curcumin",
+        "name_b": "curcumin",
+        "type": "Compound",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1531",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:2182"
+      },
+      {
+        "name_a": "Interleukin-2",
+        "name_b": "interleukin-2",
+        "type": "Cytokine",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4867",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:5303"
+      },
+      {
+        "name_a": "Arthritis",
+        "name_b": "arthritis",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1786",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:2510"
+      },
+      {
+        "name_a": "Asthma",
+        "name_b": "asthma",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4052",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4960"
+      },
+      {
+        "name_a": "Cancer",
+        "name_b": "cancer",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4053",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4961"
+      },
+      {
+        "name_a": "Dermatomyositis",
+        "name_b": "dermatomyositis",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:3534",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4542"
+      },
+      {
+        "name_a": "Interferonopathy",
+        "name_b": "interferonopathy",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:2418",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:3383"
+      },
+      {
+        "name_a": "Lupus",
+        "name_b": "lupus",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:3533",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4541"
+      },
+      {
+        "name_a": "Myositis",
+        "name_b": "myositis",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:3535",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4543"
+      },
+      {
+        "name_a": "Psoriasis",
+        "name_b": "psoriasis",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:630",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1225"
+      },
+      {
+        "name_a": "Scleroderma",
+        "name_b": "scleroderma",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4059",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4966"
+      },
+      {
+        "name_a": "Stroke",
+        "name_b": "stroke",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4058",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4965"
+      },
+      {
+        "name_a": "Thyroiditis",
+        "name_b": "thyroiditis",
+        "type": "Disease",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:999",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1873"
+      },
+      {
+        "name_a": "Adalimumab",
+        "name_b": "adalimumab",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:402",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:833"
+      },
+      {
+        "name_a": "Anifrolumab",
+        "name_b": "anifrolumab",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:3000",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4445"
+      },
+      {
+        "name_a": "Aspirin",
+        "name_b": "aspirin",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4061",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4968"
+      },
+      {
+        "name_a": "Azathioprine",
+        "name_b": "azathioprine",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:574",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:838"
+      },
+      {
+        "name_a": "Belimumab",
+        "name_b": "belimumab",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:3442",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:4446"
+      },
+      {
+        "name_a": "Cadmium",
+        "name_b": "cadmium",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1107",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1974"
+      },
+      {
+        "name_a": "Caffeine",
+        "name_b": "caffeine",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:903",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1804"
+      },
+      {
+        "name_a": "Cannabidiol",
+        "name_b": "cannabidiol",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1780",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:2504"
+      },
+      {
+        "name_a": "Copper",
+        "name_b": "copper",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:479",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:1018"
+      },
+      {
+        "name_a": "Corticosteroids",
+        "name_b": "corticosteroids",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:3892",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:5211"
+      },
+      {
+        "name_a": "Curcumin",
+        "name_b": "curcumin",
+        "type": "Drug",
+        "id_a": "4:57f69b1f-d348-4b61-a01c-b6df24195686:481",
+        "id_b": "4:57f69b1f-d348-4b61-a01c-b6df24195686:714"
+      }
+    ]
+  },
+  "type_distribution": {
+    "count": 24,
+    "data": [
+      {
+        "type": "Organization",
+        "count": 215
+      },
+      {
+        "type": "Drug",
+        "count": 194
+      },
+      {
+        "type": "Disease",
+        "count": 179
+      },
+      {
+        "type": "Treatment",
+        "count": 151
+      },
+      {
+        "type": "Gene",
+        "count": 134
+      },
+      {
+        "type": "Test",
+        "count": 102
+      },
+      {
+        "type": "Symptom",
+        "count": 91
+      },
+      {
+        "type": "Pathway",
+        "count": 52
+      },
+      {
+        "type": "Study",
+        "count": 46
+      },
+      {
+        "type": "Protein",
+        "count": 18
+      },
+      {
+        "type": "Biomarker",
+        "count": 16
+      },
+      {
+        "type": "Cytokine",
+        "count": 9
+      },
+      {
+        "type": "Food Component",
+        "count": 7
+      },
+      {
+        "type": "Cell Type",
+        "count": 6
+      },
+      {
+        "type": "Organism",
+        "count": 6
+      },
+      {
+        "type": "Chemical",
+        "count": 4
+      },
+      {
+        "type": "Compound",
+        "count": 4
+      },
+      {
+        "type": "Virus",
+        "count": 4
+      },
+      {
+        "type": "Model Organism",
+        "count": 2
+      },
+      {
+        "type": "Genus",
+        "count": 2
+      },
+      {
+        "type": "Species",
+        "count": 2
+      },
+      {
+        "type": "Bacteria",
+        "count": 2
+      },
+      {
+        "type": "Guideline",
+        "count": 1
+      },
+      {
+        "type": "Cell",
+        "count": 1
+      }
+    ]
+  },
+  "label_distribution": {
+    "count": 56,
+    "data": [
+      {
+        "label": "LayerTransition",
+        "count": 4312
+      },
+      {
+        "label": "ExtractedEntity",
+        "count": 726
+      },
+      {
+        "label": "MedicalEntity",
+        "count": 522
+      },
+      {
+        "label": "Organization",
+        "count": 215
+      },
+      {
+        "label": "Drug",
+        "count": 194
+      },
+      {
+        "label": "Disease",
+        "count": 179
+      },
+      {
+        "label": "Treatment",
+        "count": 151
+      },
+      {
+        "label": "Gene",
+        "count": 134
+      },
+      {
+        "label": "Test",
+        "count": 102
+      },
+      {
+        "label": "Symptom",
+        "count": 91
+      },
+      {
+        "label": "Document",
+        "count": 80
+      },
+      {
+        "label": "Chunk",
+        "count": 80
+      },
+      {
+        "label": "Column",
+        "count": 74
+      },
+      {
+        "label": "Entity",
+        "count": 63
+      },
+      {
+        "label": "Pathway",
+        "count": 52
+      },
+      {
+        "label": "Message",
+        "count": 48
+      },
+      {
+        "label": "Study",
+        "count": 46
+      },
+      {
+        "label": "Protein",
+        "count": 18
+      },
+      {
+        "label": "Biomarker",
+        "count": 16
+      },
+      {
+        "label": "ConversationSession",
+        "count": 11
+      },
+      {
+        "label": "Table",
+        "count": 9
+      },
+      {
+        "label": "Cytokine",
+        "count": 9
+      },
+      {
+        "label": "Catalog",
+        "count": 8
+      },
+      {
+        "label": "Schema",
+        "count": 8
+      },
+      {
+        "label": "__User__",
+        "count": 7
+      }
+    ]
+  },
+  "layer_distribution": {
+    "count": 5,
+    "data": [
+      {
+        "layer": null,
+        "count": 4565
+      },
+      {
+        "layer": "REASONING",
+        "count": 841
+      },
+      {
+        "layer": "PERCEPTION",
+        "count": 288
+      },
+      {
+        "layer": "SEMANTIC",
+        "count": 219
+      },
+      {
+        "layer": "APPLICATION",
+        "count": 2
+      }
+    ]
+  },
+  "rel_type_distribution": {
+    "count": 80,
+    "data": [
+      {
+        "rel_type": "MENTIONS",
+        "count": 1040
+      },
+      {
+        "rel_type": "LINKS_TO",
+        "count": 737
+      },
+      {
+        "rel_type": "ASSOCIATEDWITH",
+        "count": 139
+      },
+      {
+        "rel_type": "TREATS",
+        "count": 129
+      },
+      {
+        "rel_type": "INDICATES",
+        "count": 101
+      },
+      {
+        "rel_type": "HAS_CHUNK",
+        "count": 80
+      },
+      {
+        "rel_type": "HAS_COLUMN",
+        "count": 74
+      },
+      {
+        "rel_type": "HAS_MESSAGE",
+        "count": 48
+      },
+      {
+        "rel_type": "CONTAINS_TABLE",
+        "count": 41
+      },
+      {
+        "rel_type": "CAUSES",
+        "count": 35
+      },
+      {
+        "rel_type": "TREATEDBY",
+        "count": 14
+      },
+      {
+        "rel_type": "HAS_SESSION",
+        "count": 11
+      },
+      {
+        "rel_type": "REGULATES",
+        "count": 10
+      },
+      {
+        "rel_type": "CONTAINS_SCHEMA",
+        "count": 8
+      },
+      {
+        "rel_type": "RELATES_TO",
+        "count": 7
+      },
+      {
+        "rel_type": "EVALUATES",
+        "count": 7
+      },
+      {
+        "rel_type": "CASES",
+        "count": 4
+      },
+      {
+        "rel_type": "CAUSEDBY",
+        "count": 4
+      },
+      {
+        "rel_type": "COLLABORATESWITH",
+        "count": 4
+      },
+      {
+        "rel_type": "SUPPORTS",
+        "count": 3
+      },
+      {
+        "rel_type": "MODELS",
+        "count": 3
+      },
+      {
+        "rel_type": "TARGETS",
+        "count": 3
+      },
+      {
+        "rel_type": "USEDWITH",
+        "count": 3
+      },
+      {
+        "rel_type": "diagnosed_with",
+        "count": 2
+      },
+      {
+        "rel_type": "HAS_DIAGNOSIS",
+        "count": 2
+      }
+    ]
+  },
+  "nodes_without_type": {
+    "count": 50,
+    "data": [
+      {
+        "labels": [
+          "Catalog"
+        ],
+        "name": "Autoimmune Disease Management"
+      },
+      {
+        "labels": [
+          "Schema"
+        ],
+        "name": "Autoimmune Disease Management_schema"
+      },
+      {
+        "labels": [
+          "Table"
+        ],
+        "name": "Patient"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Patient ID"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "First Name, Last Name"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Date of Birth"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Gender"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Ethnicity"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Family History"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Registration Date"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Insurance Provider"
+      },
+      {
+        "labels": [
+          "Table"
+        ],
+        "name": "Autoimmune Disease"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Disease ID"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Disease Name"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Disease Category"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "ICD-10 Code"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Severity Classification"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Onset Date"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Patient ID"
+      },
+      {
+        "labels": [
+          "Table"
+        ],
+        "name": "Treatment Plan"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Treatment ID"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Patient ID"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Disease ID"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Treatment Type"
+      },
+      {
+        "labels": [
+          "Column"
+        ],
+        "name": "Start Date"
+      }
+    ]
+  },
+  "ontology_mapped_stats": {
+    "count": 0,
+    "data": []
+  },
+  "orphan_source_stats": {
+    "count": 0,
+    "data": []
+  }
+}

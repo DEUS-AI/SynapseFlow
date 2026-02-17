@@ -1,0 +1,1 @@
+MATCH (n) WHERE NOT (n)--() RETURN n.name AS name, n.type AS type, n.layer AS layer, labels(n) AS labels ORDER BY n.type, n.name

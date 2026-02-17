@@ -1,0 +1,1 @@
+MATCH (n) RETURN n.layer AS layer, count(n) AS count ORDER BY count DESC

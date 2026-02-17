@@ -1,0 +1,1 @@
+MATCH (n) WHERE n.type IS NULL RETURN labels(n) AS labels, n.name AS name LIMIT 50

@@ -1,0 +1,1 @@
+MATCH (n) WHERE n.layer IS NOT NULL AND NOT n.layer IN ["PERCEPTION", "SEMANTIC", "REASONING", "APPLICATION"] RETURN n.name AS name, n.type AS type, n.layer AS layer, labels(n) AS labels

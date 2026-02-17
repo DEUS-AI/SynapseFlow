@@ -1,0 +1,1 @@
+MATCH ()-[r]->() RETURN type(r) AS rel_type, count(r) AS count ORDER BY count DESC

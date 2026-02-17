@@ -1,0 +1,1 @@
+MATCH (n) WHERE n.type IS NOT NULL RETURN n.type AS type, count(n) AS count ORDER BY count DESC

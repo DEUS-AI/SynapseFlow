@@ -1,0 +1,1 @@
+MATCH (n) WHERE (n.layer = "SEMANTIC" AND n.confidence IS NOT NULL AND n.confidence < 0.85) OR (n.layer = "REASONING" AND n.confidence IS NOT NULL AND n.confidence < 0.90) RETURN n.name AS name, n.type AS type, n.layer AS layer, n.confidence AS confidence ORDER BY n.layer, n.confidence

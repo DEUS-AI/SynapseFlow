@@ -1,0 +1,1 @@
+MATCH (n) UNWIND labels(n) AS label RETURN label, count(n) AS count ORDER BY count DESC
