@@ -64,7 +64,7 @@ The `MEDICAL_ONTOLOGY_REGISTRY` SHALL include a `"food_component"` entry with `o
 - **THEN** it SHALL return `"drug"`
 
 ### Requirement: Unknown type entities are flagged for review not mapped
-Entities with `type = 'Unknown'` or `type = 'unknown'` SHALL NOT receive an ontology mapping. The remediation pipeline SHALL flag them with `_needs_review = true` and `_review_reason = 'unknown_type'`. Additionally, the audit SHALL query the graph for ALL distinct type values not covered by any registry (DATA_ONTOLOGY_REGISTRY, MEDICAL_ONTOLOGY_REGISTRY, MEDICAL_TYPE_ALIASES) — not limited to `Unknown` — and produce a complete unmapped type inventory with entity counts per type.
+Entities with `type = 'Unknown'` or `type = 'unknown'` SHALL NOT receive an ontology mapping. The remediation pipeline SHALL flag them with `_needs_review = true` and `_review_reason = 'unknown_type'`. Additionally, the audit SHALL query the graph for ALL distinct type values not covered by any registry (DATA_ONTOLOGY_REGISTRY, MEDICAL_ONTOLOGY_REGISTRY, MEDICAL_TYPE_ALIASES) — not limited to `Unknown` — and produce a complete unmapped type inventory with entity counts per type. The quality assessment service SHALL exclude `_needs_review=true` entities from the `unmapped_types` list in coverage scoring, so that "Unknown" does not appear as an actionable recommendation.
 
 #### Scenario: Unknown type is not mapped
 - **WHEN** `resolve_medical_type("Unknown")` is called
@@ -85,6 +85,10 @@ Entities with `type = 'Unknown'` or `type = 'unknown'` SHALL NOT receive an onto
 #### Scenario: Registry-vs-graph drift is quantified
 - **WHEN** the unmapped type inventory is complete
 - **THEN** the audit SHALL report the drift ratio: (unmapped entity count) / (total entity count) as a percentage
+
+#### Scenario: Assessment excludes review-pending types from recommendations
+- **WHEN** the quality assessment runs and all unmapped entities have `_needs_review=true`
+- **THEN** the assessment SHALL NOT generate an "Add ontology mappings for types" recommendation
 
 ### Requirement: Orphan nodes are classified by source graph
 After orphan detection, a classification step SHALL set `_orphan_source` on each orphan node based on its Neo4j labels:
