@@ -41,6 +41,60 @@ from graphiti_core.search.search_filters import SearchFilters
 logger = logging.getLogger(__name__)
 
 
+# ========================================
+# TEMPORARY FIX: Monkey-patch FalkorDriver.build_fulltext_query
+# ========================================
+# graphiti-core v0.27.1 has a bug where it uses incorrect RediSearch syntax:
+#   (@group_id:"value")  ← WRONG (quotes don't work with @field: syntax)
+# Correct RediSearch syntax for tag fields:
+#   @group_id:{value}    ← CORRECT (curly braces for tags)
+#
+# This monkey-patch fixes the query construction until upstream fixes it.
+# See: https://github.com/getzep/graphiti/issues/XXX
+# ========================================
+
+_original_build_fulltext_query = FalkorDriver.build_fulltext_query
+
+
+def _fixed_build_fulltext_query(
+    self, query: str, group_ids: list[str] | None = None, max_query_length: int = 128
+) -> str:
+    """Fixed version of build_fulltext_query using correct RediSearch tag syntax."""
+    if group_ids is None or len(group_ids) == 0:
+        group_filter = ''
+    else:
+        # Use curly braces for tag fields (correct RediSearch syntax)
+        # No quotes needed — RediSearch treats values inside {} as tags
+        group_values = '|'.join(group_ids)
+        group_filter = f'@group_id:{{{group_values}}}'  # <- Fixed: curly braces instead of quotes
+
+    # Call sanitize on the driver instance
+    sanitized_query = self.sanitize(query)
+
+    # Remove stopwords (copy logic from original)
+    from graphiti_core.driver.falkordb_driver import STOPWORDS
+    query_words = sanitized_query.split()
+    filtered_words = [word for word in query_words if word and word.lower() not in STOPWORDS]
+    sanitized_query = ' | '.join(filtered_words)
+
+    # Length check
+    if len(sanitized_query.split(' ')) + len(group_ids or '') >= max_query_length:
+        return ''
+
+    # Combine filters
+    if group_filter and sanitized_query:
+        return f'{group_filter} ({sanitized_query})'
+    elif group_filter:
+        return group_filter
+    else:
+        return f'({sanitized_query})'
+
+
+# Apply the monkey-patch
+FalkorDriver.build_fulltext_query = _fixed_build_fulltext_query
+logger.info("Applied FalkorDriver.build_fulltext_query monkey-patch for RediSearch syntax fix")
+
+
 @dataclass
 class EpisodeResult:
     """Result from adding an episode."""
