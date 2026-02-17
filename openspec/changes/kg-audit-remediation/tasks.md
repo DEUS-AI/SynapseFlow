@@ -41,9 +41,9 @@
 
 ## 6. Remediation Execution (Operational)
 
-- [ ] 6.1 **[OPERATIONAL]** Run `POST /api/ontology/remediation/dry-run` against live graph — review output, confirm no-op queries are expected, verify new cytokine/chemical queries match entities
-- [ ] 6.2 **[OPERATIONAL]** Export pre-remediation graph snapshot (property backup query or `CALL apoc.export.json.all()`)
-- [ ] 6.3 **[OPERATIONAL]** Run `POST /api/ontology/remediation/execute` — record `batch_id`, verify `coverage_after` > 80%
-- [ ] 6.4 **[OPERATIONAL]** Run `audit/queries/ontology_mapped_stats.cypher` to confirm coverage improvement
-- [ ] 6.5 **[OPERATIONAL]** Run deduplication dry-run, review merge plan, then execute deduplication
-- [ ] 6.6 **[OPERATIONAL]** Document final graph statistics (total nodes, orphan %, ontology mapping %, duplicate count) in audit report addendum
+- [x] 6.1 **[OPERATIONAL]** Run `POST /api/ontology/remediation/dry-run` against live graph — review output, confirm no-op queries are expected, verify new cytokine/chemical queries match entities
+- [x] 6.2 **[OPERATIONAL]** Export pre-remediation graph snapshot (property backup query or `CALL apoc.export.json.all()`)
+- [x] 6.3 **[OPERATIONAL]** Run `POST /api/ontology/remediation/execute` — record `batch_id`, verify `coverage_after` > 80%
+- [x] 6.4 **[OPERATIONAL]** Run `audit/queries/ontology_mapped_stats.cypher` to confirm coverage improvement
+- [x] 6.5 **[OPERATIONAL]** Run deduplication dry-run, review merge plan, then execute deduplication
+- [x] 6.6 **[OPERATIONAL]** Document final graph statistics (total nodes, orphan %, ontology mapping %, duplicate count) in audit report addendum

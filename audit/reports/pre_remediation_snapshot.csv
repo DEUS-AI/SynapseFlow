@@ -1,0 +1,1249 @@
+id, name, type, layer, confidence, mapped, canonical, rels
+"extracted:lactobacillus_reuteri", "lactobacillus_reuteri", "Bacteria", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:staphylococcus_aureus", "staphylococcus_aureus", "Bacteria", "REASONING", 0.9, FALSE, NULL, 2
+"C-Reactive Protein", "C-Reactive Protein", "Biomarker", "REASONING", 0.9, FALSE, NULL, 3
+"C3 Complement", "C3 Complement", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"C4 Complement", "C4 Complement", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Cardiolipin", "Cardiolipin", "Biomarker", "REASONING", 0.9, FALSE, NULL, 1
+"Cd19 B-Cell", "Cd19 B-Cell", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Cd3 T-Cell", "Cd3 T-Cell", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Cd4 T-Cell", "Cd4 T-Cell", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Cd8 T-Cell", "Cd8 T-Cell", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Erythrocyte Sedimentation Rate", "Erythrocyte Sedimentation Rate", "Biomarker", "REASONING", 1.0, FALSE, NULL, 3
+"Fecal Calprotectin", "Fecal Calprotectin", "Biomarker", "REASONING", 0.9, FALSE, NULL, 2
+NULL, "Immunoglobulin A", "Biomarker", "PERCEPTION", 0.85, FALSE, NULL, 0
+NULL, "Immunoglobulin G", "Biomarker", "PERCEPTION", 0.85, FALSE, NULL, 0
+"Immunoglobulin M", "Immunoglobulin M", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Natural Killer Cells", "Natural Killer Cells", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 0
+"extracted:immune_complexes", "immune_complexes", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:scd154", "scd154", "Biomarker", "SEMANTIC", 0.85, FALSE, NULL, 2
+"Th17 Cells", "Th17 Cells", "Cell", "REASONING", 0.9, FALSE, NULL, 3
+"Plasmacytoid Dendritic Cells", "Plasmacytoid Dendritic Cells", "Cell Type", "REASONING", 0.9, FALSE, NULL, 1
+"Platelets", "Platelets", "Cell Type", "REASONING", 0.9, FALSE, NULL, 2
+NULL, "Thymic Epithelial Cells", "Cell Type", "PERCEPTION", 0.7, FALSE, NULL, 1
+"extracted:noninflammatory_colon-associated_macrophages", "noninflammatory_colon-associated_macrophages", "Cell Type", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:platelets", "platelets", "Cell Type", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:regulatory_t_cells", "regulatory_t_cells", "Cell Type", "PERCEPTION", 0.9, FALSE, NULL, 5
+NULL, "Bisphenol A", "Chemical", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Heavy Metals", "Heavy Metals", "Chemical", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:bisphenol_a", "bisphenol_a", "Chemical", "SEMANTIC", 0.85, FALSE, NULL, 3
+"extracted:environmental_toxins", "environmental_toxins", "Chemical", "SEMANTIC", 0.85, FALSE, NULL, 2
+NULL, "Curcumin", "Compound", "PERCEPTION", 0.85, FALSE, NULL, 1
+"Lactate", "Lactate", "Compound", "REASONING", 0.95, FALSE, NULL, 1
+"extracted:curcumin", "curcumin", "Compound", "PERCEPTION", 0.85, FALSE, NULL, 2
+"extracted:phosphatidylcholine", "phosphatidylcholine", "Compound", "SEMANTIC", 0.85, FALSE, NULL, 2
+"Interleukin 18", "Interleukin 18", "Cytokine", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Interleukin-2", "Cytokine", "PERCEPTION", 0.9, FALSE, NULL, 1
+"extracted:il-18", "il-18", "Cytokine", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:interleukin-10", "interleukin-10", "Cytokine", "SEMANTIC", 0.85, FALSE, NULL, 7
+"extracted:interleukin-2", "interleukin-2", "Cytokine", "PERCEPTION", 0.9, FALSE, NULL, 4
+"extracted:interleukin-35", "interleukin-35", "Cytokine", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:interleukin-37", "interleukin-37", "Cytokine", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:interleukin-38", "interleukin-38", "Cytokine", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:transforming_growth_factor-β", "transforming_growth_factor-β", "Cytokine", "SEMANTIC", 0.85, FALSE, NULL, 4
+"Acute Inflammation", "Acute Inflammation", "Disease", "REASONING", 0.95, FALSE, NULL, 0
+"Adherent-Invasive Escherichia Coli", "Adherent-Invasive Escherichia Coli", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"Adolescent Hidradenitis Suppurativa", "Adolescent Hidradenitis Suppurativa", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Alzheimer's Disease", "Alzheimer's Disease", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Ankylosing Spondylitis", "Ankylosing Spondylitis", "Disease", "REASONING", 0.95, FALSE, NULL, 1
+"Anti-Inflammatory Diet", "Anti-Inflammatory Diet", "Disease", "REASONING", 0.9, FALSE, NULL, 10
+"Arthritis", "Arthritis", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Asthma", "Asthma", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Autoimmune Disease", "Autoimmune Disease", "Disease", "PERCEPTION", 0.95, FALSE, NULL, 11
+"Autoimmune Diseases", "Autoimmune Diseases", "Disease", "REASONING", 0.9, FALSE, NULL, 30
+"Autoimmune Hepatitis", "Autoimmune Hepatitis", "Disease", "REASONING", 0.95, FALSE, NULL, 5
+"Breast Cancer", "Breast Cancer", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Cancer", "Cancer", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Celiac Disease", "Celiac Disease", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"Chronic Inflammation", "Chronic Inflammation", "Disease", "REASONING", 0.95, FALSE, NULL, 9
+"Chronic Obstructive Lung Diseases", "Chronic Obstructive Lung Diseases", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Chronic Pain", "Chronic Pain", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Chronic Plaque Psoriasis", "Chronic Plaque Psoriasis", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Collagen-Induced Arthritis", "Collagen-Induced Arthritis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Complement Deficiency", "Complement Deficiency", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Covid-19", "Covid-19", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Crohn Disease", "Crohn Disease", "Disease", "REASONING", 1.0, FALSE, NULL, 16
+"Crohn's Disease", "Crohn's Disease", "Disease", "REASONING", 0.9, FALSE, NULL, 73
+"Crohn's Disease-Associated Perianal Fistulas", "Crohn's Disease-Associated Perianal Fistulas", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"Crohn’S Disease", "Crohn’S Disease", "Disease", "REASONING", 0.9, FALSE, NULL, 17
+"Cryptoglandular Anal Fistulas", "Cryptoglandular Anal Fistulas", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"Cutaneous Lupus Erythematosus", "Cutaneous Lupus Erythematosus", "Disease", "REASONING", 0.95, FALSE, NULL, 8
+"Dermatomyositis", "Dermatomyositis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Diabetes Mellitus", "Diabetes Mellitus", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Dravet Syndrome", "Dravet Syndrome", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 1
+NULL, "Enfermedad Pulmonar", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 2
+"Enthesitis-Related Arthritis", "Enthesitis-Related Arthritis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Epoc", "Epoc", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Graves’ Disease", "Graves’ Disease", "Disease", "REASONING", 0.95, FALSE, NULL, 0
+"Hashimoto's Thyroiditis", "Hashimoto's Thyroiditis", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Hashimoto’S Disease", "Hashimoto’S Disease", "Disease", "REASONING", 0.95, FALSE, NULL, 0
+"Hashimoto’S Thyroiditis", "Hashimoto’S Thyroiditis", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Heart Disease", "Heart Disease", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Imiquimod-Induced Psoriasis", "Imiquimod-Induced Psoriasis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Immune Dysregulation, Polyendocrinopathy, Enteropathy, X-Linked Syndrome", "Immune Dysregulation, Polyendocrinopathy, Enteropathy, X-Linked Syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Immunodysregulation, Polyendocrinopathy, Enteropathy, X-Linked Syndrome", "Immunodysregulation, Polyendocrinopathy, Enteropathy, X-Linked Syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Inflammatory Bowel Disease", "Inflammatory Bowel Disease", "Disease", "REASONING", 0.95, FALSE, NULL, 27
+"Insulin Dependent Diabetes Mellitus", "Insulin Dependent Diabetes Mellitus", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Interferonopathy", "Interferonopathy", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Intestinal Tuberculosis", "Intestinal Tuberculosis", "Disease", "REASONING", 0.9, FALSE, NULL, 11
+"Iron Deficiency Anaemia", "Iron Deficiency Anaemia", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Juvenile Idiopathic Arthritis", "Juvenile Idiopathic Arthritis", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"Lennox-Gastaut Syndrome", "Lennox-Gastaut Syndrome", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Lung Cancer", "Lung Cancer", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Lupus", "Lupus", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Lupus Nephritis", "Lupus Nephritis", "Disease", "REASONING", 0.95, FALSE, NULL, 3
+"Multiple Sclerosis", "Multiple Sclerosis", "Disease", "REASONING", 0.95, FALSE, NULL, 9
+"Myasthenia Gravis", "Myasthenia Gravis", "Disease", "REASONING", 0.95, FALSE, NULL, 4
+"Myositis", "Myositis", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Neuropsychiatric Lupus", "Neuropsychiatric Lupus", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"Paediatric Crohn's Disease", "Paediatric Crohn's Disease", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Paediatric Plaque Psoriasis", "Paediatric Plaque Psoriasis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Paediatric Uveitis", "Paediatric Uveitis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Polyarticular Juvenile Idiopathic Arthritis", "Polyarticular Juvenile Idiopathic Arthritis", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"Primary Biliary Cholangitis", "Primary Biliary Cholangitis", "Disease", "REASONING", 0.95, FALSE, NULL, 1
+"Primary Immunodeficiency", "Primary Immunodeficiency", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Psoriasis", "Psoriasis", "Disease", "REASONING", 0.95, FALSE, NULL, 10
+"Psoriatic Arthritis", "Psoriatic Arthritis", "Disease", "REASONING", 0.95, FALSE, NULL, 1
+"Regulatory T Cells", "Regulatory T Cells", "Disease", "REASONING", 0.9, FALSE, NULL, 9
+"Rheumatoid Arthritis", "Rheumatoid Arthritis", "Disease", "REASONING", 0.95, FALSE, NULL, 15
+"Scleroderma", "Scleroderma", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Sjogren’S Syndrome", "Sjogren’S Syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Stroke", "Stroke", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Systemic Lupus Erythematosus", "Systemic Lupus Erythematosus", "Disease", "REASONING", 0.95, FALSE, NULL, 81
+"Systemic Sclerosis", "Systemic Sclerosis", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"T Follicular Helper Cells", "T Follicular Helper Cells", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"Thyroid Eye Disease", "Thyroid Eye Disease", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Thyroiditis", "Thyroiditis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"Treponema Pallidum", "Treponema Pallidum", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"Type 1 Diabetes", "Type 1 Diabetes", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"Type 2 Diabetes", "Type 2 Diabetes", "Disease", "REASONING", 0.9, FALSE, NULL, 0
+"Ulcerative Colitis", "Ulcerative Colitis", "Disease", "REASONING", 0.9, FALSE, NULL, 22
+NULL, "Vexas", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:acute_inflammation", "acute_inflammation", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:adherent-invasive_escherichia_coli", "adherent-invasive_escherichia_coli", "Disease", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:adolescent_hidradenitis_suppurativa", "adolescent_hidradenitis_suppurativa", "Disease", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:alzheimer's_disease", "alzheimer's_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:ankylosing_spondylitis", "ankylosing_spondylitis", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:anti-inflammatory_diet", "anti-inflammatory_diet", "Disease", "PERCEPTION", 0.9, FALSE, NULL, 11
+"extracted:antiphospholipid_syndrome", "antiphospholipid_syndrome", "Disease", "REASONING", 0.95, FALSE, NULL, 4
+"extracted:arthritis", "arthritis", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:asthma", "asthma", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:autoimmune_disease", "autoimmune_disease", "Disease", "REASONING", 0.95, FALSE, NULL, 42
+"extracted:autoimmune_diseases", "autoimmune_diseases", "Disease", "REASONING", 0.95, FALSE, NULL, 73
+"extracted:autoimmune_disorders", "autoimmune_disorders", "Disease", "REASONING", 0.95, FALSE, NULL, 15
+"extracted:autoimmune_hemolytic_anemia", "autoimmune_hemolytic_anemia", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:autoimmune_hepatitis", "autoimmune_hepatitis", "Disease", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:autoimmune_thyroid_disease", "autoimmune_thyroid_disease", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:breast_cancer", "breast_cancer", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cancer", "cancer", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:cardiovascular_disease", "cardiovascular_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 9
+"extracted:celiac_disease", "celiac_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 20
+"extracted:cholelithiasis", "cholelithiasis", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:chronic_inflammation", "chronic_inflammation", "Disease", "REASONING", 0.9, FALSE, NULL, 10
+"extracted:chronic_obstructive_lung_diseases", "chronic_obstructive_lung_diseases", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:chronic_obstructive_pulmonary_disease", "chronic_obstructive_pulmonary_disease", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:chronic_pain", "chronic_pain", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:chronic_plaque_psoriasis", "chronic_plaque_psoriasis", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:clostridioides_difficile", "clostridioides_difficile", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:clostridium_difficile_infection", "clostridium_difficile_infection", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:collagen-induced_arthritis", "collagen-induced_arthritis", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:common_variable_immunodeficiency", "common_variable_immunodeficiency", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:complement_deficiency", "complement_deficiency", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:crohn's_disease", "crohn's_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 122
+"extracted:crohn's_disease-associated_perianal_fistulas", "crohn's_disease-associated_perianal_fistulas", "Disease", "REASONING", 0.95, FALSE, NULL, 8
+"extracted:crohn_disease", "crohn_disease", "Disease", "REASONING", 1.0, FALSE, NULL, 11
+"extracted:crohn’s_disease", "crohn’s_disease", "Disease", "REASONING", 0.95, FALSE, NULL, 19
+"extracted:cryptoglandular_anal_fistulas", "cryptoglandular_anal_fistulas", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:cutaneous_lupus_erythematosus", "cutaneous_lupus_erythematosus", "Disease", "REASONING", 0.95, FALSE, NULL, 7
+"extracted:dermatomyositis", "dermatomyositis", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:desnutrición", "desnutrición", "Disease", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:diabetes_mellitus", "diabetes_mellitus", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:dravet_syndrome", "dravet_syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:dysbiosis", "dysbiosis", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:enfermedad_de_crohn", "enfermedad_de_crohn", "Disease", "REASONING", 0.95, FALSE, NULL, 5
+"extracted:enfermedad_hepática", "enfermedad_hepática", "Disease", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:enfermedad_pulmonar:_epoc_y_covid-19", "enfermedad_pulmonar:_epoc_y_covid-19", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:enthesitis-related_arthritis", "enthesitis-related_arthritis", "Disease", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:fibrosis", "fibrosis", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:fistula", "fistula", "Disease", "PERCEPTION", 0.9, FALSE, NULL, 1
+"extracted:graves’_disease", "graves’_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:guillain-barré_syndrome", "guillain-barré_syndrome", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:hashimoto's_thyroiditis", "hashimoto's_thyroiditis", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:hashimoto’s_disease", "hashimoto’s_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 9
+"extracted:heart_disease", "heart_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:immune_dysregulation,_polyendocrinopathy,_enteropathy,_and_x-linked_syndrome", "immune_dysregulation,_polyendocrinopathy,_enteropathy,_and_x-linked_syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:immune_dysregulation,_polyendocrinopathy,_enteropathy,_x-linked_syndrome", "immune_dysregulation,_polyendocrinopathy,_enteropathy,_x-linked_syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:immunodysregulation,_polyendocrinopathy,_enteropathy,_x-linked_syndrome", "immunodysregulation,_polyendocrinopathy,_enteropathy,_x-linked_syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:inflammatory_bowel_disease", "inflammatory_bowel_disease", "Disease", "REASONING", 0.95, FALSE, NULL, 48
+"extracted:inflammatory_bowel_diseases", "inflammatory_bowel_diseases", "Disease", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:insulin_dependent_diabetes_mellitus", "insulin_dependent_diabetes_mellitus", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:interferonopathy", "interferonopathy", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:intestinal_tuberculosis", "intestinal_tuberculosis", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:iron_deficiency_anaemia", "iron_deficiency_anaemia", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:juvenile_idiopathic_arthritis", "juvenile_idiopathic_arthritis", "Disease", "REASONING", 1.0, FALSE, NULL, 4
+"extracted:lung_cancer", "lung_cancer", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:lupus", "lupus", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:lupus_nephritis", "lupus_nephritis", "Disease", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:multiple_sclerosis", "multiple_sclerosis", "Disease", "REASONING", 0.95, FALSE, NULL, 33
+"extracted:myasthenia_gravis", "myasthenia_gravis", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:myositis", "myositis", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:narcolepsy", "narcolepsy", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:neuropsychiatric_lupus", "neuropsychiatric_lupus", "Disease", "REASONING", 0.95, FALSE, NULL, 5
+"extracted:paediatric_crohn's_disease", "paediatric_crohn's_disease", "Disease", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:paediatric_plaque_psoriasis", "paediatric_plaque_psoriasis", "Disease", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:paediatric_uveitis", "paediatric_uveitis", "Disease", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:perianal_abscess", "perianal_abscess", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:polyarticular_juvenile_idiopathic_arthritis", "polyarticular_juvenile_idiopathic_arthritis", "Disease", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:primary_biliary_cholangitis", "primary_biliary_cholangitis", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:primary_immunodeficiency", "primary_immunodeficiency", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:psoriasis", "psoriasis", "Disease", "REASONING", 0.95, FALSE, NULL, 17
+"extracted:psoriatic_arthritis", "psoriatic_arthritis", "Disease", "REASONING", 0.95, FALSE, NULL, 7
+"extracted:regulatory_t_cells", "regulatory_t_cells", "Disease", "REASONING", 0.95, FALSE, NULL, 21
+"extracted:rheumatic_heart_disease", "rheumatic_heart_disease", "Disease", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:rheumatoid_arthritis", "rheumatoid_arthritis", "Disease", "REASONING", 0.95, FALSE, NULL, 50
+"extracted:sars-cov-2", "sars-cov-2", "Disease", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:scleroderma", "scleroderma", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:sjogren’s_disease", "sjogren’s_disease", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:sjogren’s_syndrome", "sjogren’s_syndrome", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:sjögren's_disease", "sjögren's_disease", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:sjögren_syndrome", "sjögren_syndrome", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:sjögren’s_syndrome", "sjögren’s_syndrome", "Disease", "REASONING", 0.95, FALSE, NULL, 3
+"extracted:stroke", "stroke", "Disease", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:systemic_lupus_erythematosus", "systemic_lupus_erythematosus", "Disease", "REASONING", 0.95, FALSE, NULL, 132
+"extracted:systemic_sclerosis", "systemic_sclerosis", "Disease", "REASONING", 0.95, FALSE, NULL, 4
+"extracted:t_follicular_helper_cells", "t_follicular_helper_cells", "Disease", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:thyroiditis", "thyroiditis", "Disease", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:treponema_pallidum", "treponema_pallidum", "Disease", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:tuberculosis", "tuberculosis", "Disease", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:type_1_diabetes", "type_1_diabetes", "Disease", "REASONING", 0.95, FALSE, NULL, 14
+"extracted:type_2_diabetes", "type_2_diabetes", "Disease", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:ulcerative_colitis", "ulcerative_colitis", "Disease", "REASONING", 0.95, FALSE, NULL, 38
+NULL, "Úlceras Por Presión", "Disease", "PERCEPTION", 0.8, FALSE, NULL, 3
+"extracted:úlceras_por_presión", "úlceras_por_presión", "Disease", "REASONING", 0.9, FALSE, NULL, 2
+"4-Hydroxytamoxifen", "4-Hydroxytamoxifen", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+NULL, "5-Aminosalicylates", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+"5-Aminosalicylic Acid", "5-Aminosalicylic Acid", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"extracted:5-aminosalicylic_acid", "5-aminosalicylic_acid", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:6-mercaptopurine", "6-mercaptopurine", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"Abatacept", "Abatacept", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Adalimumab", "Adalimumab", "Drug", "REASONING", 0.95, FALSE, NULL, 20
+"Alcohol", "Alcohol", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Anifrolumab", "Anifrolumab", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Anti-Smith Antibody", "Anti-Smith Antibody", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+NULL, "Anti-Tumor Necrosis Factor", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Antinuclear Antibodies", "Drug", "PERCEPTION", 0.85, FALSE, NULL, 1
+"Aspirin", "Aspirin", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Azathioprine", "Azathioprine", "Drug", "PERCEPTION", 1.0, FALSE, NULL, 8
+"Belimumab", "Belimumab", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Cadmium", "Cadmium", "Drug", "REASONING", 1.0, FALSE, NULL, 1
+"Caffeine", "Caffeine", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Cannabidiol", "Cannabidiol", "Drug", "REASONING", 0.95, FALSE, NULL, 6
+"Cd4 Monoclonal Antibody", "Cd4 Monoclonal Antibody", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Cedirogant", "Cedirogant", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"Certolizumab Pegol", "Certolizumab Pegol", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Copper", "Copper", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Corticosteroid", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Corticosteroids", "Corticosteroids", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"Curcumin", "Curcumin", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"Cyclophosphamide", "Cyclophosphamide", "Drug", "SEMANTIC", 0.87, FALSE, NULL, 1
+NULL, "Cytotoxic T Lymphocyte-Associated Antigen 4", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Dapirolizumab Pegol", "Dapirolizumab Pegol", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Delta-9-Tetrahydrocannabinol", "Delta-9-Tetrahydrocannabinol", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+NULL, "Diphtheria Toxin", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Doxycycline", "Doxycycline", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Etanercept", "Etanercept", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Fenebrutinib", "Fenebrutinib", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Ginger", "Ginger", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Glutamina", "Glutamina", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Golimumab", "Golimumab", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Green Tea", "Green Tea", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"Humira", "Humira", "Drug", "REASONING", 0.95, FALSE, NULL, 10
+"Hydroxychloroquine", "Hydroxychloroquine", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Ibuprofen", "Ibuprofen", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Immunoglobulin A", "Immunoglobulin A", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Immunoglobulin G", "Immunoglobulin G", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+NULL, "Immunomodulator", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Indole-3-Acetic Acid", "Indole-3-Acetic Acid", "Drug", "REASONING", 0.95, FALSE, NULL, 3
+"Infliximab", "Infliximab", "Drug", "REASONING", 0.9, FALSE, NULL, 12
+"Integrin", "Integrin", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Interleukin 1 Beta", "Interleukin 1 Beta", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Interleukin 23", "Interleukin 23", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Interleukin 6", "Interleukin 6", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Interleukin-2", "Interleukin-2", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Iodine", "Iodine", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Isoniazid", "Isoniazid", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Klebsiella Pneumoniae", "Klebsiella Pneumoniae", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"L-Arginina", "L-Arginina", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"L-Cistina", "L-Cistina", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"L-Citrulina", "L-Citrulina", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Lead", "Lead", "Drug", "REASONING", 1.0, FALSE, NULL, 1
+"Manganese", "Manganese", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Mct", "Mct", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Mercaptopurine", "Mercaptopurine", "Drug", "REASONING", 1.0, FALSE, NULL, 1
+"Methotrexate", "Methotrexate", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"Mycophenolate Mofetil", "Mycophenolate Mofetil", "Drug", "REASONING", 0.95, FALSE, NULL, 2
+"Olive Oil", "Olive Oil", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Omega-3 Fatty Acids", "Omega-3 Fatty Acids", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Penicillin", "Penicillin", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Phytonutrients", "Phytonutrients", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Placebo", "Placebo", "Drug", "REASONING", 1.0, FALSE, NULL, 1
+"Prednisolone", "Prednisolone", "Drug", "REASONING", 1.0, FALSE, NULL, 3
+"Prednisone", "Prednisone", "Drug", "REASONING", 1.0, FALSE, NULL, 1
+NULL, "Rabbit Antithymocyte Globulin", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Rifampicin", "Rifampicin", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Rituximab", "Rituximab", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"Selenium", "Selenium", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Sirolimus", "Sirolimus", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Sodium L-Lactate", "Sodium L-Lactate", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Teplizumab", "Teplizumab", "Drug", "REASONING", 0.93, FALSE, NULL, 1
+"Teprotumumab", "Teprotumumab", "Drug", "REASONING", 0.91, FALSE, NULL, 1
+NULL, "Tgf-Beta", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Tofacitinib", "Tofacitinib", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"Tumor Necrosis Factor", "Tumor Necrosis Factor", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Ustekinumab", "Ustekinumab", "Drug", "REASONING", 0.95, FALSE, NULL, 4
+"Vedolizumab", "Vedolizumab", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"Vitamin A", "Vitamin A", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Vitamin B6", "Vitamin B6", "Drug", "REASONING", 0.9, FALSE, NULL, 0
+"Vitamin C", "Vitamin C", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Vitamin D", "Vitamin D", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"Vitamin E", "Vitamin E", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"Zinc", "Zinc", "Drug", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:aa_esenciales_nm", "aa_esenciales_nm", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:aa_ramificados_nm", "aa_ramificados_nm", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:adalimumab", "adalimumab", "Drug", "REASONING", 0.95, FALSE, NULL, 25
+"extracted:anifrolumab", "anifrolumab", "Drug", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:anti-cd52", "anti-cd52", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:anti-cholinesterase_drugs", "anti-cholinesterase_drugs", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:anti-smith_antibody", "anti-smith_antibody", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:antithymocyte_globulin", "antithymocyte_globulin", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:aspirin", "aspirin", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:azathioprine", "azathioprine", "Drug", "REASONING", 1.0, FALSE, NULL, 16
+"extracted:belimumab", "belimumab", "Drug", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:budesonide", "budesonide", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cadmium", "cadmium", "Drug", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:caffeine", "caffeine", "Drug", "PERCEPTION", 0.7, FALSE, NULL, 2
+"extracted:cannabidiol", "cannabidiol", "Drug", "REASONING", 0.9, FALSE, NULL, 13
+"extracted:cannabis", "cannabis", "Drug", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:cedirgant", "cedirgant", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:certolizumab_pegol", "certolizumab_pegol", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:chlorpromazine", "chlorpromazine", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:copper", "copper", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:corticosteroids", "corticosteroids", "Drug", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:curcumin", "curcumin", "Drug", "REASONING", 0.9, FALSE, NULL, 7
+"extracted:cyclophosphamide", "cyclophosphamide", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cytotoxic_t_lymphocyte-associated_antigen_4", "cytotoxic_t_lymphocyte-associated_antigen_4", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:dapirolizumab_pegol", "dapirolizumab_pegol", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:delta-9-tetrahydrocannabinol", "delta-9-tetrahydrocannabinol", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:dextrinomaltosa_nm", "dextrinomaltosa_nm", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:diphtheria_toxin", "diphtheria_toxin", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:doxycycline", "doxycycline", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:etanercept", "etanercept", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:extra_virgin_olive_oil", "extra_virgin_olive_oil", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:fenebrutinib", "fenebrutinib", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:ganoderma_lucidum", "ganoderma_lucidum", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:ginger", "ginger", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:glutamina", "glutamina", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:golimumab", "golimumab", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:green_tea", "green_tea", "Drug", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:guselkumab", "guselkumab", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:humira", "humira", "Drug", "REASONING", 1.0, FALSE, NULL, 9
+"extracted:hydralazine", "hydralazine", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:hydroxychloroquine", "hydroxychloroquine", "Drug", "PERCEPTION", 0.9, FALSE, NULL, 3
+"extracted:ibuprofen", "ibuprofen", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:imiquimod", "imiquimod", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:immunoglobulin_a", "immunoglobulin_a", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:immunoglobulin_g", "immunoglobulin_g", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:immunosuppressive_drugs", "immunosuppressive_drugs", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:imurel", "imurel", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:indole-3-acetic_acid", "indole-3-acetic_acid", "Drug", "REASONING", 0.95, FALSE, NULL, 4
+"extracted:infliximab", "infliximab", "Drug", "REASONING", 0.9, FALSE, NULL, 18
+"extracted:integrin", "integrin", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:interferon_beta", "interferon_beta", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:interleukin-2", "interleukin-2", "Drug", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:interleukin-37", "interleukin-37", "Drug", "PERCEPTION", 0.85, FALSE, NULL, 1
+"extracted:interleukin-38", "interleukin-38", "Drug", "PERCEPTION", 0.85, FALSE, NULL, 1
+"extracted:isoniazid", "isoniazid", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:klebsiella_pneumoniae", "klebsiella_pneumoniae", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:l-arginina", "l-arginina", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:l-cistina", "l-cistina", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:l-citrulina", "l-citrulina", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:l-lactic_acid", "l-lactic_acid", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:lead", "lead", "Drug", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:magnesium", "magnesium", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:manganese", "manganese", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:mct_nm", "mct_nm", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:mercaptopurine", "mercaptopurine", "Drug", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:methotrexate", "methotrexate", "Drug", "REASONING", 0.9, FALSE, NULL, 11
+"extracted:minocycline", "minocycline", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:muramyl_dipeptide", "muramyl_dipeptide", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:mycophenolate_mofetil", "mycophenolate_mofetil", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:omega-3_fatty_acids", "omega-3_fatty_acids", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 4
+"extracted:omeprazole", "omeprazole", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:paracetamol", "paracetamol", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:penicillin", "penicillin", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:phytonutrients", "phytonutrients", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:prednisolone", "prednisolone", "Drug", "REASONING", 1.0, FALSE, NULL, 8
+"extracted:prednison", "prednison", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:prednisone", "prednisone", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:probiotics", "probiotics", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:procainamide", "procainamide", "Drug", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:red_wine", "red_wine", "Drug", "PERCEPTION", 0.7, FALSE, NULL, 2
+"extracted:rifampicin", "rifampicin", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:risankizumab", "risankizumab", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:rituximab", "rituximab", "Drug", "PERCEPTION", 0.9, FALSE, NULL, 8
+"extracted:sarilumab", "sarilumab", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:selenium", "selenium", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:sirolimus", "sirolimus", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:sodium_l-lactate", "sodium_l-lactate", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:sodium_oxamate", "sodium_oxamate", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:staphylococcal_enterotoxin_b", "staphylococcal_enterotoxin_b", "Drug", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:steroids", "steroids", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:teplizumab", "teplizumab", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:teprotumumab", "teprotumumab", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:tetrahydrocannabinol", "tetrahydrocannabinol", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:tgf-beta", "tgf-beta", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:tocilizumab", "tocilizumab", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:tofacitinib", "tofacitinib", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:tumor_necrosis_factor", "tumor_necrosis_factor", "Drug", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:ustekinumab", "ustekinumab", "Drug", "REASONING", 0.9, FALSE, NULL, 12
+"extracted:vedolizumab", "vedolizumab", "Drug", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:vitamin_a", "vitamin_a", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:vitamin_b6", "vitamin_b6", "Drug", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:vitamin_c", "vitamin_c", "Drug", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:vitamin_d", "vitamin_d", "Drug", "REASONING", 0.9, FALSE, NULL, 8
+"extracted:vitamin_d3", "vitamin_d3", "Drug", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:vitamin_e", "vitamin_e", "Drug", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:zinc", "zinc", "Drug", "REASONING", 1.0, FALSE, NULL, 5
+"extracted:alcohol", "alcohol", "Food Component", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:fruits", "fruits", "Food Component", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:legumes", "legumes", "Food Component", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:salt", "salt", "Food Component", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:sugar-sweetened_beverages", "sugar-sweetened_beverages", "Food Component", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:vegetables", "vegetables", "Food Component", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:whole_grains", "whole_grains", "Food Component", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:1007fs_nod2_variant", "1007fs_nod2_variant", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+NULL, "Adar", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Apolipoprotein C3", "Apolipoprotein C3", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Aryl Hydrocarbon Receptor", "Aryl Hydrocarbon Receptor", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"Bcl6", "Bcl6", "Gene", "REASONING", 0.95, FALSE, NULL, 4
+"C1Q Deficiency", "C1Q Deficiency", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"C2 Deficiency", "C2 Deficiency", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"C4 Deficiency", "C4 Deficiency", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Cannabis Indica", "Cannabis Indica", "Gene", "REASONING", 0.9, FALSE, NULL, 0
+"Cannabis Sativa", "Cannabis Sativa", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Card15/Nod2", "Card15/Nod2", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Caspase Activating Recruitment Domain 15", "Caspase Activating Recruitment Domain 15", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Cd154", "Cd154", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Cd32", "Cd32", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Cldn15", "Cldn15", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Cnbp", "Cnbp", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Ctla-4", "Ctla-4", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+NULL, "Dnase1L3", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Dock8", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Fcgr2A-R131", "Fcgr2A-R131", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Forkhead Box P3", "Forkhead Box P3", "Gene", "REASONING", 0.95, FALSE, NULL, 2
+"Foxp3", "Foxp3", "Gene", "REASONING", 0.9, FALSE, NULL, 3
+NULL, "Gbp1", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Herc5", "Herc5", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Hla-Dqa1", "Hla-Dqa1", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Hla-Drb1", "Hla-Drb1", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Incf Plasmid", "Incf Plasmid", "Gene", "SEMANTIC", 0.88, FALSE, NULL, 1
+"Insulin Gene", "Insulin Gene", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Integrative And Conjugative Element", "Integrative And Conjugative Element", "Gene", "SEMANTIC", 0.87, FALSE, NULL, 1
+"Irgm1", "Irgm1", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Kdm4B", "Kdm4B", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Kiaa2013", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Major Histocompatibility Complex", "Major Histocompatibility Complex", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"Mpc1", "Mpc1", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Mycobacterium Tuberculosis", "Mycobacterium Tuberculosis", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "N4Bp1", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Nucleotide-Binding Oligomerization Domain-Containing Protein 2", "Nucleotide-Binding Oligomerization Domain-Containing Protein 2", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Oas1", "Oas1", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Pcaf", "Pcaf", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Pgghg", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 0
+NULL, "Protein Kinase Cδ", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Rorγt", "Rorγt", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"Signal Transducer And Activator Of Transcription 3", "Signal Transducer And Activator Of Transcription 3", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+NULL, "Slc25A10", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Tlr7", "Tlr7", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+NULL, "Toll-Like Receptor 7", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Toll-Like Receptor 9", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Trac", "Trac", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Traf1", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Trav", "Trav", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Trex1", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Ubiquitin Specific Peptidase 18", "Ubiquitin Specific Peptidase 18", "Gene", "REASONING", 0.95, FALSE, NULL, 2
+"Xist", "Xist", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:aire", "aire", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:apolipoprotein_f", "apolipoprotein_f", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:aryl_hydrocarbon_receptor", "aryl_hydrocarbon_receptor", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:atg16l1", "atg16l1", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:bcl6", "bcl6", "Gene", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:c1q_deficiency", "c1q_deficiency", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:c2_deficiency", "c2_deficiency", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:c4_deficiency", "c4_deficiency", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cannabis_indica", "cannabis_indica", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cannabis_sativa", "cannabis_sativa", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:card15", "card15", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:cardiolipin", "cardiolipin", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:caspase_activating_recruitment_domain_15", "caspase_activating_recruitment_domain_15", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cd154", "cd154", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 3
+"extracted:cd19", "cd19", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:cd32", "cd32", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cldn15", "cldn15", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:cnbp", "cnbp", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cxcr3", "cxcr3", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cyclic_gmp-amp_synthase", "cyclic_gmp-amp_synthase", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:cytotoxic_t_lymphocyte_antigen_4", "cytotoxic_t_lymphocyte_antigen_4", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:dnase1l3", "dnase1l3", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:dock8", "dock8", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:fcgr2a-r131", "fcgr2a-r131", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:forkhead_box_p3", "forkhead_box_p3", "Gene", "REASONING", 0.95, FALSE, NULL, 3
+"extracted:foxp3", "foxp3", "Gene", "REASONING", 0.9, FALSE, NULL, 11
+"extracted:gbp1", "gbp1", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:grail", "grail", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:gα-interacting_vesicle-associated_protein", "gα-interacting_vesicle-associated_protein", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:herc5", "herc5", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:histone_deacetylase_6", "histone_deacetylase_6", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:hla-dq2", "hla-dq2", "Gene", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:hla-dq8", "hla-dq8", "Gene", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:hla-dqa1", "hla-dqa1", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:hla-drb1", "hla-drb1", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:human_leucocyte_antigen", "human_leucocyte_antigen", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:human_leukocyte_antigen", "human_leukocyte_antigen", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:human_leukocyte_antigen_variants", "human_leukocyte_antigen_variants", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:il23r", "il23r", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:incf_plasmid", "incf_plasmid", "Gene", "SEMANTIC", 0.88, FALSE, NULL, 2
+"extracted:insulin_gene", "insulin_gene", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:integrative_and_conjugative_element", "integrative_and_conjugative_element", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:interferon_gamma_inducible_protein_16", "interferon_gamma_inducible_protein_16", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:interleukin-10", "interleukin-10", "Gene", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:interleukin_23_receptor", "interleukin_23_receptor", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:interleukin_2_receptor", "interleukin_2_receptor", "Gene", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:irgm1", "irgm1", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:janus_associated_kinase_1", "janus_associated_kinase_1", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:kdm4b", "kdm4b", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:kiaa2013", "kiaa2013", "Gene", "PERCEPTION", 0.7, FALSE, NULL, 1
+"extracted:major_histocompatibility_complex", "major_histocompatibility_complex", "Gene", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:mirna-146a", "mirna-146a", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:mpc1", "mpc1", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:mycobacterium_tuberculosis", "mycobacterium_tuberculosis", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:n4bp1", "n4bp1", "Gene", "PERCEPTION", 0.7, FALSE, NULL, 1
+"extracted:nod2", "nod2", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 4
+"extracted:nucleotide-binding_oligomerization_domain_containing_2", "nucleotide-binding_oligomerization_domain_containing_2", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nucleotide-binding_oligomerization_domain_containing_protein_2", "nucleotide-binding_oligomerization_domain_containing_protein_2", "Gene", "REASONING", 0.95, FALSE, NULL, 3
+"extracted:oas1", "oas1", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:pcaf", "pcaf", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:pgghg", "pgghg", "Gene", "PERCEPTION", 0.75, FALSE, NULL, 1
+"extracted:po83", "po83", "Gene", "SEMANTIC", 0.87, FALSE, NULL, 2
+"extracted:protein_kinase_cδ", "protein_kinase_cδ", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:rag1", "rag1", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:rag2", "rag2", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:rorγt", "rorγt", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:signal_transducer_and_activator_of_transcription_3", "signal_transducer_and_activator_of_transcription_3", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:signal_transducer_and_activator_of_transcription_5", "signal_transducer_and_activator_of_transcription_5", "Gene", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:slc25a10", "slc25a10", "Gene", "PERCEPTION", 0.75, FALSE, NULL, 1
+"extracted:t-cell_surface_marker_ctla-4", "t-cell_surface_marker_ctla-4", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:thiopurine_methyltransferase", "thiopurine_methyltransferase", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:toll-like_receptor_2", "toll-like_receptor_2", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:toll-like_receptor_4", "toll-like_receptor_4", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:toll-like_receptor_7", "toll-like_receptor_7", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:toll-like_receptor_9", "toll-like_receptor_9", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:trac", "trac", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:traf1", "traf1", "Gene", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:trav", "trav", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:trex1", "trex1", "Gene", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:ubiquitin_specific_peptidase_18", "ubiquitin_specific_peptidase_18", "Gene", "REASONING", 0.95, FALSE, NULL, 4
+"extracted:xist", "xist", "Gene", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:bacteroides", "bacteroides", "Genus", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:duncaniella", "duncaniella", "Genus", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dietary_guidelines_for_americans", "dietary_guidelines_for_americans", "Guideline", "REASONING", 0.9, FALSE, NULL, 1
+"Nzbxnzw(F1) Mice", "Nzbxnzw(F1) Mice", "Model Organism", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:nzbxnzw(f1)_mice", "nzbxnzw(f1)_mice", "Model Organism", "REASONING", 0.9, FALSE, NULL, 2
+NULL, "Bacteroidales Bacterium M13", "Organism", "PERCEPTION", 0.75, FALSE, NULL, 1
+"Bacteroides", "Bacteroides", "Organism", "SEMANTIC", 0.85, FALSE, NULL, 1
+NULL, "Duncaniella", "Organism", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Parabacteroides Distasonis", "Organism", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Phocaeicola Sartorii", "Organism", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Staphylococcus Aureus", "Staphylococcus Aureus", "Organism", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Alexandria University", "Alexandria University", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"American Autoimmune Related Diseases Association", "American Autoimmune Related Diseases Association", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"American College Of Rheumatology", "American College Of Rheumatology", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"American Gastroenterological Association", "American Gastroenterological Association", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"American Heart Association", "American Heart Association", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 3
+"Astrazeneca", "Astrazeneca", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Benaroya Research Institute", "Benaroya Research Institute", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"British Medical Journal", "British Medical Journal", "Organization", "REASONING", 0.9, FALSE, NULL, 0
+"British Society Of Gastroenterology", "British Society Of Gastroenterology", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"Cambridge Institute For Medical Research", "Cambridge Institute For Medical Research", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Centenary Institute Of Cancer Medicine And Cell Biology", "Centenary Institute Of Cancer Medicine And Cell Biology", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Centre For Rheumatology, University College London Hospitals", "Centre For Rheumatology, University College London Hospitals", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Centre National Pour La Recherche Scientifique", "Centre National Pour La Recherche Scientifique", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Clinical Research Ethics Committee Of The Hcuv", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 0
+NULL, "Clinicaltrials.Gov", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Common Collective", "Common Collective", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Crohn's & Colitis Foundation", "Crohn's & Colitis Foundation", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"Crohn's & Colitis Uk", "Crohn's & Colitis Uk", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Crohn's And Colitis Foundation", "Crohn's And Colitis Foundation", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Department Of Digestive Diseases, Hospital De Poniente", "Department Of Digestive Diseases, Hospital De Poniente", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Department Of Proctology", "Department Of Proctology", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Duke Integrative Medicine", "Duke Integrative Medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Echo Pharmaceuticals", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Eqtlgen Consortium", "Eqtlgen Consortium", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "European Association For The Study Of The Liver", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"European League Against Rheumatism", "European League Against Rheumatism", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"European Medicines Agency", "European Medicines Agency", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"European Society For Blood And Marrow Transplantation", "European Society For Blood And Marrow Transplantation", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Groote Schuur Hospital", "Groote Schuur Hospital", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"Guy'S, King's And St Thomas' School Of Medicine", "Guy'S, King's And St Thomas' School Of Medicine", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 0
+NULL, "Harvard Medical School", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Howard Hughes Medical Institute", "Howard Hughes Medical Institute", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Img Pharma Biotech S.L.", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Imperial College London", "Imperial College London", "Organization", "REASONING", 0.95, FALSE, NULL, 1
+"Institute For Functional Medicine", "Institute For Functional Medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"International Organization For The Study Of Ibd", "International Organization For The Study Of Ibd", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"Jmdc Co., Ltd.", "Jmdc Co., Ltd.", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Johns Hopkins Medicine", "Johns Hopkins Medicine", "Organization", "REASONING", 0.95, FALSE, NULL, 0
+"Johns Hopkins University", "Johns Hopkins University", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Kyoto Prefectural University Of Medicine", "Kyoto Prefectural University Of Medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Longhua Hospital", "Longhua Hospital", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"Lupus Foundation Of America", "Lupus Foundation Of America", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Medica Sur Clinic And Foundation", "Medica Sur Clinic And Foundation", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Memorial Sloan-Kettering Cancer Center", "Memorial Sloan-Kettering Cancer Center", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Mount Sinai School Of Medicine", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"National Academies Of Sciences, Engineering, And Medicine", "National Academies Of Sciences, Engineering, And Medicine", "Organization", "REASONING", 0.95, FALSE, NULL, 0
+"National Health Service", "National Health Service", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"National Institute Of Environmental Health Sciences", "National Institute Of Environmental Health Sciences", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"National Institutes Of Health", "National Institutes Of Health", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 11
+"Nourishing Transitions Nutrition Services", "Nourishing Transitions Nutrition Services", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Oadr-Orwh", "Organization", "PERCEPTION", 0.84, FALSE, NULL, 1
+"Office Of Autoimmune Disease Research", "Office Of Autoimmune Disease Research", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Open Targets Genetics Portal", "Open Targets Genetics Portal", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Psoriasis Stratification To Optimise Relevant Therapy", "Psoriasis Stratification To Optimise Relevant Therapy", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Rheumatology Outpatient Clinic Of Alexandria Main University Hospital", "Rheumatology Outpatient Clinic Of Alexandria Main University Hospital", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"Royal College Of Physicians", "Royal College Of Physicians", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Royal North Shore Hospital", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Ruijin Hospital Ethics Committee", "Ruijin Hospital Ethics Committee", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Shanghai University Of Traditional Chinese Medicine", "Shanghai University Of Traditional Chinese Medicine", "Organization", "REASONING", 0.95, FALSE, NULL, 1
+"Singlera Genomics (Shanghai) Ltd", "Singlera Genomics (Shanghai) Ltd", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"St George's Hospital Medical School", "St George's Hospital Medical School", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 0
+"St Helier Hospital", "St Helier Hospital", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Takashi Yokhama", "Takashi Yokhama", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 0
+"The Kennedy Institute Of Rheumatology", "The Kennedy Institute Of Rheumatology", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Tokyo University Of Science", "Tokyo University Of Science", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Tufts Cummings School Of Veterinary Medicine", "Tufts Cummings School Of Veterinary Medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Uk Biobank", "Uk Biobank", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"Umass Chan Medical School", "Umass Chan Medical School", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"University Hospital, Rikshospitalet", "University Hospital, Rikshospitalet", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"University Of Alberta", "University Of Alberta", "Organization", "REASONING", 0.95, FALSE, NULL, 1
+"University Of Bristol", "University Of Bristol", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 0
+"University Of Cambridge", "University Of Cambridge", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"University Of Cape Town", "University Of Cape Town", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"University Of Newcastle", "University Of Newcastle", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"University Of Sheffield", "University Of Sheffield", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 0
+NULL, "University Of The Basque Country", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"University Of Wisconsin Integrative Health", "University Of Wisconsin Integrative Health", "Organization", "REASONING", 0.9, FALSE, NULL, 0
+"Us Food And Drug Administration", "Us Food And Drug Administration", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"Wellcome Pty", "Wellcome Pty", "Organization", "REASONING", 1.0, FALSE, NULL, 0
+"World Health Organization", "World Health Organization", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Wrocław Medical University", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 0
+"extracted:agency_for_healthcare_research_and_quality", "agency_for_healthcare_research_and_quality", "Organization", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:aldo_moro_university_of_bari", "aldo_moro_university_of_bari", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:american_college_of_gastroenterology", "american_college_of_gastroenterology", "Organization", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:american_college_of_lifestyle_medicine", "american_college_of_lifestyle_medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:american_college_of_rheumatology", "american_college_of_rheumatology", "Organization", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:american_gastroenterological_association", "american_gastroenterological_association", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:american_heart_association", "american_heart_association", "Organization", "REASONING", 0.9, FALSE, NULL, 7
+"extracted:astrazeneca", "astrazeneca", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:bakar_computational_health_sciences_institute", "bakar_computational_health_sciences_institute", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:benaroya_research_institute", "benaroya_research_institute", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:beth_israel_deaconess_medical_center", "beth_israel_deaconess_medical_center", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:british_society_of_gastroenterology", "british_society_of_gastroenterology", "Organization", "REASONING", 0.95, FALSE, NULL, 3
+"extracted:c.h.u._a_coruña", "c.h.u._a_coruña", "Organization", "REASONING", 0.9, FALSE, NULL, 7
+"extracted:c57bl/6", "c57bl/6", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:cambridge_institute_for_medical_research", "cambridge_institute_for_medical_research", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cedars-sinai_medical_center", "cedars-sinai_medical_center", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:center_for_translational_medicine_research_and_development", "center_for_translational_medicine_research_and_development", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:centers_for_disease_control_and_prevention", "centers_for_disease_control_and_prevention", "Organization", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:centre_for_rheumatology,_university_college_london_hospitals", "centre_for_rheumatology,_university_college_london_hospitals", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:chinese_academy_of_medical_sciences", "chinese_academy_of_medical_sciences", "Organization", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:clinical_research_ethics_committee_of_the_hcuv", "clinical_research_ethics_committee_of_the_hcuv", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:clinicaltrials.gov", "clinicaltrials.gov", "Organization", "PERCEPTION", 0.7, FALSE, NULL, 1
+"extracted:common_collective", "common_collective", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:crohn's_&_colitis_foundation", "crohn's_&_colitis_foundation", "Organization", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:crohn's_&_colitis_uk", "crohn's_&_colitis_uk", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:crohn's_and_colitis_foundation", "crohn's_and_colitis_foundation", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:dallas_veterans_affairs_medical_center", "dallas_veterans_affairs_medical_center", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:department_of_biology,_university_of_rome_tor_vergata", "department_of_biology,_university_of_rome_tor_vergata", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:department_of_gastroenterology,_faculty_of_medicine,_dokuz_eylul_university", "department_of_gastroenterology,_faculty_of_medicine,_dokuz_eylul_university", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:department_of_medicine,_tel-aviv,_israel", "department_of_medicine,_tel-aviv,_israel", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:dr._calviño_suarez,_michael", "dr._calviño_suarez,_michael", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dr._cruz_palomares,_adrian", "dr._cruz_palomares,_adrian", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dr._fernández_rodríguez,_fernando", "dr._fernández_rodríguez,_fernando", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dr._garrido_outeiro,_manuel_jose", "dr._garrido_outeiro,_manuel_jose", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dra._garcía_mayo,_susana", "dra._garcía_mayo,_susana", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 3
+"extracted:dra._suarez_fuentetaja,_natalia", "dra._suarez_fuentetaja,_natalia", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dra._tenreiro_gonzalez-llanos,_maria_del_carmen", "dra._tenreiro_gonzalez-llanos,_maria_del_carmen", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dra._torio_gómez,_silvina", "dra._torio_gómez,_silvina", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:duke_integrative_medicine", "duke_integrative_medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:ebmt_autoimmune_diseases_working_party", "ebmt_autoimmune_diseases_working_party", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:environmental_medicine", "environmental_medicine", "Organization", "PERCEPTION", 0.75, FALSE, NULL, 1
+"extracted:eqtlgen_consortium", "eqtlgen_consortium", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:european_association_for_the_study_of_the_liver", "european_association_for_the_study_of_the_liver", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:european_crohn's_and_colitis_organization", "european_crohn's_and_colitis_organization", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:european_league_against_rheumatism", "european_league_against_rheumatism", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:european_medicines_agency", "european_medicines_agency", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:european_society_for_blood_and_marrow_transplantation", "european_society_for_blood_and_marrow_transplantation", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:feinstein_institute_for_medical_research", "feinstein_institute_for_medical_research", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:francisco_lueiro_garcia", "francisco_lueiro_garcia", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:frontiers_in_immunology", "frontiers_in_immunology", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:gene_expression_omnibus", "gene_expression_omnibus", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:groote_schuur_hospital", "groote_schuur_hospital", "Organization", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:guy's,_king's_and_st_thomas'_school_of_medicine", "guy's,_king's_and_st_thomas'_school_of_medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:harvard_medical_school", "harvard_medical_school", "Organization", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:hassall's_corpuscles", "hassall's_corpuscles", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:high_institute_of_public_health", "high_institute_of_public_health", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"extracted:howard_hughes_medical_institute", "howard_hughes_medical_institute", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:img_pharma_biotech_s.l.", "img_pharma_biotech_s.l.", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:immport", "immport", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:imperial_college_london", "imperial_college_london", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:institute_for_functional_medicine", "institute_for_functional_medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:institute_of_technology,_universidad_de_castilla-la_mancha", "institute_of_technology,_universidad_de_castilla-la_mancha", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:international_organization_for_the_study_of_ibd", "international_organization_for_the_study_of_ibd", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:jmdc_co.,_ltd.", "jmdc_co.,_ltd.", "Organization", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:johns_hopkins", "johns_hopkins", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:johns_hopkins_university", "johns_hopkins_university", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:kyoto_prefectural_university_of_medicine", "kyoto_prefectural_university_of_medicine", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:longhua_hospital", "longhua_hospital", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:lupus_foundation_of_america", "lupus_foundation_of_america", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:medica_sur_clinic_and_foundation", "medica_sur_clinic_and_foundation", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:medical_university_of_vienna", "medical_university_of_vienna", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:memorial_sloan-kettering_cancer_center", "memorial_sloan-kettering_cancer_center", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:metabo_analyst_5.0", "metabo_analyst_5.0", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:monash_university", "monash_university", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:nanfang_hospital,_southern_medical_university", "nanfang_hospital,_southern_medical_university", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:national_academies_of_sciences,_engineering,_and_medicine", "national_academies_of_sciences,_engineering,_and_medicine", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 4
+"extracted:national_centre_for_scientific_research", "national_centre_for_scientific_research", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:national_health_service", "national_health_service", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:national_institute_of_allergy_and_infectious_diseases", "national_institute_of_allergy_and_infectious_diseases", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:national_institute_of_diabetes_and_digestive_and_kidney_diseases", "national_institute_of_diabetes_and_digestive_and_kidney_diseases", "Organization", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:national_institute_of_environmental_health_sciences", "national_institute_of_environmental_health_sciences", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:national_institutes_of_health", "national_institutes_of_health", "Organization", "REASONING", 0.9, FALSE, NULL, 32
+"extracted:national_multiple_sclerosis_society", "national_multiple_sclerosis_society", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:national_natural_science_foundation_of_china", "national_natural_science_foundation_of_china", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nourishing_transitions_nutrition_services", "nourishing_transitions_nutrition_services", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:open_targets_genetics_portal", "open_targets_genetics_portal", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:peking_union_medical_college", "peking_union_medical_college", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:polish_ministry_of_education_and_sciences", "polish_ministry_of_education_and_sciences", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:psoriasis_stratification_to_optimise_relevant_therapy", "psoriasis_stratification_to_optimise_relevant_therapy", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:rheumatology_outpatient_clinic_of_alexandria_main_university_hospital", "rheumatology_outpatient_clinic_of_alexandria_main_university_hospital", "Organization", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:royal_college_of_physicians", "royal_college_of_physicians", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:ruijin_hospital", "ruijin_hospital", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:shanghai_university_of_traditional_chinese_medicine", "shanghai_university_of_traditional_chinese_medicine", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:sichuan_university", "sichuan_university", "Organization", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:singlera_genomics_(shanghai)_ltd", "singlera_genomics_(shanghai)_ltd", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:st_george's_hospital_medical_school", "st_george's_hospital_medical_school", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:st_helier_hospital", "st_helier_hospital", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:stanford_university", "stanford_university", "Organization", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:systemic_lupus_international_collaborating_clinics", "systemic_lupus_international_collaborating_clinics", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"extracted:takashi_yokhama", "takashi_yokhama", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:talking_taboos_foundation", "talking_taboos_foundation", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:the_first_affiliated_hospital_of_ningbo_university", "the_first_affiliated_hospital_of_ningbo_university", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:the_francis_crick_institute", "the_francis_crick_institute", "Organization", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:the_kennedy_institute_of_rheumatology", "the_kennedy_institute_of_rheumatology", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:the_third_xiangya_hospital,_central_south_university", "the_third_xiangya_hospital,_central_south_university", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:tokyo_university_of_science", "tokyo_university_of_science", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:tufts_cummings_school_of_veterinary_medicine", "tufts_cummings_school_of_veterinary_medicine", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:uk_biobank", "uk_biobank", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:umass_chan_medical_school", "umass_chan_medical_school", "Organization", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:university_hospital,_rikshospitalet", "university_hospital,_rikshospitalet", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_hospital_of_basurto", "university_hospital_of_basurto", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_alberta", "university_of_alberta", "Organization", "REASONING", 0.95, FALSE, NULL, 1
+"extracted:university_of_bristol", "university_of_bristol", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_california_san_francisco", "university_of_california_san_francisco", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_cambridge", "university_of_cambridge", "Organization", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:university_of_ferrara", "university_of_ferrara", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_life_sciences", "university_of_life_sciences", "Organization", "REASONING", 0.95, FALSE, NULL, 3
+"extracted:university_of_newcastle", "university_of_newcastle", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_north_carolina", "university_of_north_carolina", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:university_of_pisa", "university_of_pisa", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_sheffield", "university_of_sheffield", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_south_china", "university_of_south_china", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:university_of_texas_southwestern_medical_center", "university_of_texas_southwestern_medical_center", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:university_of_the_basque_country", "university_of_the_basque_country", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:university_of_trento", "university_of_trento", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:university_of_wisconsin_integrative_health", "university_of_wisconsin_integrative_health", "Organization", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:us_food_and_drug_administration", "us_food_and_drug_administration", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:utah_cannabis_research_review_board", "utah_cannabis_research_review_board", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:utah_medical_cannabis_program", "utah_medical_cannabis_program", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:victor_babes_national_institute", "victor_babes_national_institute", "Organization", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:wellcome_pty", "wellcome_pty", "Organization", "REASONING", 1.0, FALSE, NULL, 1
+"extracted:world_health_organization", "world_health_organization", "Organization", "REASONING", 0.95, FALSE, NULL, 4
+"extracted:yale_school_of_medicine", "yale_school_of_medicine", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:zhuzhou_central_hospital", "zhuzhou_central_hospital", "Organization", "SEMANTIC", 0.85, FALSE, NULL, 2
+NULL, "Complement System", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Cytokine Microenvironment", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Dietary Fiber", "Dietary Fiber", "Pathway", "REASONING", 0.9, FALSE, NULL, 1
+"Dna Methylation", "Dna Methylation", "Pathway", "REASONING", 0.9, FALSE, NULL, 4
+"Environmental Factors", "Environmental Factors", "Pathway", "REASONING", 0.9, FALSE, NULL, 2
+"Immunosuppression", "Immunosuppression", "Pathway", "REASONING", 0.9, FALSE, NULL, 0
+"Interferon Alpha/Beta Signaling", "Interferon Alpha/Beta Signaling", "Pathway", "REASONING", 0.9, FALSE, NULL, 0
+NULL, "Janus Kinase-Signal Transducer And Activator Of Transcription Pathway", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Metabo Analyst 5.0", "Metabo Analyst 5.0", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Microbiome", "Microbiome", "Pathway", "REASONING", 0.9, FALSE, NULL, 1
+"Nutrigenomics", "Nutrigenomics", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 0
+NULL, "Toll-Like Receptor Signaling", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Transforming Growth Factor-Beta", "Transforming Growth Factor-Beta", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Tumor Necrosis Factor Alpha", "Tumor Necrosis Factor Alpha", "Pathway", "REASONING", 0.95, FALSE, NULL, 2
+"Tumor Necrosis Factor-Alpha", "Tumor Necrosis Factor-Alpha", "Pathway", "REASONING", 1.0, FALSE, NULL, 2
+"Tumour Necrosis Factor Alpha", "Tumour Necrosis Factor Alpha", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Type I Interferon Signaling Pathway", "Type I Interferon Signaling Pathway", "Pathway", "REASONING", 0.9, FALSE, NULL, 3
+"Type Iv Secretion System", "Type Iv Secretion System", "Pathway", "REASONING", 0.92, FALSE, NULL, 5
+"extracted:amino_acid_metabolic_profiles", "amino_acid_metabolic_profiles", "Pathway", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:blood_brain_barrier", "blood_brain_barrier", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cgas-sting_signaling_pathway", "cgas-sting_signaling_pathway", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 3
+"extracted:complement_system", "complement_system", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cyclic_gmp-amp_synthase", "cyclic_gmp-amp_synthase", "Pathway", "PERCEPTION", 0.9, FALSE, NULL, 1
+"extracted:dietary_fiber", "dietary_fiber", "Pathway", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:dna_methylation", "dna_methylation", "Pathway", "REASONING", 0.9, FALSE, NULL, 7
+"extracted:grading_of_recommendations_assessment,_development,_and_evaluation", "grading_of_recommendations_assessment,_development,_and_evaluation", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:gut_microbiome", "gut_microbiome", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:gut_microbiota", "gut_microbiota", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:immunosuppression", "immunosuppression", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:interferon", "interferon", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:interferon_response", "interferon_response", "Pathway", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:interferon_signaling_pathway", "interferon_signaling_pathway", "Pathway", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:interleukin-12", "interleukin-12", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:interleukin-23", "interleukin-23", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:janus_kinase-signal_transducer_and_activator_of_transcription_pathway", "janus_kinase-signal_transducer_and_activator_of_transcription_pathway", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:lactate", "lactate", "Pathway", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:major_histocompatibility_complex", "major_histocompatibility_complex", "Pathway", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:mediterranean_diet", "mediterranean_diet", "Pathway", "PERCEPTION", 0.9, FALSE, NULL, 1
+"extracted:monocyte/macrophage_nk_cell_crosstalk", "monocyte/macrophage_nk_cell_crosstalk", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:nf-κb", "nf-κb", "Pathway", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nutrigenomics", "nutrigenomics", "Pathway", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:psoriasis_severity_signatures", "psoriasis_severity_signatures", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 4
+"extracted:stimulator_of_interferon_genes", "stimulator_of_interferon_genes", "Pathway", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:t-helper_17", "t-helper_17", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:thymic_selection", "thymic_selection", "Pathway", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:tnf-alpha", "tnf-alpha", "Pathway", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:toll-like_receptor_signaling", "toll-like_receptor_signaling", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:toll-like_receptors", "toll-like_receptors", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:tumor_necrosis_factor", "tumor_necrosis_factor", "Pathway", "SEMANTIC", 0.85, FALSE, NULL, 3
+"extracted:tumor_necrosis_factor-alpha", "tumor_necrosis_factor-alpha", "Pathway", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:tumor_necrosis_factor_alpha", "tumor_necrosis_factor_alpha", "Pathway", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:type_iv_secretion_system", "type_iv_secretion_system", "Pathway", "REASONING", 0.92, FALSE, NULL, 6
+"Cd274", "Cd274", "Protein", "REASONING", 0.9, FALSE, NULL, 1
+"Chi3L1", "Chi3L1", "Protein", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Defa1_Defa1B", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Gdf15", "Gdf15", "Protein", "REASONING", 0.9, FALSE, NULL, 1
+"Il6", "Il6", "Protein", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Itga11", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Itgav", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Prss8", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Reg1B", "Reg1B", "Protein", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:cd274", "cd274", "Protein", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:chi3l1", "chi3l1", "Protein", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:defa1_defa1b", "defa1_defa1b", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:gdf15", "gdf15", "Protein", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:il6", "il6", "Protein", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:itga11", "itga11", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:itgav", "itgav", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:prss8", "prss8", "Protein", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:reg1b", "reg1b", "Protein", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:parabacteroides_distasonis", "parabacteroides_distasonis", "Species", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:phocaeicola_sartorii", "phocaeicola_sartorii", "Species", "PERCEPTION", 0.8, FALSE, NULL, 2
+"Adept Study", "Adept Study", "Study", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Arias-Guillén Et Al. Study", "Study", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Armada Trial", "Armada Trial", "Study", "REASONING", 0.9, FALSE, NULL, 1
+"Atlas Study", "Atlas Study", "Study", "REASONING", 0.9, FALSE, NULL, 1
+"Autoimmune Protocol Diet", "Autoimmune Protocol Diet", "Study", "REASONING", 0.9, FALSE, NULL, 1
+"Charm Study", "Charm Study", "Study", "REASONING", 0.9, FALSE, NULL, 1
+"Classic I Study", "Classic I Study", "Study", "REASONING", 0.9, FALSE, NULL, 1
+"Clinical Trial", "Clinical Trial", "Study", "SEMANTIC", 0.85, FALSE, NULL, 0
+NULL, "Clinical Trials", "Study", "PERCEPTION", 0.9, FALSE, NULL, 1
+"Committee For The Assessment Of Nih Research On Autoimmune Diseases", "Committee For The Assessment Of Nih Research On Autoimmune Diseases", "Study", "REASONING", 0.95, FALSE, NULL, 2
+"Epic-Norfolk", "Epic-Norfolk", "Study", "REASONING", 0.9, FALSE, NULL, 1
+"National Cooperative Crohn's Disease Study", "National Cooperative Crohn's Disease Study", "Study", "REASONING", 1.0, FALSE, NULL, 1
+"Nct02900443", "Nct02900443", "Study", "REASONING", 0.9, FALSE, NULL, 3
+"Phase Iii Clinical Trial", "Phase Iii Clinical Trial", "Study", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Randomized Controlled Trials", "Randomized Controlled Trials", "Study", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Reveal Study", "Reveal Study", "Study", "REASONING", 0.9, FALSE, NULL, 1
+"Selecting Therapeutic Targets In Inflammatory Bowel Disease Ii", "Selecting Therapeutic Targets In Inflammatory Bowel Disease Ii", "Study", "REASONING", 1.0, FALSE, NULL, 1
+"Sonic Trial", "Sonic Trial", "Study", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Southern China Cohort", "Study", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:adept_trial", "adept_trial", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:armada_trial", "armada_trial", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:atlas_trial", "atlas_trial", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:bacardi_risk_model", "bacardi_risk_model", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:case_control_study", "case_control_study", "Study", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:charm_trial", "charm_trial", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:classic_i_trial", "classic_i_trial", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:clinical_trial", "clinical_trial", "Study", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:clinical_trials", "clinical_trials", "Study", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:cochrane_database_of_systematic_reviews", "cochrane_database_of_systematic_reviews", "Study", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:crystal_study", "crystal_study", "Study", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:epic-norfolk", "epic-norfolk", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:exposome_in_autoimmune_diseases_collaborating_teams_planning_awards", "exposome_in_autoimmune_diseases_collaborating_teams_planning_awards", "Study", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:gemini-ii_study", "gemini-ii_study", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:genome-wide_association_studies", "genome-wide_association_studies", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:global_burden_of_diseases,_injuries,_and_risk_factors_study_2021", "global_burden_of_diseases,_injuries,_and_risk_factors_study_2021", "Study", "REASONING", 0.95, FALSE, NULL, 3
+"extracted:international_journal_of_molecular_sciences", "international_journal_of_molecular_sciences", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:meta-analysis", "meta-analysis", "Study", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:nct02900443", "nct02900443", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:phase_iii_clinical_trial", "phase_iii_clinical_trial", "Study", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:randomized_controlled_trial", "randomized_controlled_trial", "Study", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:randomized_controlled_trials", "randomized_controlled_trials", "Study", "SEMANTIC", 0.85, FALSE, NULL, 4
+"extracted:retrospective_multicenter_study", "retrospective_multicenter_study", "Study", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:signature_of_macrophage_reactivity_and_tolerance", "signature_of_macrophage_reactivity_and_tolerance", "Study", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:sonic_trial", "sonic_trial", "Study", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:southern_china_cohort", "southern_china_cohort", "Study", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:stride", "stride", "Study", "PERCEPTION", 0.8, FALSE, NULL, 2
+"Abdominal Pain", "Abdominal Pain", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Abdominal Pains", "Abdominal Pains", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Amino Acids", "Amino Acids", "Symptom", "REASONING", 0.9, FALSE, NULL, 0
+NULL, "Anemia", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Anxiety About Toilets And Accessing Them", "Anxiety About Toilets And Accessing Them", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"Biofilm Formation", "Biofilm Formation", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 2
+"Body Mass Index", "Body Mass Index", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Chest Pain", "Chest Pain", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Cigarette Smoking", "Cigarette Smoking", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Clinical Remission", "Clinical Remission", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"Complex Emotions (E.G. Frustration, Worry, Grief)", "Complex Emotions (E.G. Frustration, Worry, Grief)", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"Diarrhea", "Diarrhea", "Symptom", "REASONING", 1.0, FALSE, NULL, 2
+"Diarrhoea", "Diarrhoea", "Symptom", "REASONING", 1.0, FALSE, NULL, 1
+"Endoscopic Remission", "Endoscopic Remission", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"Enlarged Lymph Nodes", "Enlarged Lymph Nodes", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Environmental Tobacco Smoke", "Environmental Tobacco Smoke", "Symptom", "REASONING", 1.0, FALSE, NULL, 0
+"Fatigue", "Fatigue", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"Fatigue And Energy Management", "Fatigue And Energy Management", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"Fever", "Fever", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Fistula", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Fistulae", "Fistulae", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Hair Loss", "Hair Loss", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Histological Remission", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Immunodeficiency", "Immunodeficiency", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Immunogenicity", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Joint Pain", "Joint Pain", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Living With Unpredictable Symptoms And Flares", "Living With Unpredictable Symptoms And Flares", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"Malabsorption", "Malabsorption", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Mouth Ulcers", "Mouth Ulcers", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Obesity", "Obesity", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Passive Smoking", "Passive Smoking", "Symptom", "REASONING", 1.0, FALSE, NULL, 1
+"Pro-Inflammatory Cytokines", "Pro-Inflammatory Cytokines", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 2
+"Processed Foods", "Processed Foods", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Red Rash", "Red Rash", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Sleep Disruption", "Sleep Disruption", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+NULL, "Subileus", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Sunlight", "Sunlight", "Symptom", "REASONING", 1.0, FALSE, NULL, 1
+"Swelling", "Swelling", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"Visceral Adipose Tissue", "Visceral Adipose Tissue", "Symptom", "REASONING", 1.0, FALSE, NULL, 3
+"extracted:abdominal_pain", "abdominal_pain", "Symptom", "REASONING", 1.0, FALSE, NULL, 4
+"extracted:actividad_inflamatoria", "actividad_inflamatoria", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 3
+"extracted:always_being_alert_to_signs_and_symptoms", "always_being_alert_to_signs_and_symptoms", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:amino_acids", "amino_acids", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:anemia", "anemia", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:anxiety_about_toilets_and_accessing_them", "anxiety_about_toilets_and_accessing_them", "Symptom", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:biochemical_remission", "biochemical_remission", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:body_mass_index", "body_mass_index", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cd19–_plasma_cells", "cd19–_plasma_cells", "Symptom", "REASONING", 0.9, FALSE, NULL, 8
+"extracted:chest_pain", "chest_pain", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cigarette_smoking", "cigarette_smoking", "Symptom", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:clinical_remission", "clinical_remission", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:complex_emotions", "complex_emotions", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:cytokine_release_syndrome", "cytokine_release_syndrome", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cálculos_y_barro_biliar", "cálculos_y_barro_biliar", "Symptom", "PERCEPTION", 0.75, FALSE, NULL, 2
+"extracted:dealing_with_poo", "dealing_with_poo", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:diarrhea", "diarrhea", "Symptom", "REASONING", 1.0, FALSE, NULL, 4
+"extracted:dietary_fiber", "dietary_fiber", "Symptom", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:engrosamiento_de_la_pared_del_neoíleon", "engrosamiento_de_la_pared_del_neoíleon", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:enlarged_lymph_nodes", "enlarged_lymph_nodes", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:environmental_tobacco_smoke", "environmental_tobacco_smoke", "Symptom", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:erythema_nodosum", "erythema_nodosum", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 3
+"extracted:fatigue", "fatigue", "Symptom", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:fatigue_and_energy_management", "fatigue_and_energy_management", "Symptom", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:feeling_embarrassed_and_self-conscious", "feeling_embarrassed_and_self-conscious", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:fever", "fever", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:fistula", "fistula", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 4
+"extracted:hair_loss", "hair_loss", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:having_to_plan_and_strategise_activities_and_events", "having_to_plan_and_strategise_activities_and_events", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:heavy_metals", "heavy_metals", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 3
+"extracted:immunodeficiency", "immunodeficiency", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:immunogenicity", "immunogenicity", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:iodine_excess", "iodine_excess", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:joint_pain", "joint_pain", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:leucopenia", "leucopenia", "Symptom", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:living_with_physical_symptoms", "living_with_physical_symptoms", "Symptom", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:living_with_unpredictable_symptoms_and_flares", "living_with_unpredictable_symptoms_and_flares", "Symptom", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:mouth_ulcers", "mouth_ulcers", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nausea", "nausea", "Symptom", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:obesity", "obesity", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:passive_smoking", "passive_smoking", "Symptom", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:pro-inflammatory_cytokines", "pro-inflammatory_cytokines", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:processed_foods", "processed_foods", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:red_rash", "red_rash", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:serious_adverse_events", "serious_adverse_events", "Symptom", "PERCEPTION", 0.8, FALSE, NULL, 3
+"extracted:severe_infection", "severe_infection", "Symptom", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:sleep_disruption", "sleep_disruption", "Symptom", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:sunlight", "sunlight", "Symptom", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:swelling", "swelling", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:th17_cells", "th17_cells", "Symptom", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:visceral_adipose_tissue", "visceral_adipose_tissue", "Symptom", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:vomiting", "vomiting", "Symptom", "REASONING", 1.0, FALSE, NULL, 2
+"Alanine Aminotransferase", "Alanine Aminotransferase", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Albumin", "Albumin", "Test", "REASONING", 1.0, FALSE, NULL, 1
+"Anti-Double Stranded Dna Antibodies", "Anti-Double Stranded Dna Antibodies", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Antinuclear Antibodies", "Antinuclear Antibodies", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"B Cell Receptor", "B Cell Receptor", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Barium Enema", "Barium Enema", "Test", "REASONING", 1.0, FALSE, NULL, 1
+"Biomarkers", "Biomarkers", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"C Reactive Protein", "C Reactive Protein", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"C-Reactive Protein", "C-Reactive Protein", "Test", "REASONING", 0.9, FALSE, NULL, 5
+"Caco-2 Cells", "Caco-2 Cells", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Cerebrospinal Fluid", "Cerebrospinal Fluid", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Charlson Comorbidity Index", "Charlson Comorbidity Index", "Test", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Claims Database", "Claims Database", "Test", "REASONING", 0.9, FALSE, NULL, 3
+"Clinical Trials", "Clinical Trials", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"Colonoscopy", "Colonoscopy", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Crohn Disease Activity Index", "Crohn Disease Activity Index", "Test", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Crohn's Disease Activity Index", "Crohn's Disease Activity Index", "Test", "REASONING", 1.0, FALSE, NULL, 1
+"Elevated Plus Maze Test", "Elevated Plus Maze Test", "Test", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Erythrocyte Sedimentation Rate", "Erythrocyte Sedimentation Rate", "Test", "REASONING", 1.0, FALSE, NULL, 4
+"Faecal Calprotectin", "Faecal Calprotectin", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"Fecal Calprotectin", "Fecal Calprotectin", "Test", "REASONING", 0.9, FALSE, NULL, 3
+"Ileocolonoscopy", "Ileocolonoscopy", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Immunofluorescence Staining", "Immunofluorescence Staining", "Test", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Interferon Gamma Release Assay", "Interferon Gamma Release Assay", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Leucocyte Count", "Leucocyte Count", "Test", "REASONING", 1.0, FALSE, NULL, 1
+"Liquid Chromatography-Tandem Mass Spectrometry", "Liquid Chromatography-Tandem Mass Spectrometry", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Mantoux Tuberculin Skin Test", "Mantoux Tuberculin Skin Test", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Morris Water Maze Test", "Morris Water Maze Test", "Test", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Open Field Test", "Open Field Test", "Test", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Perianal Disease Activity Index", "Perianal Disease Activity Index", "Test", "REASONING", 0.9, FALSE, NULL, 0
+NULL, "Plasma Proteins", "Test", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Psoriasis Area And Severity Index", "Psoriasis Area And Severity Index", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Quantiferon-Tb Gold", "Quantiferon-Tb Gold", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Receiver Operating Characteristic Curve", "Receiver Operating Characteristic Curve", "Test", "REASONING", 1.0, FALSE, NULL, 1
+"Serum Amino Acid Metabolic Profiles", "Serum Amino Acid Metabolic Profiles", "Test", "REASONING", 0.9, FALSE, NULL, 8
+"Sigmoidoscopy", "Sigmoidoscopy", "Test", "REASONING", 1.0, FALSE, NULL, 1
+"Simple Endoscopic Score For Crohn's Disease", "Simple Endoscopic Score For Crohn's Disease", "Test", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Sle Disease Activity Index", "Sle Disease Activity Index", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"Sledai", "Sledai", "Test", "REASONING", 0.9, FALSE, NULL, 0
+"Spectrophotometric Assays", "Spectrophotometric Assays", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Stool Tests", "Stool Tests", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Sucrose Preference Test", "Sucrose Preference Test", "Test", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Systemic Lupus International Collaborating Clinics Classiﬁcation Criteria", "Systemic Lupus International Collaborating Clinics Classiﬁcation Criteria", "Test", "REASONING", 1.0, FALSE, NULL, 0
+"Wassermann Test", "Wassermann Test", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"Western Blot Analysis", "Western Blot Analysis", "Test", "SEMANTIC", 0.85, FALSE, NULL, 0
+"extracted:anti-double-stranded_dna_antibodies", "anti-double-stranded_dna_antibodies", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:anti-dsdna", "anti-dsdna", "Test", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:anti-saccharomyces_cerevisiae_antibodies", "anti-saccharomyces_cerevisiae_antibodies", "Test", "PERCEPTION", 0.8, FALSE, NULL, 4
+"extracted:anti-thyroglobulin_antibodies", "anti-thyroglobulin_antibodies", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:anti-thyroid_peroxidase_antibodies", "anti-thyroid_peroxidase_antibodies", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:antinuclear_antibodies", "antinuclear_antibodies", "Test", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:antinuclear_antibody", "antinuclear_antibody", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:autoantibodies", "autoantibodies", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:b_cell_receptor", "b_cell_receptor", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:b_cell_receptor_repertoire_analysis", "b_cell_receptor_repertoire_analysis", "Test", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:barium_enema", "barium_enema", "Test", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:biomarkers", "biomarkers", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:blood_tests", "blood_tests", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:bowel_imaging", "bowel_imaging", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:c-reactive_protein", "c-reactive_protein", "Test", "REASONING", 0.9, FALSE, NULL, 19
+"extracted:c_reactive_protein", "c_reactive_protein", "Test", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:charlson_comorbidity_index", "charlson_comorbidity_index", "Test", "PERCEPTION", 0.8, FALSE, NULL, 3
+"extracted:clinical_trials", "clinical_trials", "Test", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:colonoscopy", "colonoscopy", "Test", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:complement_activation_products", "complement_activation_products", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:crohn's_disease_activity_index", "crohn's_disease_activity_index", "Test", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:crohn_disease_activity_index", "crohn_disease_activity_index", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:cytokine_levels", "cytokine_levels", "Test", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:erythrocyte_sedimentation_rate", "erythrocyte_sedimentation_rate", "Test", "REASONING", 1.0, FALSE, NULL, 6
+"extracted:faecal_calprotectin", "faecal_calprotectin", "Test", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:fecal_calprotectin", "fecal_calprotectin", "Test", "PERCEPTION", 0.8, FALSE, NULL, 11
+"extracted:folic_acid", "folic_acid", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:free_triiodothyronine", "free_triiodothyronine", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:gene_expression", "gene_expression", "Test", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:iga_anti-transglutaminase", "iga_anti-transglutaminase", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:iga_antihuman_tissue_transglutaminase_test", "iga_antihuman_tissue_transglutaminase_test", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:iga_endomysial_antibody_immunofluorescence_test", "iga_endomysial_antibody_immunofluorescence_test", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:ileocolonoscopy", "ileocolonoscopy", "Test", "REASONING", 0.95, FALSE, NULL, 2
+"extracted:interferon_gamma_release_assay", "interferon_gamma_release_assay", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:leucocyte_count", "leucocyte_count", "Test", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:liquid_chromatography_-_tandem_mass_spectrometry", "liquid_chromatography_-_tandem_mass_spectrometry", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:magnetic_resonance_imaging", "magnetic_resonance_imaging", "Test", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:olink_explore_panel", "olink_explore_panel", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:perianal_disease_activity_index", "perianal_disease_activity_index", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:peripheral_blood", "peripheral_blood", "Test", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:polymerase_chain_reaction", "polymerase_chain_reaction", "Test", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:psoriasis_area_and_severity_index", "psoriasis_area_and_severity_index", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:quantiferon-tb_gold", "quantiferon-tb_gold", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:resonancia_magnética_de_tubo_digestivo", "resonancia_magnética_de_tubo_digestivo", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:selena-systemic_lupus_erythematosus_disease_activity_index", "selena-systemic_lupus_erythematosus_disease_activity_index", "Test", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:serum_circulating_thyroxine", "serum_circulating_thyroxine", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:serum_concentrations_of_amino_acids", "serum_concentrations_of_amino_acids", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:serum_ifx_trough_concentrations", "serum_ifx_trough_concentrations", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:serum_tnf-α_concentrations", "serum_tnf-α_concentrations", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:sigmoidoscopy", "sigmoidoscopy", "Test", "REASONING", 1.0, FALSE, NULL, 2
+"extracted:simple_endoscopic_score_for_crohn's_disease", "simple_endoscopic_score_for_crohn's_disease", "Test", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:single-cell_rna_sequencing", "single-cell_rna_sequencing", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:sle_disease_activity_index", "sle_disease_activity_index", "Test", "SEMANTIC", 0.85, FALSE, NULL, 3
+"extracted:stool_tests", "stool_tests", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:thyroid_stimulating_hormone", "thyroid_stimulating_hormone", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:vitamin_b12", "vitamin_b12", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:wassermann_test", "wassermann_test", "Test", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:5-aminosalicylates", "5-aminosalicylates", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"Adrenocortical Steroids", "Adrenocortical Steroids", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Aminosalicylates", "Aminosalicylates", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Anti-Cd52", "Anti-Cd52", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Anti-Cholinesterase Drugs", "Anti-Cholinesterase Drugs", "Treatment", "REASONING", 0.9, FALSE, NULL, 0
+"Anti-Cytokine Therapy For Rheumatoid Arthritis", "Anti-Cytokine Therapy For Rheumatoid Arthritis", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Anti-Tumour Necrosis Factor Agents", "Anti-Tumour Necrosis Factor Agents", "Treatment", "REASONING", 1.0, FALSE, NULL, 1
+"Antibody-Conjugated Mesenchymal Stromal Cell Drug Delivery System", "Antibody-Conjugated Mesenchymal Stromal Cell Drug Delivery System", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+NULL, "Arvisol", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Auto Immune Protocol", "Auto Immune Protocol", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Binary Linear Discriminant Analysis", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Biologic Drugs", "Biologic Drugs", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"Biologic Therapies", "Biologic Therapies", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Biologic Therapy", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Biosimilars", "Biosimilars", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+NULL, "Boheco Hemp Seed Oil", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Corticosteroids", "Corticosteroids", "Treatment", "REASONING", 0.9, FALSE, NULL, 6
+NULL, "Cow's Milk", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Decision Trees", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+NULL, "Diet", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 0
+NULL, "Disease-Modifying Therapies", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 0
+"Elimination Diet", "Elimination Diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Epidiolex", "Epidiolex", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Fasting", "Fasting", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Glucocorticoids", "Glucocorticoids", "Treatment", "REASONING", 0.95, FALSE, NULL, 1
+"Gluten-Free Diet", "Gluten-Free Diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Green Tea", "Treatment", "PERCEPTION", 0.9, FALSE, NULL, 1
+"Hematopoietic Stem Cell Transplantation", "Hematopoietic Stem Cell Transplantation", "Treatment", "REASONING", 0.9, FALSE, NULL, 10
+"Hepatic Nm", "Hepatic Nm", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Immunomodulators", "Immunomodulators", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+NULL, "Immunomodulatory Therapies", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Immunosuppressants", "Immunosuppressants", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Immunosuppressive Drugs", "Immunosuppressive Drugs", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"Immunosuppressive Treatment", "Immunosuppressive Treatment", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 0
+NULL, "Integrin Α4Β7", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Interferon Beta", "Interferon Beta", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Interferon-Alpha", "Interferon-Alpha", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"Intravenous Immunoglobulin", "Intravenous Immunoglobulin", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Janus Kinase Inhibitors", "Janus Kinase Inhibitors", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"K-Nearest Neighbors", "K-Nearest Neighbors", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Lactobacillus Reuteri", "Lactobacillus Reuteri", "Treatment", "REASONING", 0.95, FALSE, NULL, 2
+NULL, "Linear Regression", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Machine Learning", "Machine Learning", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Mediterranean Diet", "Mediterranean Diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"Mesenchymal Stem Cells", "Mesenchymal Stem Cells", "Treatment", "REASONING", 1.0, FALSE, NULL, 1
+"Mesenchymal Stromal Cells", "Mesenchymal Stromal Cells", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+NULL, "Monoclonal Antibodies To Il-12/23", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"Nmcla Diabet Pro", "Nmcla Diabet Pro", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Nmcla High Pro", "Nmcla High Pro", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"Nmcla Mctpro", "Nmcla Mctpro", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Nonsteroidal Anti-Inflammatory Drugs", "Nonsteroidal Anti-Inflammatory Drugs", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Plasmapheresis", "Plasmapheresis", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Procal Nm", "Procal Nm", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Random Forest", "Random Forest", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Sativex", "Sativex", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Sodium Management", "Sodium Management", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Steroids", "Steroids", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Support Vector Machine", "Support Vector Machine", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 1
+"Surgery", "Surgery", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Thiopurines", "Thiopurines", "Treatment", "REASONING", 1.0, FALSE, NULL, 1
+"Thymus Removal", "Thymus Removal", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"Treat-To-Target Approach", "Treat-To-Target Approach", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:aav2-shrna-bcl6", "aav2-shrna-bcl6", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 1
+"extracted:adrenocortical_steroids", "adrenocortical_steroids", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:allogeneic_stem_cell_transplantation", "allogeneic_stem_cell_transplantation", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:aminosalicylates", "aminosalicylates", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:anifrolumab", "anifrolumab", "Treatment", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:anti-cytokine_therapy_for_rheumatoid_arthritis", "anti-cytokine_therapy_for_rheumatoid_arthritis", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:anti-inflammatory_diet", "anti-inflammatory_diet", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 13
+"extracted:anti-interferon-alpha_monoclonal_antibody", "anti-interferon-alpha_monoclonal_antibody", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:anti-tnf_agents", "anti-tnf_agents", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:anti-tumor_necrosis_factor", "anti-tumor_necrosis_factor", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:anti-tumour_necrosis_factor_agents", "anti-tumour_necrosis_factor_agents", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:antibody-conjugated_mesenchymal_stromal_cell_drug_delivery_system", "antibody-conjugated_mesenchymal_stromal_cell_drug_delivery_system", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:arvisol", "arvisol", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:auto_immune_protocol", "auto_immune_protocol", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:autoimmune_protocol_diet", "autoimmune_protocol_diet", "Treatment", "REASONING", 0.95, FALSE, NULL, 3
+"extracted:b-cell-activating_factor_inhibitors", "b-cell-activating_factor_inhibitors", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:b-cell_activating_factor_inhibitors", "b-cell_activating_factor_inhibitors", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:binary_linear_discriminant_analysis", "binary_linear_discriminant_analysis", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:biologic_drugs", "biologic_drugs", "Treatment", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:biologic_therapies", "biologic_therapies", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:biosimilars", "biosimilars", "Treatment", "REASONING", 0.9, FALSE, NULL, 6
+"extracted:bispecific_antibodies", "bispecific_antibodies", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:boheco_hemp_seed_oil", "boheco_hemp_seed_oil", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:cannabis", "cannabis", "Treatment", "PERCEPTION", 0.9, FALSE, NULL, 2
+"extracted:cd19-directed_chimeric_antigen_receptor_t_cell_therapy", "cd19-directed_chimeric_antigen_receptor_t_cell_therapy", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:chimeric_antigen_receptor_t-cell_therapy", "chimeric_antigen_receptor_t-cell_therapy", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:chimeric_antigen_receptor_t_cell_therapy", "chimeric_antigen_receptor_t_cell_therapy", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:chimeric_antigen_receptor_t_cells_therapy", "chimeric_antigen_receptor_t_cells_therapy", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:colectomía_subtotal", "colectomía_subtotal", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:corticosteroids", "corticosteroids", "Treatment", "REASONING", 0.9, FALSE, NULL, 9
+"extracted:cow's_milk", "cow's_milk", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:dash_diet", "dash_diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:decision_trees", "decision_trees", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:diet4hashi_protocol", "diet4hashi_protocol", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:disease-modifying_therapy", "disease-modifying_therapy", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:elimination_diet", "elimination_diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:epidiolex", "epidiolex", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:fasting", "fasting", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:fecal_microbiota_transplantation", "fecal_microbiota_transplantation", "Treatment", "REASONING", 0.95, FALSE, NULL, 6
+"extracted:gluten-free_diet", "gluten-free_diet", "Treatment", "REASONING", 0.95, FALSE, NULL, 4
+"extracted:healthy_fats", "healthy_fats", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:hematopoietic_stem_cell_transplantation", "hematopoietic_stem_cell_transplantation", "Treatment", "REASONING", 0.9, FALSE, NULL, 11
+"extracted:hepatic_nm", "hepatic_nm", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:hydroxychloroquine", "hydroxychloroquine", "Treatment", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:il-23_inhibitors", "il-23_inhibitors", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:ileostomía", "ileostomía", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:immunomodulators", "immunomodulators", "Treatment", "REASONING", 0.9, FALSE, NULL, 4
+"extracted:immunosuppressants", "immunosuppressants", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:integrin_α4β7", "integrin_α4β7", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:interferon-alpha", "interferon-alpha", "Treatment", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:intravenous_immunoglobulin", "intravenous_immunoglobulin", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:janus_kinase_inhibitors", "janus_kinase_inhibitors", "Treatment", "REASONING", 0.9, FALSE, NULL, 10
+"extracted:k-nearest_neighbors", "k-nearest_neighbors", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:lean_proteins", "lean_proteins", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 1
+"extracted:linear_regression", "linear_regression", "Treatment", "PERCEPTION", 0.75, FALSE, NULL, 2
+"extracted:low-dose_interleukin-2_therapy", "low-dose_interleukin-2_therapy", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:low-fodmap_diet", "low-fodmap_diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:mediterranean_diet", "mediterranean_diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 7
+"extracted:mesenchymal_stromal_cells", "mesenchymal_stromal_cells", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:microbiome-based_interventions", "microbiome-based_interventions", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:monoclonal_antibodies", "monoclonal_antibodies", "Treatment", "REASONING", 0.9, FALSE, NULL, 5
+"extracted:monoclonal_antibodies_to_il-12/23", "monoclonal_antibodies_to_il-12/23", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:neddylation_activating_enzyme_inhibitors", "neddylation_activating_enzyme_inhibitors", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:next-generation_immune_checkpoint_modulators", "next-generation_immune_checkpoint_modulators", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nmcla_diabet_pro", "nmcla_diabet_pro", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nmcla_high_pro", "nmcla_high_pro", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nmcla_mctpro", "nmcla_mctpro", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:nonsteroidal_anti-inflammatory_drugs", "nonsteroidal_anti-inflammatory_drugs", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:nutritional_support", "nutritional_support", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:oxygen_therapy", "oxygen_therapy", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:plant-based_diet", "plant-based_diet", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:procal_nm", "procal_nm", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:radioiodine_therapy", "radioiodine_therapy", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:random_forest", "random_forest", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:recombinant_zoster_vaccination", "recombinant_zoster_vaccination", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:regulatory_t-cell_adoptive_transfer", "regulatory_t-cell_adoptive_transfer", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:regulatory_t_cell_adoptive_transfer", "regulatory_t_cell_adoptive_transfer", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:rehabilitation", "rehabilitation", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:rituximab", "rituximab", "Treatment", "REASONING", 0.9, FALSE, NULL, 9
+"extracted:sativex", "sativex", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:stem_cell_therapy", "stem_cell_therapy", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:subtotal_colectomy", "subtotal_colectomy", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:support_vector_machine", "support_vector_machine", "Treatment", "SEMANTIC", 0.85, FALSE, NULL, 2
+"extracted:surgery", "surgery", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:targeted_cytokine_therapies", "targeted_cytokine_therapies", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:thiopurines", "thiopurines", "Treatment", "REASONING", 0.9, FALSE, NULL, 2
+"extracted:thymectomy", "thymectomy", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"extracted:thymus_removal", "thymus_removal", "Treatment", "REASONING", 0.9, FALSE, NULL, 1
+"extracted:treat-to-target_approach", "treat-to-target_approach", "Treatment", "PERCEPTION", 0.8, FALSE, NULL, 2
+"Cytomegalovirus", "Cytomegalovirus", "Virus", "SEMANTIC", 0.85, FALSE, NULL, 0
+"Epstein-Barr Virus", "Epstein-Barr Virus", "Virus", "REASONING", 0.9, FALSE, NULL, 3
+"extracted:epstein-barr_virus", "epstein-barr_virus", "Virus", "PERCEPTION", 0.8, FALSE, NULL, 4
+"extracted:sars-cov-2", "sars-cov-2", "Virus", "SEMANTIC", 0.85, FALSE, NULL, 4
