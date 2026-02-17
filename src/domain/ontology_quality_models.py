@@ -92,6 +92,7 @@ class TaxonomyCoherenceScore:
 
     # Orphan detection
     orphan_nodes: int = 0              # Nodes without parent in hierarchy
+    orphan_breakdown: Dict[str, int] = field(default_factory=dict)  # Counts by source (episodic/knowledge/unclassified)
     disconnected_subgraphs: int = 0    # Isolated clusters
 
     # Violations
@@ -311,7 +312,15 @@ class OntologyQualityReport:
                 f"Circular references detected: {', '.join(self.taxonomy.circular_references[:3])}"
             )
 
-        if self.taxonomy.orphan_nodes > 0:
+        # Use orphan breakdown for context-aware recommendations
+        knowledge_orphans = self.taxonomy.orphan_breakdown.get("knowledge", 0)
+        episodic_orphans = self.taxonomy.orphan_breakdown.get("episodic", 0)
+        if knowledge_orphans > 0:
+            recommendations.append(
+                f"Connect {knowledge_orphans} knowledge orphan nodes to the hierarchy"
+            )
+        elif self.taxonomy.orphan_nodes > 0 and not self.taxonomy.orphan_breakdown:
+            # Fallback when no breakdown available
             recommendations.append(
                 f"Connect {self.taxonomy.orphan_nodes} orphan nodes to the hierarchy"
             )
@@ -395,6 +404,7 @@ class OntologyQualityReport:
                     "valid_relationships": self.taxonomy.valid_relationships,
                     "invalid_relationships": self.taxonomy.invalid_relationships,
                     "orphans": self.taxonomy.orphan_nodes,
+                    "orphan_breakdown": self.taxonomy.orphan_breakdown,
                 },
                 "consistency": {
                     "ratio": self.consistency.consistency_ratio,

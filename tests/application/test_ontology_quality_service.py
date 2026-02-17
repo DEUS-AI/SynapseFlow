@@ -576,3 +576,312 @@ class TestEdgeCases:
 
         assert report.entity_count == 5
         assert report.relationship_count == 4
+
+
+class TestStructuralEntityLabels:
+    """Tests for structural entity label detection."""
+
+    @pytest.fixture
+    def service(self, ):
+        mock_backend = AsyncMock()
+        with patch('application.services.ontology_quality_service.SemanticNormalizer', MockSemanticNormalizer):
+            from application.services.ontology_quality_service import OntologyQualityService
+            return OntologyQualityService(kg_backend=mock_backend)
+
+    def test_conversation_session_is_structural(self, service):
+        """ConversationSession label is treated as structural."""
+        entity = {"labels": ["ConversationSession"], "exclude_from_ontology": False, "is_structural": False}
+        assert service._is_structural_entity(entity) is True
+
+    def test_message_is_structural(self, service):
+        """Message label is treated as structural."""
+        entity = {"labels": ["Message"], "exclude_from_ontology": False, "is_structural": False}
+        assert service._is_structural_entity(entity) is True
+
+    def test_disease_is_not_structural(self, service):
+        """Disease label is NOT structural."""
+        entity = {"labels": ["Disease"], "exclude_from_ontology": False, "is_structural": False}
+        assert service._is_structural_entity(entity) is False
+
+
+class TestCoverageReviewPending:
+    """Tests for coverage assessment excluding _needs_review entities."""
+
+    @pytest.fixture
+    def service(self):
+        mock_backend = AsyncMock()
+        with patch('application.services.ontology_quality_service.SemanticNormalizer', MockSemanticNormalizer):
+            from application.services.ontology_quality_service import OntologyQualityService
+            return OntologyQualityService(kg_backend=mock_backend)
+
+    @pytest.mark.asyncio
+    async def test_needs_review_excluded_from_unmapped_types(self, service):
+        """Entities with _needs_review=true should NOT appear in unmapped_types."""
+        entities = [
+            {
+                "id": "e1", "name": "Unknown Entity", "type": "Unknown",
+                "labels": [], "properties": {"_needs_review": True, "_review_reason": "unknown_type"},
+                "exclude_from_ontology": False, "is_structural": False, "is_noise": False,
+            },
+        ]
+        score = await service._assess_coverage(entities)
+        assert "Unknown" not in score.unmapped_types
+
+    @pytest.mark.asyncio
+    async def test_truly_unmapped_type_in_unmapped_types(self, service):
+        """Entities without _needs_review should appear in unmapped_types."""
+        entities = [
+            {
+                "id": "e1", "name": "New Thing", "type": "NewType",
+                "labels": [], "properties": {},
+                "exclude_from_ontology": False, "is_structural": False, "is_noise": False,
+            },
+        ]
+        score = await service._assess_coverage(entities)
+        assert "NewType" in score.unmapped_types
+
+    @pytest.mark.asyncio
+    async def test_review_pending_still_counts_as_unmapped_in_ratio(self, service):
+        """Review-pending entities should count as unmapped (not inflate mapped count)."""
+        entities = [
+            {
+                "id": "e1", "name": "Aspirin", "type": "Drug", "labels": ["Drug"],
+                "properties": {}, "exclude_from_ontology": False, "is_structural": False, "is_noise": False,
+            },
+            {
+                "id": "e2", "name": "Unknown Entity", "type": "Unknown", "labels": [],
+                "properties": {"_needs_review": True},
+                "exclude_from_ontology": False, "is_structural": False, "is_noise": False,
+            },
+        ]
+        score = await service._assess_coverage(entities)
+        assert score.mapped_entities == 1
+        assert score.unmapped_entities == 1
+        assert score.coverage_ratio == 0.5
+
+
+class TestConsistencyCanonicalTypes:
+    """Tests for consistency assessment with _canonical_type."""
+
+    @pytest.fixture
+    def service(self):
+        mock_backend = AsyncMock()
+        with patch('application.services.ontology_quality_service.SemanticNormalizer', MockSemanticNormalizer):
+            from application.services.ontology_quality_service import OntologyQualityService
+            return OntologyQualityService(kg_backend=mock_backend)
+
+    @pytest.mark.asyncio
+    async def test_remediation_mapped_entity_grouped_by_canonical_type(self, service):
+        """Entity with _canonical_type and no ODIN label is grouped by canonical type."""
+        entities = [
+            {
+                "id": "e1", "name": "IL-6", "type": "Cytokine",
+                "labels": [],
+                "properties": {"_ontology_mapped": True, "_canonical_type": "protein"},
+            },
+        ]
+        score = await service._assess_consistency(entities)
+        assert score.total_types == 1
+        assert score.consistent_types == 1
+
+    @pytest.mark.asyncio
+    async def test_same_raw_type_same_canonical_is_consistent(self, service):
+        """All entities of same raw type with same _canonical_type are consistent."""
+        entities = [
+            {
+                "id": "e1", "name": "IL-6", "type": "Cytokine", "labels": [],
+                "properties": {"_ontology_mapped": True, "_canonical_type": "protein"},
+            },
+            {
+                "id": "e2", "name": "TNF-alpha", "type": "Cytokine", "labels": [],
+                "properties": {"_ontology_mapped": True, "_canonical_type": "protein"},
+            },
+        ]
+        score = await service._assess_consistency(entities)
+        assert score.total_types == 1
+        assert score.consistent_types == 1
+        assert score.inconsistent_types == 0
+
+    @pytest.mark.asyncio
+    async def test_same_raw_type_conflicting_canonical_is_inconsistent(self, service):
+        """Entities of same raw type with different _canonical_type are inconsistent."""
+        entities = [
+            {
+                "id": "e1", "name": "Mercury Metal", "type": "Mercury", "labels": [],
+                "properties": {"_ontology_mapped": True, "_canonical_type": "chemical"},
+            },
+            {
+                "id": "e2", "name": "Planet Mercury", "type": "Mercury", "labels": [],
+                "properties": {"_ontology_mapped": True, "_canonical_type": "planet"},
+            },
+        ]
+        score = await service._assess_consistency(entities)
+        assert score.total_types == 1
+        assert score.inconsistent_types == 1
+
+
+class TestOrphanBreakdown:
+    """Tests for taxonomy orphan breakdown by source."""
+
+    @pytest.fixture
+    def service(self):
+        mock_backend = AsyncMock()
+        with patch('application.services.ontology_quality_service.SemanticNormalizer', MockSemanticNormalizer):
+            from application.services.ontology_quality_service import OntologyQualityService
+            return OntologyQualityService(kg_backend=mock_backend)
+
+    @pytest.mark.asyncio
+    async def test_orphan_breakdown_from_remediation_metadata(self, service):
+        """When _is_orphan/_orphan_source metadata exists, use it for breakdown."""
+        entities = [
+            {
+                "id": "e1", "name": "Episodic Node", "type": "EntityNode", "labels": [],
+                "properties": {"_is_orphan": True, "_orphan_source": "episodic"},
+                "exclude_from_ontology": False, "is_structural": False,
+            },
+            {
+                "id": "e2", "name": "Knowledge Orphan", "type": "Disease", "labels": ["Disease"],
+                "properties": {"_is_orphan": True, "_orphan_source": "knowledge"},
+                "exclude_from_ontology": False, "is_structural": False,
+            },
+            {
+                "id": "e3", "name": "Connected Node", "type": "Drug", "labels": ["Drug"],
+                "properties": {"_is_orphan": False},
+                "exclude_from_ontology": False, "is_structural": False,
+            },
+        ]
+        relationships = [
+            {"source_id": "e3", "target_id": "e2", "relationship_type": "TREATS",
+             "source_labels": ["Drug"], "target_labels": ["Disease"]},
+        ]
+        score = await service._assess_taxonomy(entities, relationships)
+        assert score.orphan_breakdown == {"episodic": 1, "knowledge": 1, "unclassified": 0}
+        assert score.orphan_nodes == 2
+
+    @pytest.mark.asyncio
+    async def test_orphan_breakdown_fallback_no_metadata(self, service):
+        """When no _is_orphan metadata exists and no relationships, early return with empty breakdown."""
+        entities = [
+            {"id": "e1", "name": "Orphan", "type": "Concept", "labels": [], "properties": {},
+             "exclude_from_ontology": False, "is_structural": False},
+        ]
+        score = await service._assess_taxonomy(entities, [])
+        # Early return when no relationships — orphan_breakdown stays default empty dict
+        assert score.orphan_breakdown == {}
+        assert score.orphan_nodes == 0
+
+    @pytest.mark.asyncio
+    async def test_orphan_breakdown_fallback_with_relationships(self, service):
+        """Fallback computes orphans when relationships exist but no orphan metadata."""
+        entities = [
+            {"id": "e1", "name": "Connected", "type": "Disease", "labels": ["Disease"], "properties": {},
+             "exclude_from_ontology": False, "is_structural": False},
+            {"id": "e2", "name": "Orphan", "type": "Drug", "labels": ["Drug"], "properties": {},
+             "exclude_from_ontology": False, "is_structural": False},
+        ]
+        relationships = [
+            {"source_id": "e1", "target_id": "e3", "relationship_type": "TREATS",
+             "source_labels": ["Disease"], "target_labels": ["Drug"]},
+        ]
+        score = await service._assess_taxonomy(entities, relationships)
+        # e2 is not connected in any relationship, so it's an orphan
+        assert score.orphan_breakdown == {"unclassified": 1}
+        assert score.orphan_nodes == 1
+
+    @pytest.mark.asyncio
+    async def test_orphan_nodes_equals_breakdown_sum(self, service):
+        """orphan_nodes must equal sum of orphan_breakdown values."""
+        entities = [
+            {
+                "id": "e1", "name": "Ep", "type": "X", "labels": [],
+                "properties": {"_is_orphan": True, "_orphan_source": "episodic"},
+                "exclude_from_ontology": False, "is_structural": False,
+            },
+            {
+                "id": "e2", "name": "Kn", "type": "Y", "labels": [],
+                "properties": {"_is_orphan": True, "_orphan_source": "knowledge"},
+                "exclude_from_ontology": False, "is_structural": False,
+            },
+            {
+                "id": "e3", "name": "Un", "type": "Z", "labels": [],
+                "properties": {"_is_orphan": True, "_orphan_source": "unclassified"},
+                "exclude_from_ontology": False, "is_structural": False,
+            },
+        ]
+        relationships = [
+            {"source_id": "e1", "target_id": "e2", "relationship_type": "X",
+             "source_labels": [], "target_labels": []},
+        ]
+        score = await service._assess_taxonomy(entities, relationships)
+        assert score.orphan_nodes == sum(score.orphan_breakdown.values())
+
+
+class TestContextAwareRecommendations:
+    """Tests for context-aware recommendation generation."""
+
+    def test_orphan_recommendation_uses_knowledge_count(self):
+        """Orphan recommendation should use knowledge orphan count, not total."""
+        from domain.ontology_quality_models import OntologyQualityReport
+        report = OntologyQualityReport(assessment_id="test", ontology_name="ODIN")
+        report.taxonomy.orphan_nodes = 4400
+        report.taxonomy.orphan_breakdown = {"episodic": 4388, "knowledge": 12, "unclassified": 0}
+        report.compute_overall_score()
+        report.generate_recommendations()
+
+        orphan_recs = [r for r in report.recommendations if "orphan" in r.lower()]
+        assert len(orphan_recs) == 1
+        assert "12" in orphan_recs[0]
+        assert "knowledge" in orphan_recs[0]
+
+    def test_no_orphan_recommendation_when_only_episodic(self):
+        """No orphan recommendation when only episodic orphans exist."""
+        from domain.ontology_quality_models import OntologyQualityReport
+        report = OntologyQualityReport(assessment_id="test", ontology_name="ODIN")
+        report.taxonomy.orphan_nodes = 4388
+        report.taxonomy.orphan_breakdown = {"episodic": 4388, "knowledge": 0, "unclassified": 0}
+        report.compute_overall_score()
+        report.generate_recommendations()
+
+        orphan_recs = [r for r in report.recommendations if "orphan" in r.lower()]
+        assert len(orphan_recs) == 0
+
+    def test_no_unmapped_types_recommendation_when_empty(self):
+        """No 'Add ontology mappings' recommendation when unmapped_types is empty."""
+        from domain.ontology_quality_models import OntologyQualityReport
+        report = OntologyQualityReport(assessment_id="test", ontology_name="ODIN")
+        report.coverage.unmapped_types = []
+        report.compute_overall_score()
+        report.generate_recommendations()
+
+        mapping_recs = [r for r in report.recommendations if "Add ontology mappings" in r]
+        assert len(mapping_recs) == 0
+
+
+class TestQuickOntologyCheckEnriched:
+    """Tests for enriched quick_ontology_check response."""
+
+    @pytest.mark.asyncio
+    async def test_quick_check_includes_knowledge_coverage(self):
+        """Quick check response should include knowledge_coverage."""
+        mock_backend = AsyncMock()
+        mock_backend.query_raw = AsyncMock(return_value=[])
+
+        with patch('application.services.ontology_quality_service.SemanticNormalizer', MockSemanticNormalizer):
+            from application.services.ontology_quality_service import quick_ontology_check
+            result = await quick_ontology_check(mock_backend)
+
+        assert "knowledge_coverage" in result
+        assert isinstance(result["knowledge_coverage"], float)
+
+    @pytest.mark.asyncio
+    async def test_quick_check_includes_orphan_breakdown(self):
+        """Quick check response should include orphan_breakdown."""
+        mock_backend = AsyncMock()
+        mock_backend.query_raw = AsyncMock(return_value=[])
+
+        with patch('application.services.ontology_quality_service.SemanticNormalizer', MockSemanticNormalizer):
+            from application.services.ontology_quality_service import quick_ontology_check
+            result = await quick_ontology_check(mock_backend)
+
+        assert "orphan_breakdown" in result
+        assert isinstance(result["orphan_breakdown"], dict)

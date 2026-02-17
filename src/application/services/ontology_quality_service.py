@@ -41,6 +41,8 @@ STRUCTURAL_ENTITY_LABELS = {
     "StructuralChunk",
     "Document",
     "DocumentQuality",
+    "ConversationSession",
+    "Message",
 }
 
 
@@ -256,7 +258,9 @@ class OntologyQualityService:
             else:
                 score.unmapped_entities += 1
                 # Only track unmapped types for knowledge entities
-                if not is_structural and not is_noise:
+                # Exclude entities flagged _needs_review (intentionally deferred, not missing)
+                has_needs_review = props.get("_needs_review", False)
+                if not is_structural and not is_noise and not has_needs_review:
                     unmapped_types.add(entity_type)
 
             # Knowledge-only metrics (exclude structural and noise)
@@ -425,18 +429,39 @@ class OntologyQualityService:
         else:
             score.coherence_ratio = 1.0  # No hierarchy relationships = not invalid
 
-        # Detect true orphans (knowledge nodes with no relationships at all)
-        # Exclude structural entities (Chunk, Document, etc.) from orphan count
-        # as they are infrastructure, not knowledge entities
-        knowledge_entity_ids = {
-            e.get("id") for e in entities
-            if e.get("id") and not self._is_structural_entity(e)
-        }
-        connected_nodes = all_nodes  # nodes that participate in any relationship
+        # Detect orphans — prefer remediation metadata when available
+        # Build lookup for entities by id
+        entity_by_id = {e.get("id"): e for e in entities if e.get("id")}
 
-        # True orphans are knowledge entities that have no relationships at all
-        true_orphans = knowledge_entity_ids - connected_nodes
-        score.orphan_nodes = len(true_orphans)
+        # Check if remediation orphan metadata exists
+        entities_with_orphan_flag = [
+            e for e in entities
+            if (e.get("properties") or {}).get("_is_orphan") is not None
+        ]
+
+        if entities_with_orphan_flag:
+            # Use remediation metadata for orphan breakdown
+            breakdown = {"episodic": 0, "knowledge": 0, "unclassified": 0}
+            for e in entities:
+                props = e.get("properties") or {}
+                if props.get("_is_orphan") and not self._is_structural_entity(e):
+                    source = props.get("_orphan_source", "unclassified")
+                    if source in breakdown:
+                        breakdown[source] += 1
+                    else:
+                        breakdown["unclassified"] += 1
+            score.orphan_breakdown = breakdown
+            score.orphan_nodes = sum(breakdown.values())
+        else:
+            # Fallback: compute orphans from scratch (no remediation metadata)
+            knowledge_entity_ids = {
+                e.get("id") for e in entities
+                if e.get("id") and not self._is_structural_entity(e)
+            }
+            connected_nodes = all_nodes  # nodes that participate in any relationship
+            true_orphans = knowledge_entity_ids - connected_nodes
+            score.orphan_nodes = len(true_orphans)
+            score.orphan_breakdown = {"unclassified": len(true_orphans)}
 
         # Calculate hierarchy depth
         depths = self._calculate_hierarchy_depths(parents)
@@ -550,6 +575,11 @@ class OntologyQualityService:
             if ontology_classes:
                 for oc in ontology_classes:
                     type_to_classes[raw_type].add(oc)
+            else:
+                # Also consider _canonical_type from remediation when no ODIN labels present
+                props = entity.get("properties", {}) or {}
+                if props.get("_ontology_mapped") and props.get("_canonical_type"):
+                    type_to_classes[raw_type].add(props["_canonical_type"])
 
         score.total_types = len(type_to_classes)
 
@@ -784,7 +814,11 @@ async def quick_ontology_check(kg_backend: Any) -> Dict[str, Any]:
         "entity_count": report.entity_count,
         "relationship_count": report.relationship_count,
         "orphan_nodes": report.taxonomy.orphan_nodes,
+        "orphan_breakdown": report.taxonomy.orphan_breakdown,
         "coverage_ratio": round(report.coverage.coverage_ratio, 2),
+        "knowledge_coverage": round(
+            report.coverage.class_distribution.get("_knowledge_coverage", 0.0), 2
+        ),
         "compliance_ratio": round(report.compliance.compliance_ratio, 2),
         "coherence_ratio": round(report.taxonomy.coherence_ratio, 2),
         "consistency_ratio": round(report.consistency.consistency_ratio, 2),
