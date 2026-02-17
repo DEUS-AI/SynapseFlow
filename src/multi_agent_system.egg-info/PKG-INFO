@@ -18,7 +18,7 @@ Requires-Dist: langchain-neo4j
 Requires-Dist: openai
 Requires-Dist: langchain-experimental
 Requires-Dist: langchain-openai
-Requires-Dist: graphiti-core[falkordb]
+Requires-Dist: graphiti-core[falkordb]<0.28,>=0.27.1
 Requires-Dist: pytest-cov>=6.2.1
 Requires-Dist: pytest-asyncio>=1.1.0
 Requires-Dist: typer>=0.9.0
