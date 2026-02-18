@@ -605,6 +605,16 @@ class OntologyQualityService:
 
         return score
 
+    @staticmethod
+    def _dedup_canonical(name: str) -> str:
+        """Simple canonical form for duplicate detection.
+
+        Only normalizes case, whitespace, underscores, and hyphens.
+        Does NOT expand abbreviations or resolve synonyms — those
+        create false positives (e.g., "Therapy ID" ≠ "Treatment ID").
+        """
+        return name.lower().strip().replace(" ", "_").replace("-", "")
+
     async def _assess_normalization(self, entities: List[Dict[str, Any]]) -> NormalizationQualityScore:
         """Assess quality of entity name normalization."""
         score = NormalizationQualityScore()
@@ -620,12 +630,14 @@ class OntologyQualityService:
             if not name:
                 continue
 
-            # Skip dismissed or merged entities for duplicate counting
+            # Skip dismissed, merged, or structural entities for duplicate counting
             props = entity.get("properties") or {}
             is_dismissed = props.get("_dedup_skip", False)
             is_merged = bool(props.get("_merged_into"))
+            is_structural = entity.get("is_structural", False) or self._is_structural_entity(entity)
+            has_type = bool(entity.get("type"))
 
-            # Normalize the name
+            # Full normalizer for quality metrics
             canonical = self.normalizer.normalize(name)
 
             if canonical == name.lower().replace(" ", "_"):
@@ -633,9 +645,12 @@ class OntologyQualityService:
             else:
                 score.normalized_names += 1
 
-            # Track for duplicate detection (skip dismissed/merged)
-            if not is_dismissed and not is_merged:
-                seen_canonical[canonical].append({
+            # Simple canonical for duplicate detection — case + whitespace only,
+            # no abbreviation/synonym expansion to avoid false positives.
+            # Exclude structural/untyped entities (metadata nodes, not knowledge).
+            if not is_dismissed and not is_merged and not is_structural and has_type:
+                dedup_key = self._dedup_canonical(name)
+                seen_canonical[dedup_key].append({
                     "id": entity.get("id"),
                     "original_name": name
                 })
@@ -648,7 +663,7 @@ class OntologyQualityService:
             if any(syn in name.lower() for syn in self.normalizer._synonym_map):
                 score.synonyms_resolved += 1
 
-        # Find potential duplicates (same canonical form)
+        # Find potential duplicates (same simple canonical form)
         for canonical, instances in seen_canonical.items():
             if len(instances) > 1:
                 score.potential_duplicates.append({
