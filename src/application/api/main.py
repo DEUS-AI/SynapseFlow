@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import logging
 import asyncio
+from datetime import datetime
 from typing import Dict, Set, List, Any, Optional
 import tempfile
 import os
@@ -754,44 +755,33 @@ async def get_system_metrics(kg_backend = Depends(get_kg_backend)):
 
 
 @app.get("/api/admin/agents")
-async def get_agent_status():
-    """Get status of all agents for admin dashboard."""
-    # TODO: Implement actual agent health checking
-    # For now, return mock data
-    return [
-        {
-            "id": "data_architect",
-            "name": "Data Architect",
-            "status": "running",
-            "port": 8001,
-            "uptime": 86400,
-            "tasks_completed": 123
-        },
-        {
-            "id": "data_engineer",
-            "name": "Data Engineer",
-            "status": "running",
-            "port": 8002,
-            "uptime": 86400,
-            "tasks_completed": 89
-        },
-        {
-            "id": "knowledge_manager",
-            "name": "Knowledge Manager",
-            "status": "running",
-            "port": 8003,
-            "uptime": 86400,
-            "tasks_completed": 234
-        },
-        {
-            "id": "medical_assistant",
-            "name": "Medical Assistant",
-            "status": "running",
-            "port": 8004,
-            "uptime": 86400,
-            "tasks_completed": 456
-        }
-    ]
+async def get_agent_status(status: Optional[str] = None):
+    """Get status of all agents for admin dashboard via agent discovery service."""
+    try:
+        from application.services.agent_discovery import AgentStatus as AS
+
+        discovery = await get_discovery_service()
+        status_filter = AS(status) if status else None
+        agents = await discovery.list_all_agents(status_filter=status_filter)
+
+        now = datetime.now()
+        return [
+            {
+                "agent_id": a.agent_id,
+                "name": a.name,
+                "status": a.status.value,
+                "capabilities": a.capabilities,
+                "last_heartbeat": a.last_heartbeat.isoformat() if a.last_heartbeat else None,
+                "heartbeat_seconds_ago": int((now - a.last_heartbeat).total_seconds()) if a.last_heartbeat else None,
+                "tier": a.tier.value,
+                "description": a.description,
+                "version": a.version,
+            }
+            for a in agents
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching agent status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/admin/promotion-scanner")
