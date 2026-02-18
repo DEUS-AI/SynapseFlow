@@ -1856,6 +1856,42 @@ If no issues found, return {{"needs_revision": false, "issues_found": [], "revis
 
                 logger.debug(f"Persisted conversation for patient {patient_id}")
 
+                # Dual-write to PostgreSQL when enabled
+                try:
+                    from application.services.feature_flag_service import dual_write_enabled
+                    if dual_write_enabled("sessions"):
+                        from infrastructure.database.session import is_initialized, db_session
+                        if is_initialized():
+                            from infrastructure.database.models import Message as PgMessage
+                            from infrastructure.database.repositories import MessageRepository, SessionRepository
+                            import uuid as _uuid
+
+                            def _extract_uuid(sid: str):
+                                try:
+                                    return _uuid.UUID(sid[8:]) if sid.startswith("session:") else _uuid.UUID(sid)
+                                except ValueError:
+                                    return None
+
+                            pg_uuid = _extract_uuid(session_id) if session_id else None
+                            if pg_uuid:
+                                async with db_session() as pg_sess:
+                                    msg_repo = MessageRepository(pg_sess)
+                                    for role, content in [("user", user_msg), ("assistant", assistant_msg)]:
+                                        pg_message = PgMessage(
+                                            session_id=pg_uuid,
+                                            patient_id=patient_id,
+                                            role=role,
+                                            content=content,
+                                            response_id=f"msg:{_uuid.uuid4()}",
+                                        )
+                                        await msg_repo.create(pg_message)
+                                    sess_repo = SessionRepository(pg_sess)
+                                    await sess_repo.increment_message_count(pg_uuid)
+                                    await sess_repo.increment_message_count(pg_uuid)
+                                logger.debug(f"Postgres: Persisted LangGraph messages for {patient_id}")
+                except Exception as pg_err:
+                    logger.warning(f"Postgres dual-write in memory_persist_node failed: {pg_err}")
+
                 # Extract and store medical facts (diagnoses, medications, allergies) to Neo4j
                 await self._extract_and_store_medical_facts(user_msg, patient_id)
 

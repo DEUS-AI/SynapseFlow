@@ -360,6 +360,12 @@ async def main():
             # Verify after sync
             await sync.verify_sync()
 
+            # Print summary
+            s = sync.stats
+            print(f"\nSynced: {s['sessions_synced']} sessions, {s['messages_synced']} messages. "
+                  f"Skipped: {s['sessions_skipped'] + s['messages_skipped']}. "
+                  f"Errors: {len(s['errors'])}")
+
             # Print errors if any
             if sync.stats["errors"]:
                 logger.warning(f"\n{len(sync.stats['errors'])} errors occurred during sync:")

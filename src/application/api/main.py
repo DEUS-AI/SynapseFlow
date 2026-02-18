@@ -94,6 +94,14 @@ async def startup_event():
         logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
         # Don't fail startup - crystallization is optional
 
+    # Initialize PostgreSQL database (for conversation persistence)
+    try:
+        from infrastructure.database.session import init_database
+        await init_database(create_tables=True)
+        logger.info("✅ PostgreSQL database initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize PostgreSQL: {e}. Continuing with Neo4j-only mode.")
+
     # Initialize deduplication service (requires Neo4j driver)
     try:
         backend = await get_kg_backend()
@@ -183,6 +191,18 @@ async def chat_websocket_endpoint(
             device_type="web"
         )
         logger.info(f"Session verified/created: {session_id}")
+
+        # Dual-write: create session in Postgres (idempotent)
+        try:
+            history_service = await get_chat_history_service()
+            await history_service.create_session_postgres(
+                session_id=session_id,
+                patient_id=patient_id,
+                title="New Conversation",
+                device="web",
+            )
+        except Exception as e:
+            logger.warning(f"Postgres session creation failed (non-blocking): {e}")
     except Exception as e:
         logger.error(f"Failed to initialize dependencies for {client_id}: {e}", exc_info=True)
         await websocket.send_json({"type": "error", "message": f"Service initialization failed: {str(e)}"})
@@ -280,6 +300,27 @@ async def chat_websocket_endpoint(
                     ws_response["entities"] = response.entities
 
                 await manager.send_personal_message(ws_response, client_id)
+
+                # Dual-write messages to Postgres (non-blocking)
+                try:
+                    history_service = await get_chat_history_service()
+                    await history_service.store_message(
+                        session_id=session_id,
+                        patient_id=patient_id,
+                        role="user",
+                        content=message_text,
+                        postgres_only=True,
+                    )
+                    await history_service.store_message(
+                        session_id=session_id,
+                        patient_id=patient_id,
+                        role="assistant",
+                        content=response.answer,
+                        response_id=response_id,
+                        postgres_only=True,
+                    )
+                except Exception as pg_err:
+                    logger.warning(f"Postgres message dual-write failed (non-blocking): {pg_err}")
 
                 # Auto-generate title after 3rd message if still "New Conversation"
                 try:
@@ -1039,44 +1080,61 @@ async def get_dual_write_health(kg_backend = Depends(get_kg_backend)):
         "recommendations": [],
     }
 
+    # Helper: compute sync status from counts using percentage thresholds
+    def _compute_sync_status(neo4j_count: int, pg_count: int) -> str:
+        max_count = max(neo4j_count, pg_count)
+        if max_count == 0:
+            return "synced"
+        diff_pct = abs(neo4j_count - pg_count) / max_count
+        if diff_pct <= 0.05:
+            return "synced"
+        elif diff_pct <= 0.20:
+            return "minor_drift"
+        return "out_of_sync"
+
     # Check sessions
     sessions_health = {
         "dual_write_enabled": dual_write_enabled("sessions"),
         "use_postgres": is_flag_enabled("use_postgres_sessions"),
         "neo4j_count": 0,
         "postgres_count": 0,
+        "neo4j_message_count": 0,
+        "postgres_message_count": 0,
         "sync_status": "unknown",
     }
 
     try:
         # Get Neo4j session count
-        query = "MATCH (s:ChatSession) RETURN count(s) as count"
+        query = "MATCH (s:ConversationSession) RETURN count(s) as count"
         result = await kg_backend.query_raw(query, {})
         if result:
             sessions_health["neo4j_count"] = result[0].get("count", 0)
+        # Get Neo4j message count
+        msg_query = "MATCH (m:Message) RETURN count(m) as count"
+        msg_result = await kg_backend.query_raw(msg_query, {})
+        if msg_result:
+            sessions_health["neo4j_message_count"] = msg_result[0].get("count", 0)
     except Exception as e:
-        logger.warning(f"Failed to get Neo4j session count: {e}")
+        logger.warning(f"Failed to get Neo4j session/message count: {e}")
 
     try:
         from infrastructure.database.session import is_initialized
         if is_initialized():
             from infrastructure.database.session import db_session
-            from infrastructure.database.repositories import SessionRepository
+            from infrastructure.database.repositories import SessionRepository, MessageRepository
             async with db_session() as session:
-                repo = SessionRepository(session)
-                sessions_health["postgres_count"] = await repo.count()
+                sessions_health["postgres_count"] = await SessionRepository(session).count()
+                sessions_health["postgres_message_count"] = await MessageRepository(session).count()
     except Exception as e:
-        logger.warning(f"Failed to get PostgreSQL session count: {e}")
+        logger.warning(f"Failed to get PostgreSQL session/message count: {e}")
 
-    # Determine sync status
+    # Determine sync status using percentage-based thresholds
     if sessions_health["dual_write_enabled"]:
-        diff = abs(sessions_health["neo4j_count"] - sessions_health["postgres_count"])
-        if diff == 0:
-            sessions_health["sync_status"] = "synced"
-        elif diff < 10:
-            sessions_health["sync_status"] = "minor_drift"
-        else:
-            sessions_health["sync_status"] = "out_of_sync"
+        sessions_health["sync_status"] = _compute_sync_status(
+            sessions_health["neo4j_count"], sessions_health["postgres_count"]
+        )
+        if sessions_health["sync_status"] == "out_of_sync":
+            diff = abs(sessions_health["neo4j_count"] - sessions_health["postgres_count"])
             health["sync_issues"].append(f"Sessions: {diff} records difference")
             health["status"] = "warning"
     else:
@@ -2358,10 +2416,20 @@ async def get_chat_history_service():
             openai_api_key=os.getenv("OPENAI_API_KEY")
         )
 
+        # Pass db_session_factory if PostgreSQL is initialized
+        db_session_factory = None
+        try:
+            from infrastructure.database.session import is_initialized, db_session
+            if is_initialized():
+                db_session_factory = db_session
+        except ImportError:
+            pass
+
         _chat_history_service_instance = ChatHistoryService(
             patient_memory_service=patient_memory,
             intent_service=intent_service,
-            openai_api_key=os.getenv("OPENAI_API_KEY")
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            db_session_factory=db_session_factory,
         )
 
         logger.info("ChatHistoryService initialized")
@@ -2638,6 +2706,13 @@ async def update_session_title(session_id: str, request: dict):
 
         if not success:
             raise HTTPException(status_code=404, detail="Session not found")
+
+        # Dual-write title to Postgres
+        try:
+            history_service = await get_chat_history_service()
+            await history_service.update_title_postgres(session_id, new_title)
+        except Exception as pg_err:
+            logger.warning(f"Postgres title update failed (non-blocking): {pg_err}")
 
         return {
             "session_id": session_id,
