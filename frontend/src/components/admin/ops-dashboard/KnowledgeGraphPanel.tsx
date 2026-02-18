@@ -1,6 +1,6 @@
 import React from 'react';
 import { Database } from 'lucide-react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import { PanelWrapper } from './PanelWrapper';
 import type { SystemMetrics, LayerStats } from './types';
 
@@ -14,8 +14,8 @@ const LAYER_COLORS: Record<string, string> = {
 const LAYER_ORDER = ['APPLICATION', 'REASONING', 'SEMANTIC', 'PERCEPTION'];
 
 export function KnowledgeGraphPanel() {
-  const metrics = usePolling<SystemMetrics>('/api/admin/metrics', 30000);
-  const layers = usePolling<LayerStats>('/api/admin/layer-stats', 30000);
+  const metrics = usePanelQuery<SystemMetrics>('admin-metrics', '/api/admin/metrics', 30000);
+  const layers = usePanelQuery<LayerStats>('admin-layer-stats', '/api/admin/layer-stats', 30000);
 
   const loading = metrics.loading || layers.loading;
   const error = metrics.error || layers.error;

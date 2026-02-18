@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowUpCircle } from 'lucide-react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import { PanelWrapper } from './PanelWrapper';
 import type { PromotionStats } from './types';
 
@@ -12,7 +12,7 @@ const RISK_COLORS: Record<string, string> = {
 
 export function PromotionGatePanel() {
   const { data, loading, error, secondsAgo, isStale } =
-    usePolling<PromotionStats>('/api/crystallization/promotion/stats', 10000);
+    usePanelQuery<PromotionStats>('promotion-stats', '/api/crystallization/promotion/stats', 10000);
 
   return (
     <PanelWrapper

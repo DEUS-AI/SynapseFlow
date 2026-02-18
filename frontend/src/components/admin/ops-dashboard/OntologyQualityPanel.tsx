@@ -1,6 +1,6 @@
 import React from 'react';
 import { Shield } from 'lucide-react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import { PanelWrapper } from './PanelWrapper';
 import type { OntologyQualityResponse } from './types';
 
@@ -25,7 +25,7 @@ function formatTimestamp(iso: string): string {
 
 export function OntologyQualityPanel() {
   const { data, loading, error, secondsAgo, isStale } =
-    usePolling<OntologyQualityResponse>('/api/ontology/quality', 60000);
+    usePanelQuery<OntologyQualityResponse>('ontology-quality', '/api/ontology/quality', 60000);
 
   return (
     <PanelWrapper

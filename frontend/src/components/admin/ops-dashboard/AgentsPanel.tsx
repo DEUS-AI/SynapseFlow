@@ -1,6 +1,6 @@
 import React from 'react';
 import { Users } from 'lucide-react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import { PanelWrapper } from './PanelWrapper';
 import type { AgentInfo } from './types';
 
@@ -21,9 +21,9 @@ function formatHeartbeat(secondsAgo: number | null): string {
 }
 
 export function AgentsPanel() {
-  const { data, loading, error, secondsAgo, isStale } = usePolling<
+  const { data, loading, error, secondsAgo, isStale } = usePanelQuery<
     AgentInfo[]
-  >('/api/admin/agents', 5000);
+  >('admin-agents', '/api/admin/agents', 5000);
 
   return (
     <PanelWrapper

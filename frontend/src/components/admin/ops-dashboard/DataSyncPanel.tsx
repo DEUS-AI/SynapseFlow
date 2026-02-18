@@ -1,6 +1,6 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import { PanelWrapper } from './PanelWrapper';
 import type { DualWriteHealth, DualWriteDataType } from './types';
 
@@ -22,7 +22,7 @@ const syncStatusLabels: Record<string, string> = {
 
 export function DataSyncPanel() {
   const { data, loading, error, secondsAgo, isStale } =
-    usePolling<DualWriteHealth>('/api/admin/dual-write-health', 30000);
+    usePanelQuery<DualWriteHealth>('dual-write-health', '/api/admin/dual-write-health', 30000);
 
   const allDisabled =
     data &&

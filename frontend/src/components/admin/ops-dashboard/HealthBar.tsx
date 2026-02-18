@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import type { CrystallizationHealth, AgentInfo, SystemMetrics } from './types';
 
 interface SubsystemStatus {
@@ -22,12 +22,13 @@ const statusText: Record<string, string> = {
 };
 
 export function HealthBar() {
-  const crystHealth = usePolling<CrystallizationHealth>(
+  const crystHealth = usePanelQuery<CrystallizationHealth>(
+    'crystallization-health',
     '/api/crystallization/health',
     15000,
   );
-  const agents = usePolling<AgentInfo[]>('/api/admin/agents', 10000);
-  const metrics = usePolling<SystemMetrics>('/api/admin/metrics', 30000);
+  const agents = usePanelQuery<AgentInfo[]>('admin-agents', '/api/admin/agents', 10000);
+  const metrics = usePanelQuery<SystemMetrics>('admin-metrics', '/api/admin/metrics', 30000);
 
   const subsystems: SubsystemStatus[] = [
     {

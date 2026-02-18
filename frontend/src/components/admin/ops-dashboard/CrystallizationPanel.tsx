@@ -1,12 +1,12 @@
 import React from 'react';
 import { Layers } from 'lucide-react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import { PanelWrapper } from './PanelWrapper';
 import type { CrystallizationStats } from './types';
 
 export function CrystallizationPanel() {
   const { data, loading, error, secondsAgo, isStale } =
-    usePolling<CrystallizationStats>('/api/crystallization/stats', 10000);
+    usePanelQuery<CrystallizationStats>('crystallization-stats', '/api/crystallization/stats', 10000);
 
   return (
     <PanelWrapper

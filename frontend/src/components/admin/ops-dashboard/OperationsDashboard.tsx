@@ -1,4 +1,5 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HealthBar } from './HealthBar';
 import { KnowledgeGraphPanel } from './KnowledgeGraphPanel';
 import { AgentsPanel } from './AgentsPanel';
@@ -8,8 +9,18 @@ import { OntologyQualityPanel } from './OntologyQualityPanel';
 import { FeedbackPanel } from './FeedbackPanel';
 import { DataSyncPanel } from './DataSyncPanel';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 export function OperationsDashboard() {
   return (
+    <QueryClientProvider client={queryClient}>
     <div>
       <HealthBar />
 
@@ -58,6 +69,7 @@ export function OperationsDashboard() {
         </NavLink>
       </div>
     </div>
+    </QueryClientProvider>
   );
 }
 

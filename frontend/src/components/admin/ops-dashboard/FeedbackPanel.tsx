@@ -1,12 +1,13 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
-import { usePolling } from './usePolling';
+import { usePanelQuery } from './usePanelQuery';
 import { PanelWrapper } from './PanelWrapper';
 import type { FeedbackStats, ScannerStatus } from './types';
 
 export function FeedbackPanel() {
-  const feedback = usePolling<FeedbackStats>('/api/feedback/stats', 15000);
-  const scanner = usePolling<ScannerStatus>(
+  const feedback = usePanelQuery<FeedbackStats>('feedback-stats', '/api/feedback/stats', 15000);
+  const scanner = usePanelQuery<ScannerStatus>(
+    'scanner-status',
     '/api/quality/scanner/status',
     15000,
   );
