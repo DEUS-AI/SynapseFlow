@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Batch duplicate detection by exact case-insensitive match
 The deduplication service SHALL query all entities from Neo4j grouped by type, and identify pairs where entity names match case-insensitively within the same type. Each pair SHALL include both entity IDs, names, types, relationship counts, and confidence scores. The detection query SHALL exclude entities with `_dedup_skip = true` in addition to those with `_merged_into` set or `_is_structural = true`.
