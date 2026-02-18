@@ -18,6 +18,7 @@ from enum import Enum as PyEnum
 from .kg_router import router as kg_router
 from .document_router import router as document_router
 from .crystallization_router import router as crystallization_router
+from .remediation_router import router as remediation_router
 from .dependencies import (
     get_chat_service,
     get_patient_memory,
@@ -26,6 +27,7 @@ from .dependencies import (
     initialize_layer_services,
     initialize_crystallization_pipeline,
 )
+from .remediation_router import set_deduplication_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ app.add_middleware(
 app.include_router(kg_router)
 app.include_router(document_router)
 app.include_router(crystallization_router)
+app.include_router(remediation_router)
 
 # ========================================
 # Evaluation Framework (Conditional)
@@ -89,6 +92,20 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Failed to initialize crystallization pipeline: {e}")
         # Don't fail startup - crystallization is optional
+
+    # Initialize deduplication service (requires Neo4j driver)
+    try:
+        backend = await get_kg_backend()
+        if hasattr(backend, '_get_driver'):
+            driver = await backend._get_driver()
+            from application.services.deduplication_service import DeduplicationService
+            set_deduplication_service(DeduplicationService(driver))
+            logger.info("✅ Deduplication service initialized")
+        else:
+            logger.warning("⚠️ Deduplication service requires Neo4j backend")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to initialize deduplication service: {e}")
+        # Don't fail startup - deduplication is optional
 
 
 # ========================================

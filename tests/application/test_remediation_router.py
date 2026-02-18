@@ -8,10 +8,15 @@ Covers task 6.4:
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
-from application.api.remediation_router import router, set_remediation_service, _remediation_service
+from application.api.remediation_router import (
+    router,
+    set_remediation_service,
+    set_deduplication_service,
+    _remediation_service,
+)
 from fastapi import FastAPI
 
 # Create a test app with just the remediation router
@@ -151,3 +156,101 @@ class TestOrphansEndpoint:
 
         assert response.status_code == 200
         mock_service.get_orphans.assert_called_once_with(limit=10)
+
+
+class TestDeduplicationEndpointsReachable:
+    """Test that deduplication endpoints return non-404 when service is available."""
+
+    @pytest.fixture
+    def mock_dedup_service(self):
+        service = AsyncMock()
+        # create_merge_plan is synchronous — use MagicMock so it returns
+        # the value directly instead of a coroutine
+        service.create_merge_plan = MagicMock(return_value=[])
+        set_deduplication_service(service)
+        yield service
+        set_deduplication_service(None)
+
+    @pytest.fixture
+    def dedup_client(self, mock_dedup_service):
+        return TestClient(app)
+
+    def test_dry_run_endpoint_reachable(self, dedup_client, mock_dedup_service):
+        mock_dedup_service.detect_duplicates.return_value = []
+        mock_dedup_service.create_merge_plan.return_value = []
+        mock_dedup_service.detect_cross_type_duplicates.return_value = []
+
+        response = dedup_client.post("/api/ontology/deduplication/dry-run")
+        assert response.status_code != 404
+
+    def test_execute_endpoint_reachable(self, dedup_client, mock_dedup_service):
+        mock_dedup_service.detect_duplicates.return_value = []
+        mock_dedup_service.create_merge_plan.return_value = []
+        mock_dedup_service.execute_merge.return_value = AsyncMock(
+            total_merged=0, total_relationships_transferred=0, batch_id="test", details=[]
+        )
+        mock_dedup_service.detect_cross_type_duplicates.return_value = []
+
+        response = dedup_client.post("/api/ontology/deduplication/execute")
+        assert response.status_code != 404
+
+    def test_dismiss_endpoint_reachable(self, dedup_client, mock_dedup_service):
+        mock_dedup_service.dismiss_entities.return_value = 2
+
+        response = dedup_client.post(
+            "/api/ontology/deduplication/dismiss",
+            json={"entity_ids": ["e1", "e2"]},
+        )
+        assert response.status_code != 404
+
+    def test_dry_run_categorized_response(self, dedup_client, mock_dedup_service):
+        """Dry-run returns categorized same_type + cross_type sections."""
+        from application.services.deduplication_service import MergePlan, CrossTypeDuplicateGroup
+
+        mock_dedup_service.detect_duplicates.return_value = []
+        mock_dedup_service.create_merge_plan.return_value = [
+            MergePlan(
+                winner_id="w1", winner_name="Aspirin", loser_id="l1",
+                loser_name="aspirin", entity_type="Drug", rationale="A wins",
+            )
+        ]
+        mock_dedup_service.detect_cross_type_duplicates.return_value = [
+            CrossTypeDuplicateGroup(
+                canonical_form="corticosteroids",
+                entities=[
+                    {"id": "e1", "name": "corticosteroids", "type": "Drug", "relationship_count": 3},
+                    {"id": "e2", "name": "Corticosteroids", "type": "Treatment", "relationship_count": 1},
+                ],
+                entity_count=2,
+            )
+        ]
+
+        response = dedup_client.post("/api/ontology/deduplication/dry-run")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_same_type"] == 1
+        assert data["total_cross_type"] == 1
+        assert len(data["same_type_plan"]) == 1
+        assert len(data["cross_type_groups"]) == 1
+        assert data["cross_type_groups"][0]["canonical_form"] == "corticosteroids"
+
+    def test_execute_includes_skipped_cross_type(self, dedup_client, mock_dedup_service):
+        """Execute response includes skipped_cross_type count."""
+        from application.services.deduplication_service import MergeSummary, CrossTypeDuplicateGroup
+
+        mock_dedup_service.detect_duplicates.return_value = []
+        mock_dedup_service.create_merge_plan.return_value = []
+        mock_dedup_service.execute_merge.return_value = MergeSummary(
+            total_merged=0, total_relationships_transferred=0, batch_id="test_batch"
+        )
+        mock_dedup_service.detect_cross_type_duplicates.return_value = [
+            CrossTypeDuplicateGroup(canonical_form="x", entities=[], entity_count=2),
+            CrossTypeDuplicateGroup(canonical_form="y", entities=[], entity_count=3),
+        ]
+
+        response = dedup_client.post("/api/ontology/deduplication/execute")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["skipped_cross_type"] == 2
+        assert data["total_merged"] == 0
+        assert "batch_id" in data

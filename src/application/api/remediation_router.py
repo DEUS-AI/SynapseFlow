@@ -11,7 +11,7 @@ Prefix: /api/ontology/remediation
 """
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -58,6 +58,11 @@ def get_deduplication():
 class ExecuteRequest(BaseModel):
     mark_structural: bool = True
     mark_noise: bool = True
+
+
+class DismissRequest(BaseModel):
+    entity_ids: List[str]
+    undo: bool = False
 
 
 @router.post("/remediation/dry-run")
@@ -115,13 +120,18 @@ async def list_orphans(
 
 @router.post("/deduplication/dry-run")
 async def deduplication_dry_run(service=Depends(get_deduplication)):
-    """Preview merge plan for duplicate entities without modifying data."""
+    """Preview categorized merge plan for duplicate entities without modifying data."""
     try:
+        # Same-type detection (Neo4j fast path)
         pairs = await service.detect_duplicates()
         plan = service.create_merge_plan(pairs)
+
+        # Cross-type detection (Python normalizer)
+        cross_type_groups = await service.detect_cross_type_duplicates()
+
         return {
-            "total_pairs": len(plan),
-            "merge_plan": [
+            "total_same_type": len(plan),
+            "same_type_plan": [
                 {
                     "winner_id": m.winner_id,
                     "winner_name": m.winner_name,
@@ -132,6 +142,15 @@ async def deduplication_dry_run(service=Depends(get_deduplication)):
                 }
                 for m in plan
             ],
+            "total_cross_type": len(cross_type_groups),
+            "cross_type_groups": [
+                {
+                    "canonical_form": g.canonical_form,
+                    "entities": g.entities,
+                    "entity_count": g.entity_count,
+                }
+                for g in cross_type_groups
+            ],
         }
     except Exception as e:
         logger.error(f"Deduplication dry-run failed: {e}")
@@ -140,17 +159,39 @@ async def deduplication_dry_run(service=Depends(get_deduplication)):
 
 @router.post("/deduplication/execute")
 async def deduplication_execute(service=Depends(get_deduplication)):
-    """Execute deduplication — merge all detected duplicate pairs."""
+    """Execute deduplication — merge same-type duplicate pairs only."""
     try:
+        # Only merge same-type pairs
         pairs = await service.detect_duplicates()
         plan = service.create_merge_plan(pairs)
         summary = await service.execute_merge(plan)
+
+        # Count cross-type groups (not merged, just reported)
+        cross_type_groups = await service.detect_cross_type_duplicates()
+
         return {
             "total_merged": summary.total_merged,
             "total_relationships_transferred": summary.total_relationships_transferred,
             "batch_id": summary.batch_id,
             "details": summary.details,
+            "skipped_cross_type": len(cross_type_groups),
         }
     except Exception as e:
         logger.error(f"Deduplication execute failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/deduplication/dismiss")
+async def deduplication_dismiss(
+    request: DismissRequest, service=Depends(get_deduplication)
+):
+    """Dismiss or undismiss entities as false-positive duplicates."""
+    try:
+        count = await service.dismiss_entities(
+            entity_ids=request.entity_ids, undo=request.undo
+        )
+        action = "undismissed" if request.undo else "dismissed"
+        return {"action": action, "count": count, "entity_ids": request.entity_ids}
+    except Exception as e:
+        logger.error(f"Deduplication dismiss failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

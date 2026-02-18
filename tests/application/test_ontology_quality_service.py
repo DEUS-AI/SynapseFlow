@@ -885,3 +885,50 @@ class TestQuickOntologyCheckEnriched:
 
         assert "orphan_breakdown" in result
         assert isinstance(result["orphan_breakdown"], dict)
+
+
+class TestNormalizationExcludesDismissedAndMerged:
+    """Test that _assess_normalization skips dismissed and merged entities."""
+
+    @pytest.fixture
+    def service(self):
+        with patch('application.services.ontology_quality_service.SemanticNormalizer', MockSemanticNormalizer):
+            from application.services.ontology_quality_service import OntologyQualityService
+            mock_backend = AsyncMock()
+            svc = OntologyQualityService(mock_backend)
+        return svc
+
+    @pytest.mark.asyncio
+    async def test_dismissed_entities_excluded_from_duplicate_count(self, service):
+        """Entities with _dedup_skip=true are not counted as duplicates."""
+        entities = [
+            {"id": "e1", "name": "Aspirin", "type": "Drug", "labels": [], "properties": {}},
+            {"id": "e2", "name": "aspirin", "type": "Drug", "labels": [], "properties": {"_dedup_skip": True}},
+            {"id": "e3", "name": "Metformin", "type": "Drug", "labels": [], "properties": {}},
+            {"id": "e4", "name": "metformin", "type": "Drug", "labels": [], "properties": {}},
+        ]
+        score = await service._assess_normalization(entities)
+        # Aspirin group: only e1 (e2 is dismissed), so not a duplicate pair
+        # Metformin group: e3 + e4, so 1 duplicate group
+        assert score.deduplication_candidates == 1
+
+    @pytest.mark.asyncio
+    async def test_merged_entities_excluded_from_duplicate_count(self, service):
+        """Entities with _merged_into set are not counted as duplicates."""
+        entities = [
+            {"id": "e1", "name": "Aspirin", "type": "Drug", "labels": [], "properties": {}},
+            {"id": "e2", "name": "aspirin", "type": "Drug", "labels": [], "properties": {"_merged_into": "e1"}},
+        ]
+        score = await service._assess_normalization(entities)
+        # Only e1 is counted; e2 is merged, so no duplicate group
+        assert score.deduplication_candidates == 0
+
+    @pytest.mark.asyncio
+    async def test_no_flags_counts_all_duplicates(self, service):
+        """Without flags, all duplicates are counted."""
+        entities = [
+            {"id": "e1", "name": "Aspirin", "type": "Drug", "labels": [], "properties": {}},
+            {"id": "e2", "name": "aspirin", "type": "Drug", "labels": [], "properties": {}},
+        ]
+        score = await service._assess_normalization(entities)
+        assert score.deduplication_candidates == 1

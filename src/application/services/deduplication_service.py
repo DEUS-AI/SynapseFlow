@@ -1,9 +1,11 @@
 """Batch entity deduplication service.
 
 Detects and merges duplicate entities in the knowledge graph
-by case-insensitive exact name matching within the same type.
+by case-insensitive exact name matching within the same type,
+plus cross-type detection via semantic normalization.
 """
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -46,6 +48,41 @@ class MergeSummary:
     details: list[dict[str, Any]] = field(default_factory=list)
 
 
+@dataclass
+class CrossTypeDuplicateGroup:
+    """A group of entities with the same canonical name but different types."""
+
+    canonical_form: str
+    entities: list[dict[str, Any]]
+    entity_count: int
+
+
+FETCH_ALL_ENTITIES_QUERY = """
+MATCH (n)
+WHERE n.name IS NOT NULL
+  AND n.type IS NOT NULL
+  AND NOT coalesce(n._merged_into, '') <> ''
+  AND NOT coalesce(n._is_structural, false)
+  AND NOT coalesce(n._dedup_skip, false)
+WITH n, size([(n)-[]-() | 1]) AS rel_count
+RETURN n.id AS id, n.name AS name, n.type AS type, rel_count
+ORDER BY n.name
+"""
+
+DISMISS_ENTITIES_QUERY = """
+UNWIND $entity_ids AS eid
+MATCH (n {id: eid})
+SET n._dedup_skip = true
+RETURN count(n) AS dismissed
+"""
+
+UNDISMISS_ENTITIES_QUERY = """
+UNWIND $entity_ids AS eid
+MATCH (n {id: eid})
+REMOVE n._dedup_skip
+RETURN count(n) AS undismissed
+"""
+
 DETECT_DUPLICATES_QUERY = """
 MATCH (a), (b)
 WHERE a.type = b.type
@@ -57,6 +94,8 @@ WHERE a.type = b.type
   AND NOT coalesce(b._merged_into, '') <> ''
   AND NOT coalesce(a._is_structural, false)
   AND NOT coalesce(b._is_structural, false)
+  AND NOT coalesce(a._dedup_skip, false)
+  AND NOT coalesce(b._dedup_skip, false)
 WITH a, b,
      size([(a)-[]-() | 1]) AS a_rels,
      size([(b)-[]-() | 1]) AS b_rels
@@ -262,3 +301,70 @@ class DeduplicationService:
                 })
 
         return summary
+
+    async def detect_cross_type_duplicates(
+        self, database: str = "neo4j"
+    ) -> list[CrossTypeDuplicateGroup]:
+        """Detect entities with the same canonical name but different types.
+
+        Uses SemanticNormalizer for canonical form computation.
+
+        Returns:
+            List of CrossTypeDuplicateGroup objects.
+        """
+        from application.services.semantic_normalizer import SemanticNormalizer
+
+        normalizer = SemanticNormalizer()
+
+        async with self.driver.session(database=database) as session:
+            result = await session.run(FETCH_ALL_ENTITIES_QUERY)
+            entities = [record.data() async for record in result]
+
+        # Group by canonical form
+        canonical_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for entity in entities:
+            canonical = normalizer.normalize(entity["name"])
+            canonical_groups[canonical].append(entity)
+
+        # Return only groups spanning multiple types
+        groups = []
+        for canonical, group_entities in canonical_groups.items():
+            if len(group_entities) < 2:
+                continue
+            types_in_group = {e["type"] for e in group_entities}
+            if len(types_in_group) < 2:
+                continue
+            groups.append(CrossTypeDuplicateGroup(
+                canonical_form=canonical,
+                entities=[
+                    {
+                        "id": e["id"],
+                        "name": e["name"],
+                        "type": e["type"],
+                        "relationship_count": e["rel_count"],
+                    }
+                    for e in group_entities
+                ],
+                entity_count=len(group_entities),
+            ))
+
+        return groups
+
+    async def dismiss_entities(
+        self, entity_ids: list[str], undo: bool = False, database: str = "neo4j"
+    ) -> int:
+        """Set or remove _dedup_skip on entities.
+
+        Args:
+            entity_ids: List of entity IDs to dismiss/undismiss.
+            undo: If True, remove the _dedup_skip flag instead of setting it.
+            database: Neo4j database name.
+
+        Returns:
+            Number of entities affected.
+        """
+        query = UNDISMISS_ENTITIES_QUERY if undo else DISMISS_ENTITIES_QUERY
+        async with self.driver.session(database=database) as session:
+            result = await session.run(query, {"entity_ids": entity_ids})
+            record = await result.single()
+            return record["undismissed" if undo else "dismissed"] if record else 0

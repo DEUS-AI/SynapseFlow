@@ -620,6 +620,11 @@ class OntologyQualityService:
             if not name:
                 continue
 
+            # Skip dismissed or merged entities for duplicate counting
+            props = entity.get("properties") or {}
+            is_dismissed = props.get("_dedup_skip", False)
+            is_merged = bool(props.get("_merged_into"))
+
             # Normalize the name
             canonical = self.normalizer.normalize(name)
 
@@ -628,11 +633,12 @@ class OntologyQualityService:
             else:
                 score.normalized_names += 1
 
-            # Track for duplicate detection
-            seen_canonical[canonical].append({
-                "id": entity.get("id"),
-                "original_name": name
-            })
+            # Track for duplicate detection (skip dismissed/merged)
+            if not is_dismissed and not is_merged:
+                seen_canonical[canonical].append({
+                    "id": entity.get("id"),
+                    "original_name": name
+                })
 
             # Check for abbreviations
             if any(abbr in name.lower() for abbr in self.normalizer._abbreviation_map):
