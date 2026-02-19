@@ -18,6 +18,10 @@ tests/__pycache__/
 *.swp
 *.swo
 
+# Virtual environment
+.venv/
+venv/
+
 # Python
 *.egg-info/
 .eggs/
