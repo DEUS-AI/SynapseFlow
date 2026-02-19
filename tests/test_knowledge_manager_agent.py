@@ -11,14 +11,14 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from application.agents.knowledge_manager.agent import KnowledgeManagerAgent
-from domain.event import KnowledgeEvent
-from domain.roles import Role
-from domain.communication import Message
-from infrastructure.in_memory_backend import InMemoryGraphBackend
-from application.event_bus import EventBus
-from application.commands.base import CommandBus
-from infrastructure.communication.memory_channel import InMemoryCommunicationChannel
+from application.agents.knowledge_manager.agent import KnowledgeManagerAgent  # noqa: E402
+from domain.event import KnowledgeEvent  # noqa: E402
+from domain.roles import Role  # noqa: E402
+from domain.communication import Message  # noqa: E402
+from infrastructure.in_memory_backend import InMemoryGraphBackend  # noqa: E402
+from application.event_bus import EventBus  # noqa: E402
+from application.commands.base import CommandBus  # noqa: E402
+from infrastructure.communication.memory_channel import InMemoryCommunicationChannel  # noqa: E402
 
 
 class TestKnowledgeManagerAgent(unittest.IsolatedAsyncioTestCase):

@@ -16,11 +16,14 @@ Enhanced for Crystallization Pipeline:
 - Observation count tracking for entity merging
 """
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 import logging
+
+if TYPE_CHECKING:
+    from domain.kg_backends import KnowledgeGraphBackend
 
 logger = logging.getLogger(__name__)
 

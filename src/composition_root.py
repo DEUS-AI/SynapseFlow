@@ -13,7 +13,7 @@ from application.agents.echo_agent import EchoAgent  # noqa: E402
 
 # Lazy import for MedicalAssistantAgent to avoid loading mem0 for agents that don't need it
 if TYPE_CHECKING:
-    pass
+    from application.services.agent_discovery import AgentDiscoveryService
 from application.commands.base import CommandBus  # noqa: E402
 from application.commands.echo_command import EchoCommand, EchoCommandHandler  # noqa: E402
 from application.commands.file_commands import (  # noqa: E402

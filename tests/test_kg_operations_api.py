@@ -10,10 +10,10 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from fastapi.testclient import TestClient
-from interfaces.kg_operations_api import app, initialize_api
-from infrastructure.in_memory_backend import InMemoryGraphBackend
-from application.event_bus import EventBus
+from fastapi.testclient import TestClient  # noqa: E402
+from interfaces.kg_operations_api import app, initialize_api  # noqa: E402
+from infrastructure.in_memory_backend import InMemoryGraphBackend  # noqa: E402
+from application.event_bus import EventBus  # noqa: E402
 
 
 class TestKGOperationsAPI(unittest.TestCase):

@@ -10,9 +10,9 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: E402
 
-from interfaces.kg_api import app, get_backend
+from interfaces.kg_api import app, get_backend  # noqa: E402
 
 
 class TestAPI(unittest.TestCase):

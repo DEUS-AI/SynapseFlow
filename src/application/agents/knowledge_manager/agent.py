@@ -4,7 +4,7 @@ This agent handles escalated operations, complex validation, reasoning,
 and conflict resolution that are beyond the scope of simple agent updates.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 from domain.agent import Agent
@@ -18,6 +18,9 @@ from application.event_bus import EventBus
 from .conflict_resolver import ConflictResolver
 from .validation_engine import ValidationEngine
 from .reasoning_engine import ReasoningEngine
+
+if TYPE_CHECKING:
+    from graphiti_core import Graphiti
 
 
 class KGUpdateType(str, Enum):

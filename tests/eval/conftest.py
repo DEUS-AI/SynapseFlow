@@ -11,12 +11,12 @@ This module provides fixtures for running agent evaluations:
 # Register the pytest plugin for eval command-line options
 pytest_plugins = ["tests.eval.pytest_plugin"]
 
-import os
-import pytest
-from pathlib import Path
-from typing import List, Optional
+import os  # noqa: E402
+import pytest  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import List, Optional  # noqa: E402
 
-from tests.eval.runner import (
+from tests.eval.runner import (  # noqa: E402
     MemoryInspector,
     ScenarioLoader,
     ScenarioOrchestrator,

@@ -606,7 +606,7 @@ class JsonSchemaEvaluator(AssertionEvaluator):
             return True
         else:
             # For primitives, just check type matches
-            return type(actual) == type(expected)
+            return isinstance(actual, type(expected))
 
 
 class IntentMatchEvaluator(AssertionEvaluator):

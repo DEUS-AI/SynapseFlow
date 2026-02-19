@@ -104,7 +104,7 @@ class ConflictResolver:
                     "type": "duplicate_relationship",
                     "source": source,
                     "target": target,
-                    "type": rel_type,
+                    "rel_type": rel_type,
                     "severity": "low",
                     "description": f"Relationship {source}-[{rel_type}]->{target} already exists"
                 })

@@ -11,8 +11,8 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "..", "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from domain.metadata.schema import Schema
-from domain.metadata.table import Table, Column, ColumnStats
+from domain.metadata.schema import Schema  # noqa: E402
+from domain.metadata.table import Table, Column, ColumnStats  # noqa: E402
 
 
 class TestSchema(unittest.TestCase):

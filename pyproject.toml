@@ -95,7 +95,7 @@
     line-length = 101
 
     # Ignore specific lint rules for problematic test files.
-    [tool.ruff.per-file-ignores]
+    [tool.ruff.lint.per-file-ignores]
     "tests/performance/test_modeling_performance.py" = ["F541", "F841"]
     "tests/test_neo4j_connection.py" = ["F401"]
 

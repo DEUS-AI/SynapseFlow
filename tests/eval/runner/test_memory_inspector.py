@@ -642,5 +642,4 @@ class TestEvalResult:
         assert result.pass_rate == 2 / 3
 
 
-# Import EvalResult at module level
-from tests.eval.runner.models import EvalResult
+from tests.eval.runner.models import EvalResult  # noqa: E402
