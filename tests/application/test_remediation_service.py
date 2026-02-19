@@ -8,7 +8,7 @@ Covers task 6.3:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 from application.services.remediation_service import (
     RemediationService,

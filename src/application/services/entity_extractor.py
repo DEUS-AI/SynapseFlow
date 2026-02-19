@@ -9,7 +9,7 @@ and ontology type validation.
 
 import logging
 from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import os
 import json
 import re
@@ -427,7 +427,7 @@ Common relation types: CONTAINS, DERIVED_FROM, OWNED_BY, RELATED_TO, REFERENCES,
                 entities.append({
                     "name": word,
                     "type": entity_type,
-                    "context": f"Found in text",
+                    "context": "Found in text",
                     "confidence": 0.5
                 })
         

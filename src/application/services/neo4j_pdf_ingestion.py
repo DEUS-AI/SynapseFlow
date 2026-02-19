@@ -12,10 +12,9 @@ This version writes directly to Neo4j with proper layer structure for neurosymbo
 import re
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
-import asyncio
 import logging
 
 try:
@@ -395,11 +394,11 @@ Extract entities and relationships as JSON:"""
                     continue
 
                 try:
-                    rel_type_sanitized = self._sanitize_label(rel_type)
+                    self._sanitize_label(rel_type)
                     session.run(
-                        f"""
-                        MATCH (source:ExtractedEntity {{id: $source_id}})
-                        MATCH (target:ExtractedEntity {{id: $target_id}})
+                        """
+                        MATCH (source:ExtractedEntity {id: $source_id})
+                        MATCH (target:ExtractedEntity {id: $target_id})
                         MERGE (source)-[r:LINKS_TO]->(target)
                         SET r.type = $rel_type,
                             r.description = $description,

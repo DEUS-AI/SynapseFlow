@@ -18,7 +18,7 @@ Promotion Paths:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 

@@ -154,7 +154,7 @@ class TestCustomRules:
     def test_domain_specific_rules(self):
         """Test domain-specific rules."""
         normalizer1 = SemanticNormalizer(domain="healthcare")
-        normalizer2 = SemanticNormalizer(domain="finance")
+        SemanticNormalizer(domain="finance")
 
         # Add domain-specific rule
         rule = NormalizationRule(

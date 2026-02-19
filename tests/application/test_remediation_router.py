@@ -8,14 +8,13 @@ Covers task 6.4:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 from application.api.remediation_router import (
     router,
     set_remediation_service,
     set_deduplication_service,
-    _remediation_service,
 )
 from fastapi import FastAPI
 

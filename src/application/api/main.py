@@ -2,7 +2,6 @@
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, UploadFile, File, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 import logging
@@ -339,7 +338,7 @@ async def chat_websocket_endpoint(
                                 if new_title:
                                     break
                                 if attempt == 0:
-                                    logger.info(f"Title generation attempt 1 failed, retrying...")
+                                    logger.info("Title generation attempt 1 failed, retrying...")
                                     await asyncio.sleep(0.5)
 
                             if new_title:
@@ -626,55 +625,55 @@ async def get_graph_data(
 
         # Build Cypher query based on filters
         if layer:
-            query = f"""
+            query = """
             MATCH (n)
             WHERE toLower(n.layer) = $layer
             WITH n LIMIT $limit
             OPTIONAL MATCH (n)-[r]->(m)
             RETURN
-                collect(DISTINCT {{
+                collect(DISTINCT {
                     id: elementId(n),
                     label: coalesce(n.name, elementId(n)),
                     type: head(labels(n)),
                     layer: n.layer,
                     properties: properties(n)
-                }}) as nodes,
-                collect(DISTINCT {{
+                }) as nodes,
+                collect(DISTINCT {
                     id: elementId(r),
                     source: elementId(n),
                     target: elementId(m),
                     label: type(r),
                     type: type(r)
-                }}) as edges
+                }) as edges
             """
             params = {"layer": layer, "limit": limit}
         else:
-            query = f"""
+            query = """
             MATCH (n)
             WITH n LIMIT $limit
             OPTIONAL MATCH (n)-[r]->(m)
             WHERE m IS NOT NULL
             RETURN
-                collect(DISTINCT {{
+                collect(DISTINCT {
                     id: elementId(n),
                     label: coalesce(n.name, elementId(n)),
                     type: head(labels(n)),
                     layer: coalesce(n.layer, 'perception'),
                     properties: properties(n)
-                }}) + collect(DISTINCT {{
+                }) + collect(DISTINCT {
                     id: elementId(m),
                     label: coalesce(m.name, elementId(m)),
                     type: head(labels(m)),
                     layer: coalesce(m.layer, 'perception'),
                     properties: properties(m)
-                }}) as nodes,
-                collect(DISTINCT {{
+                }) as nodes,
+                collect(DISTINCT {
                     id: elementId(r),
                     source: elementId(n),
                     target: elementId(m),
                     label: type(r),
                     type: type(r)
-                }}) as edges
+                }) as edges
             """
             params = {"limit": limit}
 
@@ -1391,7 +1390,7 @@ async def upload_dda(
                 c.created_at = COALESCE(c.created_at, datetime())
             RETURN elementId(c) as catalog_id
             """
-            catalog_result = await kg_backend.query_raw(catalog_query, {
+            await kg_backend.query_raw(catalog_query, {
                 "domain": result.domain,
                 "data_owner": result.data_owner,
                 "business_context": result.business_context
@@ -2236,7 +2235,6 @@ async def export_training_data(
         from application.formatters.training_data_formatter import (
             TrainingDataFormatter,
             FormatterConfig,
-            OutputFormat,
         )
 
         backend = await get_kg_backend()
@@ -2763,7 +2761,7 @@ async def search_sessions(
 # ========================================
 
 @app.get("/api/graph/layer-stats")
-async def get_layer_statistics(kg_backend = Depends(get_kg_backend)):
+async def get_graph_layer_statistics(kg_backend = Depends(get_kg_backend)):
     """
     Get knowledge graph layer statistics.
 
@@ -3240,7 +3238,6 @@ async def trigger_quality_scan(
         scan_type: Type of scan to run ('document', 'ontology', or 'both')
     """
     from application.services.quality_scanner_job import (
-        get_quality_scanner,
         initialize_quality_scanner,
     )
     from application.services.document_tracker import DocumentTracker
@@ -3294,7 +3291,6 @@ async def get_document_quality_trends(
     """
     try:
         from infrastructure.database.session import db_session
-        from infrastructure.database.repositories import DocumentQualityRepository
         from sqlalchemy import select, func
         from infrastructure.database.models import DocumentQuality
         from datetime import datetime, timedelta
@@ -3419,7 +3415,7 @@ async def get_promotion_status():
 
 
 @app.post("/api/promotion/scan")
-async def trigger_promotion_scan():
+async def trigger_layer_promotion_scan():
     """
     Manually trigger a promotion scan.
 

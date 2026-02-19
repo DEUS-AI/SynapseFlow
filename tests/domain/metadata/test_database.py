@@ -3,7 +3,6 @@
 import unittest
 import os
 import sys
-from datetime import datetime
 
 # Ensure the src directory is on the import path
 _TEST_DIR = os.path.dirname(__file__)

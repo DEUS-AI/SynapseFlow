@@ -151,7 +151,7 @@ class SemanticGroundingService:
         """
         # Query entity from graph
         try:
-            query = f"""
+            query = """
             MATCH (e)
             WHERE e.id = $entity_id OR id(e) = $entity_id
             OPTIONAL MATCH (e)-[r]-(n)
@@ -447,7 +447,7 @@ class SemanticGroundingService:
                     graph_score=score,
                     combined_score=score,
                     properties=dict(r["properties"]),
-                    explanation=f"Name-based match (embeddings unavailable)"
+                    explanation="Name-based match (embeddings unavailable)"
                 ))
 
             return fallback_results

@@ -10,7 +10,7 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from difflib import SequenceMatcher
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional
 
 from ..models import AssertionResult, AssertionSeverity
 from ..scenario_models import DeterministicAssertion
@@ -430,7 +430,7 @@ class SimilarityEvaluator(AssertionEvaluator):
 
         details = f"Similarity: {similarity:.2%} (threshold: {threshold:.0%})"
         if not passed:
-            details += f" - Below threshold"
+            details += " - Below threshold"
 
         return AssertionResult(
             assertion_type=self.assertion_type,
@@ -508,7 +508,7 @@ class SemanticSimilarityEvaluator(AssertionEvaluator):
 
         details = f"Semantic similarity ({method}): {similarity:.2%} (threshold: {threshold:.0%})"
         if not passed:
-            details += f" - Below threshold"
+            details += " - Below threshold"
 
         return AssertionResult(
             assertion_type=self.assertion_type,

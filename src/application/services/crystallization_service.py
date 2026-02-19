@@ -521,14 +521,6 @@ class CrystallizationService:
             # Query FalkorDB for recent entities via Graphiti
             # The actual query depends on Graphiti's API
             # This is a simplified version
-            query = """
-            MATCH (e:Entity)
-            WHERE e.created_at > $since_timestamp
-            RETURN e.uuid as id, e.name as name, e.entity_type as entity_type,
-                   e.summary as summary, e.created_at as created_at
-            ORDER BY e.created_at DESC
-            LIMIT $limit
-            """
 
             # Note: This would need to be adapted to Graphiti's actual query method
             # For now, we'll use a placeholder that works with the Graphiti client

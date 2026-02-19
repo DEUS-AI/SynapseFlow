@@ -484,9 +484,9 @@ class CrossLayerConfidencePropagation:
             evidence=evidence,
             reasoning=f"Cross-layer aggregation using {strategy.value}",
             properties={
-                "layers_involved": [l.value for l in confidences.keys()],
+                "layers_involved": [layer.value for layer in confidences.keys()],
                 "strategy": strategy.value,
-                "individual_scores": {l.value: c.score for l, c in confidences.items()}
+                "individual_scores": {layer.value: c.score for layer, c in confidences.items()}
             }
         )
 
@@ -525,10 +525,10 @@ class CrossLayerConfidencePropagation:
         # If one layer is clearly higher
         if weight1 > weight2:
             higher_layer, higher_conf = layer1, confidence1
-            lower_layer, lower_conf = layer2, confidence2
+            _lower_layer, _lower_conf = layer2, confidence2
         else:
             higher_layer, higher_conf = layer2, confidence2
-            lower_layer, lower_conf = layer1, confidence1
+            _lower_layer, _lower_conf = layer1, confidence1
 
         # Check if confidence gap overrides layer priority
         if gap > self.conflict_threshold:
@@ -635,7 +635,7 @@ class CrossLayerConfidencePropagation:
             return False, "Single source, no conflict"
 
         # Check for significant disagreements
-        scores = [(l, c.score) for l, c in confidences.items()]
+        scores = [(layer, c.score) for layer, c in confidences.items()]
         scores.sort(key=lambda x: x[1], reverse=True)
 
         highest = scores[0]

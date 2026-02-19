@@ -3,7 +3,7 @@
 Provides endpoints for managing PDF documents and their ingestion.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query, BackgroundTasks
 from pathlib import Path
 from typing import List, Optional
 import asyncio
@@ -417,7 +417,7 @@ async def get_document_entities(
             labels = record["labels"]
             # Filter out base labels to get the specific entity type
             entity_type_label = next(
-                (l for l in labels if l not in ["Entity", "ExtractedEntity"]),
+                (label for label in labels if label not in ["Entity", "ExtractedEntity"]),
                 labels[0] if labels else "Unknown"
             )
 
@@ -504,7 +504,7 @@ async def get_document_graph(
             if node_id and node_id not in seen_nodes:
                 seen_nodes.add(node_id)
                 entity_type = next(
-                    (l for l in labels if l not in ["Entity", "ExtractedEntity"]),
+                    (label for label in labels if label not in ["Entity", "ExtractedEntity"]),
                     labels[0] if labels else "Unknown"
                 )
                 nodes.append({

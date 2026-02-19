@@ -110,7 +110,7 @@ async def test_ingestion():
     try:
         persist_result = await service.persist_to_neo4j(extraction_result)
 
-        print(f"✓ Persistence complete")
+        print("✓ Persistence complete")
         print(f"  Entities added: {persist_result['entities_added']}")
         print(f"  Relationships added: {persist_result['relationships_added']}")
         print(f"  Relationships skipped: {persist_result['relationships_skipped']}")

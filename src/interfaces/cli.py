@@ -11,7 +11,6 @@ from composition_root import (
     bootstrap_graphiti,
     bootstrap_knowledge_management,
     AGENT_REGISTRY,
-    create_modeling_command_handler,
     create_generate_metadata_command_handler,
 )
 from application.commands.agent_commands import (
@@ -22,7 +21,6 @@ from application.commands.agent_commands import (
 from application.commands.echo_command import EchoCommand
 from application.commands.file_commands import CreateFileCommand, ReadFileCommand
 from application.commands.shell_commands import ExecuteShellCommand
-from application.commands.modeling_command import ModelingCommand
 from application.commands.metadata_command import GenerateMetadataCommand
 from application.agent_runner import AgentRunner
 from domain.communication import Message
@@ -106,7 +104,7 @@ def model(
     result = asyncio.run(run_modeling())
     
     if result["success"]:
-        typer.echo(f"✅ Metadata Generation & Enrichment completed successfully!")
+        typer.echo("✅ Metadata Generation & Enrichment completed successfully!")
         typer.echo(f"   Domain: {result.get('domain', 'Unknown')}")
         
         # The result from MetadataGenerationWorkflow is a simple dict
@@ -117,10 +115,10 @@ def model(
              typer.echo(f"   Nodes: {stats.get('nodes', 0)}")
              typer.echo(f"   Relationships: {stats.get('relationships', 0)}")
         
-        typer.echo(f"\n💡 Knowledge Graph is now populated with enriched data.")
+        typer.echo("\n💡 Knowledge Graph is now populated with enriched data.")
         
     else:
-        typer.echo(f"❌ Modeling failed:")
+        typer.echo("❌ Modeling failed:")
         for error in result.get('errors', []):
             typer.echo(f"   - {error}")
         
@@ -158,12 +156,12 @@ def ingest_doc(
     try:
         document = asyncio.run(run_ingestion())
         
-        typer.echo(f"\n✅ Document Ingested Successfully!")
+        typer.echo("\n✅ Document Ingested Successfully!")
         typer.echo(f"   ID: {document.id}")
         typer.echo(f"   Name: {document.name}")
         typer.echo(f"   Chunks: {document.chunk_count}")
         typer.echo(f"   Hash: {document.content_hash}")
-        typer.echo(f"\n💡 View in Neo4j:")
+        typer.echo("\n💡 View in Neo4j:")
         typer.echo(f"   MATCH (d:Document {{id: '{document.id}'}})-[:HAS_CHUNK]->(c) RETURN d, c")
         
     except Exception as e:
@@ -482,7 +480,6 @@ def create_template(
         file_path = f"examples/{name.lower().replace(' ', '_')}_dda.md"
     
     # Create directory if it doesn't exist
-    import os
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     
     # Write template to file
@@ -491,7 +488,7 @@ def create_template(
     
     typer.echo(f"✅ DDA template created: {file_path}")
     typer.echo(f"📝 Template name: {name}")
-    typer.echo(f"🔧 Next steps: Edit the template with domain-specific information")
+    typer.echo("🔧 Next steps: Edit the template with domain-specific information")
 
 
 @app.command("export-rlhf")
@@ -521,8 +518,8 @@ def export_rlhf(
     from pathlib import Path
 
     async def run_export():
-        from application.services.rlhf_data_extractor import RLHFDataExtractor, TrainingDataFormat
-        from application.formatters import TrainingDataFormatter, OutputFormat, export_to_file, FormatterConfig
+        from application.services.rlhf_data_extractor import RLHFDataExtractor
+        from application.formatters import TrainingDataFormatter, FormatterConfig
 
         # Initialize backend
         kg_backend, _ = await bootstrap_knowledge_management()
@@ -534,7 +531,7 @@ def export_rlhf(
         )
 
         # Extract data
-        typer.echo(f"📊 Extracting RLHF data...")
+        typer.echo("📊 Extracting RLHF data...")
         result = await extractor.extract_all(layer_filter=layer)
 
         # Configure formatter
@@ -587,17 +584,16 @@ def export_rlhf(
     result, formatted_pairs, formatted_sft, output_format = asyncio.run(run_export())
 
     # Display statistics
-    typer.echo(f"\n📈 Extraction Statistics:")
+    typer.echo("\n📈 Extraction Statistics:")
     typer.echo(f"   Preference pairs: {len(result.preference_pairs)}")
     typer.echo(f"   SFT examples: {len(result.sft_examples)}")
 
     if result.layer_analysis:
-        typer.echo(f"\n📊 Layer Analysis:")
+        typer.echo("\n📊 Layer Analysis:")
         for layer_name, analysis in result.layer_analysis.items():
             typer.echo(f"   {layer_name}: avg_rating={analysis.average_rating:.2f}, negative_rate={analysis.negative_rate:.1%}")
 
     # Export files
-    from pathlib import Path
     from application.formatters import export_to_file, OutputFormat
 
     output_path = Path(output)
@@ -638,7 +634,7 @@ def export_rlhf(
 
     # Show suggestions
     if result.layer_analysis:
-        typer.echo(f"\n💡 Improvement Suggestions:")
+        typer.echo("\n💡 Improvement Suggestions:")
         for layer_name, analysis in result.layer_analysis.items():
             if analysis.improvement_suggestions:
                 typer.echo(f"   {layer_name}:")
@@ -668,17 +664,17 @@ def rlhf_stats():
     typer.echo(f"Total feedbacks: {stats.total_feedbacks}")
     typer.echo(f"Average rating: {stats.average_rating:.2f}")
 
-    typer.echo(f"\nRating Distribution:")
+    typer.echo("\nRating Distribution:")
     for rating, count in sorted(stats.rating_distribution.items()):
         bar = "█" * count
         typer.echo(f"  {rating}★: {bar} ({count})")
 
-    typer.echo(f"\nFeedback Types:")
+    typer.echo("\nFeedback Types:")
     for ftype, count in stats.feedback_type_distribution.items():
         typer.echo(f"  {ftype}: {count}")
 
     if stats.layer_performance:
-        typer.echo(f"\nLayer Performance:")
+        typer.echo("\nLayer Performance:")
         for layer, perf in stats.layer_performance.items():
             typer.echo(f"  {layer}: avg={perf['avg_rating']:.2f}, negative_rate={perf['negative_rate']:.1%}")
 

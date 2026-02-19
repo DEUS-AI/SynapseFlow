@@ -5,7 +5,7 @@ It maps the generic KnowledgeGraphBackend interface to Graphiti's
 specific data structures (EntityNode, EntityEdge) and API.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from datetime import datetime
 import json
 

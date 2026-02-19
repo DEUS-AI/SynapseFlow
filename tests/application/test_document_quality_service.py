@@ -4,7 +4,6 @@ Comprehensive unit tests for document quality assessment.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 from typing import Dict, Any
 
@@ -13,7 +12,6 @@ from src.application.services.document_quality_service import (
     QualityConfig,
     quick_quality_check,
 )
-from src.application.services.text_chunker import TextChunk
 from domain.quality_models import QualityLevel
 
 

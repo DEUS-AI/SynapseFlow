@@ -301,7 +301,7 @@ class TestIntelligentChatNeurosymbolicIntegration:
             )
 
             # Act
-            response = await service.query(
+            await service.query(
                 "Can I take ibuprofen?",
                 patient_id="patient_123"
             )

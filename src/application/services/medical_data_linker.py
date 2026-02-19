@@ -350,7 +350,7 @@ class MedicalDataLinker:
         try:
             # Use MERGE to avoid duplicates
             # Escape single quotes in strings
-            reasoning_escaped = link.reasoning.replace("'", "\\'")
+            link.reasoning.replace("'", "\\'")
 
             query = f"""
             MATCH (m), (d)

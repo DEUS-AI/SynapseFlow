@@ -7,7 +7,6 @@ la estructura de los escenarios.
 """
 
 import logging
-import os
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -426,8 +425,8 @@ class ScenarioLoader:
                 for p in sa_data.get("entity_property_check", [])
             ]
             dikw_layer_check = [
-                LayerAssertion(**l)
-                for l in sa_data.get("dikw_layer_check", [])
+                LayerAssertion(**layer_data)
+                for layer_data in sa_data.get("dikw_layer_check", [])
             ]
 
             memory_diff_check = None

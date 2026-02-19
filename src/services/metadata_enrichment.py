@@ -8,7 +8,6 @@ Usage:
     python -m src.services.metadata_enrichment <path/to/dda.md>
 """
 
-import os
 import sys
 import json
 from pathlib import Path
@@ -16,7 +15,6 @@ from typing import Dict, List
 
 # Attempt to import Graphiti if available; otherwise fall back to heuristic parser
 try:
-    from graphiti_core import Graphiti  # type: ignore
     _graphiti_available = True
 except Exception:
     _graphiti_available = False

@@ -100,7 +100,7 @@ async def test_mem0():
         )
 
         assert result is not None, "Failed to add memory"
-        print(f"  ✅ Mem0 add memory successful")
+        print("  ✅ Mem0 add memory successful")
 
         # Test retrieve memories
         memories = mem0.get_all(user_id="test_patient_123", limit=5)
@@ -230,7 +230,7 @@ async def test_patient_memory_service():
 
         # Test consent check
         consent = await memory_service.check_consent(patient_id)
-        assert consent == True, "Consent check failed"
+        assert consent, "Consent check failed"
         print("  ✅ Consent check passed")
 
         # Test audit logging
@@ -244,7 +244,7 @@ async def test_patient_memory_service():
 
         # Cleanup
         success = await memory_service.delete_patient_data(patient_id)
-        assert success == True, "Patient data deletion failed"
+        assert success, "Patient data deletion failed"
         print("  ✅ Patient data deleted (GDPR right to be forgotten)")
 
         await redis.close()

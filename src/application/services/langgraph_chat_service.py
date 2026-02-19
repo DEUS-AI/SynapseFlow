@@ -10,9 +10,7 @@ LangGraph ConversationGraph for multi-turn state management.
 
 import logging
 from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
 from datetime import datetime
-import uuid
 
 from application.services.conversation_graph import ConversationGraph
 from application.services.intelligent_chat_service import Message, ChatResponse

@@ -24,7 +24,7 @@ print("   → Total per PDF: ~$0.00087")
 
 # For all 18 PDFs
 print("\n   For 18 PDFs:")
-print(f"   → Total: 18 * $0.00087 = $0.016 (one-time cost)")
+print("   → Total: 18 * $0.00087 = $0.016 (one-time cost)")
 
 # Chat Queries
 print("\n2. Chat Query (per question):")
@@ -39,16 +39,16 @@ print("   → Total per query: ~$0.00072")
 # High volume scenarios
 print("\n3. Scale Analysis:")
 print("\n   1,000 queries/day:")
-print(f"     Daily: 1,000 * $0.00072 = $0.72")
-print(f"     Monthly: $0.72 * 30 = $21.60")
+print("     Daily: 1,000 * $0.00072 = $0.72")
+print("     Monthly: $0.72 * 30 = $21.60")
 
 print("\n   10,000 queries/day:")
-print(f"     Daily: 10,000 * $0.00072 = $7.20")
-print(f"     Monthly: $7.20 * 30 = $216")
+print("     Daily: 10,000 * $0.00072 = $7.20")
+print("     Monthly: $7.20 * 30 = $216")
 
 print("\n   100,000 queries/day:")
-print(f"     Daily: 100,000 * $0.00072 = $72")
-print(f"     Monthly: $72 * 30 = $2,160")
+print("     Daily: 100,000 * $0.00072 = $72")
+print("     Monthly: $72 * 30 = $2,160")
 
 # Breakdown by operation
 print("\n4. Cost Breakdown by Operation:")

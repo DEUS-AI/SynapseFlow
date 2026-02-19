@@ -1,7 +1,7 @@
 """FastAPI router for Knowledge Graph operations."""
 
-from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body
+from typing import Dict, Any, Optional
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from domain.kg_backends import KnowledgeGraphBackend
@@ -86,7 +86,7 @@ async def ask_graph(
         Generate ONLY the Cypher query to answer this question. Do not include markdown formatting.
         """
         
-        episode = await llm.add_episode(
+        await llm.add_episode(
             name=f"text_to_cypher_{datetime.now().timestamp()}",
             episode_body=prompt,
             source_description="Text-to-Cypher API",

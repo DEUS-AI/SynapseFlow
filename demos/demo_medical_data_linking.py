@@ -61,7 +61,7 @@ def print_linking_results(result):
     print(f"    ✗ Skipped: {result.skipped_count}")
 
     if result.links_created > 0:
-        print(f"\n  Sample Links (first 10):")
+        print("\n  Sample Links (first 10):")
         for i, link in enumerate(result.links[:10], 1):
             print(f"\n  {i}. {link.medical_entity_name} ({link.medical_entity_type})")
             print(f"     → {link.data_entity_name} ({link.data_entity_type})")
@@ -120,8 +120,8 @@ async def main():
 
     print_section("Configuration")
     print(f"\n  Confidence Threshold: {args.confidence_threshold}")
-    print(f"  Neo4j: bolt://localhost:7687")
-    print(f"  Backend: Unified Neo4j (medical KG + DDA metadata)")
+    print("  Neo4j: bolt://localhost:7687")
+    print("  Backend: Unified Neo4j (medical KG + DDA metadata)")
 
     # Confirm execution
     if not args.auto_confirm:

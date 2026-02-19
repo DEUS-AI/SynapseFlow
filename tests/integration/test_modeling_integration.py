@@ -1,9 +1,6 @@
 import pytest
-import asyncio
 import tempfile
 import os
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 from src.application.commands.modeling_command import ModelingCommand
 from src.application.commands.modeling_handler import ModelingCommandHandler
@@ -11,9 +8,6 @@ from src.application.agents.data_architect.modeling_workflow import ModelingWork
 from src.application.agents.data_architect.domain_modeler import DomainModeler
 from src.application.agents.data_architect.dda_parser import DDAParserFactory
 from src.infrastructure.parsers.markdown_parser import MarkdownDDAParser
-from src.domain.dda_models import DDADocument, DataEntity, Relationship, DataQualityRequirement, AccessPattern, Governance
-from datetime import datetime
-from graphiti_core import Graphiti
 
 
 class TestModelingIntegration:
@@ -232,7 +226,7 @@ This domain covers customer behavior analysis, purchase patterns, and engagement
         
         result1 = await workflow.execute(command1)
         assert result1["success"] is True
-        initial_episode_uuid = result1["graph_document"]["episode_uuid"]
+        result1["graph_document"]["episode_uuid"]
         
         # 2. Update existing graph
         command2 = ModelingCommand(

@@ -17,11 +17,9 @@ Publishes:
 """
 
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum
 import logging
-import uuid
 
 from domain.event import KnowledgeEvent
 from domain.roles import Role
@@ -282,7 +280,7 @@ class AutomaticLayerTransitionService:
 
         has_ontology = bool(ontology_codes or snomed_code or umls_cui or icd10_code)
         if has_ontology:
-            logger.info(f"Entity has ontology match")
+            logger.info("Entity has ontology match")
             return True
 
         return False
@@ -659,7 +657,7 @@ class AutomaticLayerTransitionService:
                             entity_data=entity_data,
                             from_layer=from_layer,
                             to_layer=to_layer,
-                            reason=f"Batch promotion scan"
+                            reason="Batch promotion scan"
                         )
 
                         if record and record.status == TransitionStatus.COMPLETED:

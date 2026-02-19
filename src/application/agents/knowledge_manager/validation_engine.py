@@ -329,7 +329,7 @@ class ValidationEngine:
         """Validate event data against SHACL shapes."""
         try:
             import pyshacl
-            from rdflib import Graph, Literal, RDF, URIRef, Namespace
+            from rdflib import Graph, Literal, RDF, URIRef, Namespace  # noqa: F401
         except ImportError:
             return {"is_valid": True, "warnings": ["pyshacl not installed, skipping SHACL validation"]}
 
@@ -435,7 +435,7 @@ class ValidationEngine:
             return {"is_valid": False, "errors": errors}
 
         # Validate layer value
-        valid_layers = [l.value for l in KnowledgeLayer]
+        valid_layers = [layer_enum.value for layer_enum in KnowledgeLayer]
         if layer not in valid_layers:
             errors.append(
                 f"Invalid layer '{layer}'. Must be one of: {', '.join(valid_layers)}"
@@ -564,13 +564,6 @@ class ValidationEngine:
         # Check for reverse relationships (higher layer pointing to lower layer)
         if source_order > target_order and source_order > 0 and target_order > 0:
             # Allow certain reverse relationships
-            allowed_reverse_types = [
-                "derived_from",
-                "based_on",
-                "references",
-                "uses",
-                "reads_from"
-            ]
 
             # This would need relationship type from event, which we don't have in this context
             # So we just issue a warning

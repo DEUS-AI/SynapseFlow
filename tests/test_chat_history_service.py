@@ -6,9 +6,8 @@ with Phase 6 conversational layer (intent-based titles, memory context).
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 # Add src to path
 import sys

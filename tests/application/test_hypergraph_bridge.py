@@ -4,13 +4,11 @@ Tests the neurosymbolic bridge layer between Document and Knowledge graphs.
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from domain.hypergraph_models import (
     FactUnit,
     FactType,
-    HyperEdge,
     EntityMention,
     ConfidenceScore,
     ConfidenceSource,

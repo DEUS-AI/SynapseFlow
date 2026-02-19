@@ -8,8 +8,7 @@ Tests the complete workflow of:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import MagicMock
 import sys
 from pathlib import Path
 

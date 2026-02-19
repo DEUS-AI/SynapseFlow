@@ -10,7 +10,6 @@ Usage:
 """
 
 import sys
-import os
 from pathlib import Path
 from typing import List, Dict, Any
 import re
@@ -35,7 +34,7 @@ class InteractiveChatCLI:
         self.graph_name = graph_name
 
         print(f"\n{'='*70}")
-        print(f"  Medical Knowledge Graph - Interactive Chat")
+        print("  Medical Knowledge Graph - Interactive Chat")
         print(f"{'='*70}\n")
         print(f"Connected to graph: {graph_name}")
 
@@ -53,12 +52,12 @@ class InteractiveChatCLI:
                 'MATCH (n) RETURN DISTINCT n.type as type, count(*) as count ORDER BY count DESC LIMIT 5'
             )
 
-            print(f"\nGraph Statistics:")
+            print("\nGraph Statistics:")
             print(f"  Total Entities: {node_count:,}")
             print(f"  Total Relationships: {edge_count:,}")
 
             if type_result.result_set:
-                print(f"\n  Top Entity Types:")
+                print("\n  Top Entity Types:")
                 for row in type_result.result_set[:5]:
                     entity_type = row[0] if row[0] else "Unknown"
                     count = row[1]

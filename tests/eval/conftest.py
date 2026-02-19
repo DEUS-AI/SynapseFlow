@@ -14,7 +14,7 @@ pytest_plugins = ["tests.eval.pytest_plugin"]
 import os
 import pytest
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from tests.eval.runner import (
     MemoryInspector,

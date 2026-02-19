@@ -22,7 +22,7 @@ import asyncio
 import os
 import pytest
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from tests.eval.runner import (
     ScenarioLoader,
@@ -31,8 +31,8 @@ from tests.eval.runner import (
     Scenario,
     EvalResult,
 )
-from tests.eval.runner.evaluators import create_mock_judge, LLMJudgeEvaluator
-from tests.eval.runner.reporting import ReportManager, SuiteReport
+from tests.eval.runner.evaluators import create_mock_judge
+from tests.eval.runner.reporting import ReportManager
 
 
 # ========================================
@@ -267,7 +267,7 @@ def pytest_generate_tests(metafunc):
             severity=severity,
             tag=tag,
         )
-    except Exception as e:
+    except Exception:
         # No scenarios found, skip test generation
         scenarios = []
 

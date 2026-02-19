@@ -4,7 +4,6 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from pathlib import Path
 
 # Load environment variables
 load_dotenv()
@@ -31,13 +30,13 @@ async def test_direct_writer():
     parser = parser_factory.get_parser(dda_path)
     dda_document = await parser.parse(dda_path)
     
-    print(f"✅ Parsed DDA:")
+    print("✅ Parsed DDA:")
     print(f"   Domain: {dda_document.domain}")
     print(f"   Entities: {len(dda_document.entities)}")
     print(f"   Relationships: {len(dda_document.relationships)}")
     
     # Create architecture graph directly
-    print(f"\n🔧 Creating architecture graph (direct write)...")
+    print("\n🔧 Creating architecture graph (direct write)...")
     
     writer = ArchitectureGraphWriter(
         uri="bolt://localhost:7687",
@@ -48,7 +47,7 @@ async def test_direct_writer():
     try:
         result = writer.create_architecture_graph(dda_document)
         
-        print(f"\n✅ Architecture graph created!")
+        print("\n✅ Architecture graph created!")
         print(f"   Domain: {result['domain']}")
         print(f"   Entities: {result['entities_count']}")
         print(f"   Relationships: {result['relationships_count']}")
@@ -56,7 +55,7 @@ async def test_direct_writer():
         print(f"   Edges created: {result['edges_created']}")
         
         # Show entity details
-        print(f"\n📊 Entity Details:")
+        print("\n📊 Entity Details:")
         for entity in dda_document.entities:
             print(f"\n   {entity.name}:")
             print(f"      Description: {entity.description[:80]}...")
@@ -66,7 +65,7 @@ async def test_direct_writer():
                 print(f"      Foreign Keys: {', '.join(entity.foreign_keys)}")
         
         # Show relationships
-        print(f"\n🔗 Relationships:")
+        print("\n🔗 Relationships:")
         for rel in dda_document.relationships:
             print(f"   {rel.source_entity} --[{rel.relationship_type}]--> {rel.target_entity}")
             print(f"      {rel.description[:80]}...")

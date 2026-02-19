@@ -1,9 +1,6 @@
 """Tests for the Knowledge Graph Operations API."""
 
-import asyncio
-import json
 import unittest
-from unittest.mock import Mock, patch, AsyncMock
 import os
 import sys
 

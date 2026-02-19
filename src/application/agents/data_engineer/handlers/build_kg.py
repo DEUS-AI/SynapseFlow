@@ -85,7 +85,7 @@ class BuildKGCommandHandler(CommandHandler):
         episode_results = await self.graph.add_episode(
             name=f"KG Build - {source_data.get('domain', 'Unknown')}",
             episode_body=episode_content,
-            source_description=f"Knowledge Graph built using domain models",
+            source_description="Knowledge Graph built using domain models",
             reference_time=source_data.get('timestamp', '2024-01-01'),
             source="message",
             group_id=f"kg_{source_data.get('domain', 'unknown').lower().replace(' ', '_')}",
@@ -105,15 +105,15 @@ class BuildKGCommandHandler(CommandHandler):
         content_parts = []
         
         # Header with domain model context
-        content_parts.append(f"KNOWLEDGE GRAPH BUILD")
+        content_parts.append("KNOWLEDGE GRAPH BUILD")
         content_parts.append(f"Domain: {source_data.get('domain', 'Unknown')}")
         content_parts.append(f"Source Data Type: {source_data.get('type', 'Unknown')}")
         content_parts.append(f"Domain Models Available: {len(domain_models)}")
         
         # Domain model context
         if domain_models:
-            content_parts.append(f"\nDOMAIN MODEL CONTEXT:")
-            content_parts.append(f"The following domain models should be used as reference:")
+            content_parts.append("\nDOMAIN MODEL CONTEXT:")
+            content_parts.append("The following domain models should be used as reference:")
             
             entities = [m for m in domain_models if m.get('type') == 'entity']
             relationships = [m for m in domain_models if m.get('type') == 'relationship']
@@ -129,18 +129,18 @@ class BuildKGCommandHandler(CommandHandler):
                     content_parts.append(f"- {rel.get('name', 'Unknown')}: {rel.get('attributes', {}).get('description', 'No description')}")
         
         # Source data content
-        content_parts.append(f"\nSOURCE DATA:")
+        content_parts.append("\nSOURCE DATA:")
         content_parts.append(f"Content: {source_data.get('content', 'No content provided')}")
         
         if source_data.get('metadata'):
             content_parts.append(f"Metadata: {source_data.get('metadata')}")
         
         # Instructions for graph building
-        content_parts.append(f"\nBUILDING INSTRUCTIONS:")
-        content_parts.append(f"1. Use the domain models above as reference for entity and relationship structure")
-        content_parts.append(f"2. Extract entities and relationships from the source data")
-        content_parts.append(f"3. Ensure consistency with existing domain model patterns")
-        content_parts.append(f"4. Create nodes and edges that align with the domain architecture")
+        content_parts.append("\nBUILDING INSTRUCTIONS:")
+        content_parts.append("1. Use the domain models above as reference for entity and relationship structure")
+        content_parts.append("2. Extract entities and relationships from the source data")
+        content_parts.append("3. Ensure consistency with existing domain model patterns")
+        content_parts.append("4. Create nodes and edges that align with the domain architecture")
         
         return "\n".join(content_parts)
     

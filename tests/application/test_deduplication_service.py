@@ -9,10 +9,8 @@ Covers:
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from application.services.deduplication_service import (
-    CrossTypeDuplicateGroup,
     DeduplicationService,
     DuplicatePair,
-    MergePlan,
 )
 
 

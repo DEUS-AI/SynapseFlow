@@ -18,7 +18,7 @@ import asyncio
 import logging
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 from pathlib import Path
 from enum import Enum
 
@@ -651,8 +651,8 @@ class ExtractionAuditService:
             "",
             "## Executive Summary",
             "",
-            f"| Metric | Value | Status |",
-            f"|--------|-------|--------|",
+            "| Metric | Value | Status |",
+            "|--------|-------|--------|",
             f"| Total Entities | {report.total_entities:,} | — |",
             f"| Total Orphans | {report.total_orphans:,} | {severity_emoji[report.severity]} {report.severity.value.upper()} |",
             f"| Orphan Rate | {report.orphan_rate:.1%} | — |",
@@ -831,7 +831,7 @@ if __name__ == "__main__":
             neo4j_uri=args.neo4j_uri,
             output_path=args.output,
         )
-        print(f"\nAudit Summary:")
+        print("\nAudit Summary:")
         print(f"  Severity: {report.severity.value.upper()}")
         print(f"  Entities: {report.total_entities:,}")
         print(f"  Orphans: {report.total_orphans:,} ({report.orphan_rate:.1%})")

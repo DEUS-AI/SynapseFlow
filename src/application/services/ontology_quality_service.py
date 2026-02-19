@@ -25,7 +25,6 @@ from domain.ontology_quality_models import (
     NormalizationQualityScore,
     CrossReferenceValidityScore,
     InteroperabilityScore,
-    OntologyQualityLevel,
     ODIN_SCHEMAS,
     SCHEMA_ORG_MAPPINGS,
 )
@@ -431,7 +430,7 @@ class OntologyQualityService:
 
         # Detect orphans — prefer remediation metadata when available
         # Build lookup for entities by id
-        entity_by_id = {e.get("id"): e for e in entities if e.get("id")}
+        {e.get("id"): e for e in entities if e.get("id")}
 
         # Check if remediation orphan metadata exists
         entities_with_orphan_flag = [

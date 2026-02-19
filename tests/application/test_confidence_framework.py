@@ -1,14 +1,11 @@
 """Unit tests for ConfidenceFrameworkService."""
 
 import pytest
-from datetime import datetime
 from application.services.confidence_framework import (
     ConfidenceFrameworkService,
-    ConfidenceConfig,
-    WorkflowStep
+    ConfidenceConfig
 )
 from domain.confidence_models import (
-    Confidence,
     ConfidenceSource,
     AggregationStrategy,
     neural_confidence,

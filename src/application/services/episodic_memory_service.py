@@ -30,8 +30,7 @@ if TYPE_CHECKING:
     from application.event_bus import EventBus
 
 from graphiti_core import Graphiti
-from graphiti_core.nodes import EpisodeType, EpisodicNode, EntityNode
-from graphiti_core.edges import EntityEdge
+from graphiti_core.nodes import EpisodeType, EpisodicNode
 from graphiti_core.driver.falkordb_driver import FalkorDriver
 from graphiti_core.search.search import search
 from graphiti_core.search.search_config import SearchResults

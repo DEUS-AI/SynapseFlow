@@ -1,7 +1,7 @@
 """Tests for workflow metadata models."""
 
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime
 from domain.metadata.workflow import User, AirflowDag
 
 

@@ -1,7 +1,7 @@
 """Tests for TypeInferenceService."""
 
 import unittest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock
 from application.agents.data_engineer.type_inference import TypeInferenceService
 from domain.odin_models import DataType, DataTypeEntity
 from graphiti_core import Graphiti
@@ -376,7 +376,7 @@ class TestTypeInferenceService(unittest.IsolatedAsyncioTestCase):
         self.mock_llm.process = Mock(return_value=mock_doc)
         
         context = {"description": "A long description that might contain useful information"}
-        result = await self.service.infer_data_type("test_field", context)
+        await self.service.infer_data_type("test_field", context)
         
         # Verify description was included in prompt
         call_args = self.mock_llm.process.call_args[0][0]

@@ -5,8 +5,7 @@ Este módulo define los modelos Pydantic que representan escenarios
 de evaluación definidos en archivos YAML.
 """
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

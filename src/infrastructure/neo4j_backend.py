@@ -11,10 +11,9 @@ Enhanced with 4-layer Knowledge Graph architecture support:
 - APPLICATION: Query patterns and cached results
 """
 
-import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
 from neo4j import AsyncGraphDatabase
 from domain.kg_backends import KnowledgeGraphBackend

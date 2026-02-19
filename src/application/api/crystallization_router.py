@@ -14,8 +14,6 @@ from datetime import datetime
 import logging
 
 from .dependencies import (
-    get_kg_backend,
-    get_event_bus,
     get_crystallization_service,
     get_promotion_gate,
     get_entity_resolver,

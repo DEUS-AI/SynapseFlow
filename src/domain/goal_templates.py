@@ -5,7 +5,7 @@ Defines the slot templates for each goal type, specifying what
 information needs to be collected before the goal can be completed.
 """
 
-from typing import Dict, List, Callable, Any
+from typing import Dict, List, Any
 from dataclasses import dataclass
 
 from domain.conversation_state import GoalType, GoalSlot, ActiveGoal

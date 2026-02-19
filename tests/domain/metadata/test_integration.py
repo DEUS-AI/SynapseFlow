@@ -1,14 +1,13 @@
 """Integration tests for the complete metadata system."""
 
 import unittest
-from datetime import datetime, timezone
-from domain.metadata.base import MetadataEntity
+from datetime import datetime
 from domain.metadata.database import Cluster, Database
 from domain.metadata.schema import Schema
 from domain.metadata.table import Table, Column, ColumnStats
 from domain.metadata.metadata_objects import Tag, Watermark, Description
 from domain.metadata.workflow import User, AirflowDag
-from domain.metadata.relationships import MetadataRelationship, RelationshipTypes
+from domain.metadata.relationships import MetadataRelationship
 
 
 class TestMetadataSystemIntegration(unittest.TestCase):
@@ -332,7 +331,7 @@ class TestMetadataSystemIntegration(unittest.TestCase):
         
         # Create multiple entities
         for i in range(100):
-            tag = Tag(
+            Tag(
                 name=f"Test Tag {i}",
                 tag_name=f"Test Tag {i}",
                 tag_type="test"

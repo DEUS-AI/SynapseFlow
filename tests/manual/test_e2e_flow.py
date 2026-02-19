@@ -54,7 +54,7 @@ async def test_end_to_end():
     modeling_result = await modeling_handler.handle(modeling_command)
     
     if modeling_result["success"]:
-        print(f"   ✅ Architecture graph created!")
+        print("   ✅ Architecture graph created!")
         print(f"      Domain: {modeling_result['graph_document']['domain']}")
         print(f"      Entities: {modeling_result['graph_document']['entities_count']}")
         print(f"      Nodes: {modeling_result['graph_document']['nodes_created']}")
@@ -92,7 +92,7 @@ async def test_end_to_end():
     metadata_result = await metadata_handler.handle(metadata_command)
     
     if metadata_result["success"]:
-        print(f"   ✅ Metadata graph created!")
+        print("   ✅ Metadata graph created!")
         metadata_summary = metadata_result['metadata_graph']
         print(f"      Catalog: {metadata_summary.get('catalog_name')}")
         print(f"      Schema: {metadata_summary.get('schema_name')}")
@@ -119,7 +119,7 @@ async def test_end_to_end():
     with neo4j_driver.session() as session:
         result = session.run("MATCH (n:DataEntity) RETURN count(n) as count")
         entity_count = result.single()["count"]
-        print(f"   Neo4j (Architecture):")
+        print("   Neo4j (Architecture):")
         print(f"      DataEntities: {entity_count}")
     
     neo4j_driver.close()
@@ -130,12 +130,12 @@ async def test_end_to_end():
     falkor_graph = falkor_client.select_graph("knowledge_graph")
     
     result = falkor_graph.query("MATCH (n) RETURN labels(n)[0] as label, count(n) as count")
-    print(f"\n   FalkorDB (Metadata):")
+    print("\n   FalkorDB (Metadata):")
     if result.result_set:
         for row in result.result_set:
             print(f"      {row[0]}: {row[1]}")
     else:
-        print(f"      No nodes found")
+        print("      No nodes found")
     
     print("\n" + "=" * 70)
     print("✅ END-TO-END TEST COMPLETE")

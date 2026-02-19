@@ -5,49 +5,44 @@ from infrastructure.config_validation import validate_config
 
 validate_config()
 
-from typing import Dict, Callable, Tuple, Optional, TYPE_CHECKING
-from application.agents.data_architect.agent import DataArchitectAgent
-from application.agents.data_engineer.agent import DataEngineerAgent
-from application.agents.knowledge_manager.agent import KnowledgeManagerAgent
-from application.agents.data_engineer.handlers.build_kg import BuildKGCommandHandler
-from application.agents.echo_agent import EchoAgent
+from typing import Dict, Callable, Tuple, Optional, TYPE_CHECKING  # noqa: E402
+from application.agents.data_architect.agent import DataArchitectAgent  # noqa: E402
+from application.agents.data_engineer.agent import DataEngineerAgent  # noqa: E402
+from application.agents.knowledge_manager.agent import KnowledgeManagerAgent  # noqa: E402
+from application.agents.echo_agent import EchoAgent  # noqa: E402
 
 # Lazy import for MedicalAssistantAgent to avoid loading mem0 for agents that don't need it
 if TYPE_CHECKING:
-    from application.agents.medical_assistant.agent import MedicalAssistantAgent
-from application.commands.base import CommandBus
-from application.commands.collaboration_commands import BuildKGCommand
-from application.commands.echo_command import EchoCommand, EchoCommandHandler
-from application.commands.file_commands import (
+    pass
+from application.commands.base import CommandBus  # noqa: E402
+from application.commands.echo_command import EchoCommand, EchoCommandHandler  # noqa: E402
+from application.commands.file_commands import (  # noqa: E402
     CreateFileCommand,
     CreateFileCommandHandler,
     ReadFileCommand,
     ReadFileCommandHandler,
 )
-from application.commands.shell_commands import (
+from application.commands.shell_commands import (  # noqa: E402
     ExecuteShellCommand,
     ExecuteShellCommandHandler,
 )
-from application.commands.modeling_command import ModelingCommand
-from application.commands.modeling_handler import ModelingCommandHandler
-from application.commands.metadata_command import GenerateMetadataCommand
-from application.agents.data_engineer.handlers.generate_metadata import GenerateMetadataCommandHandler
-from application.agents.data_architect.modeling_workflow import ModelingWorkflow
-from application.agents.data_architect.dda_parser import DDAParserFactory
-from application.agents.data_architect.domain_modeler import DomainModeler
-from application.agents.data_engineer.metadata_workflow import MetadataGenerationWorkflow
-from application.agents.data_engineer.metadata_graph_builder import MetadataGraphBuilder
-from application.agents.data_engineer.type_inference import TypeInferenceService
-from infrastructure.parsers.markdown_parser import MarkdownDDAParser
-from domain.agent import Agent
-from domain.communication import CommunicationChannel
-from infrastructure.graphiti import get_graphiti
-from graphiti_core import Graphiti
-from infrastructure.in_memory_backend import InMemoryGraphBackend
-from domain.kg_backends import KnowledgeGraphBackend
-from application.event_bus import EventBus
-from config.agent_config import get_agent_config, AgentInfraConfig
-from infrastructure.agent_infrastructure_builder import AgentInfrastructureBuilder
+from application.commands.modeling_handler import ModelingCommandHandler  # noqa: E402
+from application.agents.data_engineer.handlers.generate_metadata import GenerateMetadataCommandHandler  # noqa: E402
+from application.agents.data_architect.modeling_workflow import ModelingWorkflow  # noqa: E402
+from application.agents.data_architect.dda_parser import DDAParserFactory  # noqa: E402
+from application.agents.data_engineer.metadata_workflow import MetadataGenerationWorkflow  # noqa: E402
+from application.agents.data_engineer.metadata_graph_builder import MetadataGraphBuilder  # noqa: E402
+from application.agents.data_engineer.type_inference import TypeInferenceService  # noqa: E402
+from infrastructure.parsers.markdown_parser import MarkdownDDAParser  # noqa: E402
+from domain.agent import Agent  # noqa: E402
+from domain.communication import CommunicationChannel  # noqa: E402
+from infrastructure.graphiti import get_graphiti  # noqa: E402
+from graphiti_core import Graphiti  # noqa: E402
+from infrastructure.in_memory_backend import InMemoryGraphBackend  # noqa: E402
+from domain.kg_backends import KnowledgeGraphBackend  # noqa: E402
+from application.event_bus import EventBus  # noqa: E402
+from config.agent_config import AgentInfraConfig  # noqa: E402
+from infrastructure.agent_infrastructure_builder import AgentInfrastructureBuilder  # noqa: E402
 
 
 # --- Agent Factory Functions ---
@@ -206,7 +201,6 @@ AGENT_REGISTRY: Dict[str, Callable[..., Agent]] = {
     "knowledge_manager": create_knowledge_manager_agent,
     "medical_assistant": create_medical_assistant_agent,
     "echo": create_echo_agent,
-    "knowledge_manager": create_knowledge_manager_agent,
 }
 
 
@@ -333,11 +327,10 @@ async def bootstrap_episodic_memory(event_bus: Optional[EventBus] = None):
         EpisodicMemoryService or None if initialization fails
     """
     import os
-    from application.services.feature_flag_service import is_flag_enabled
 
     # Check if episodic memory is enabled via feature flag
     # For now, we'll make it opt-in via environment variable since the feature flag might not exist yet
-    if not os.getenv("ENABLE_EPISODIC_MEMORY", "").lower() in ("true", "1", "yes"):
+    if os.getenv("ENABLE_EPISODIC_MEMORY", "").lower() not in ("true", "1", "yes"):
         print("ℹ️  Episodic memory not enabled (set ENABLE_EPISODIC_MEMORY=true to enable)")
         return None
 
@@ -397,10 +390,9 @@ async def bootstrap_crystallization_pipeline(
         Tuple of (CrystallizationService, PromotionGate, EntityResolver) or (None, None, None)
     """
     import os
-    from application.services.feature_flag_service import is_flag_enabled
 
     # Check if crystallization is enabled
-    if not os.getenv("ENABLE_CRYSTALLIZATION", "").lower() in ("true", "1", "yes"):
+    if os.getenv("ENABLE_CRYSTALLIZATION", "").lower() not in ("true", "1", "yes"):
         print("ℹ️  Crystallization pipeline not enabled (set ENABLE_CRYSTALLIZATION=true to enable)")
         return None, None, None
 
@@ -505,7 +497,7 @@ async def bootstrap_knowledge_management() -> Tuple[KnowledgeGraphBackend, Event
                 "password": os.environ["NEO4J_PASSWORD"],
             })
             kg_backend = GraphitiBackend(graphiti_client)
-            print(f"✅ Using Graphiti backend")
+            print("✅ Using Graphiti backend")
             
         elif backend_type == "neo4j":
             kg_backend = await create_neo4j_backend()
@@ -586,11 +578,11 @@ async def bootstrap_agent_infrastructure(
     """
     from typing import TYPE_CHECKING
     if TYPE_CHECKING:
-        from application.services.agent_discovery import AgentDiscoveryService
+        pass
 
     builder = AgentInfrastructureBuilder(config)
 
-    print(f"🔄 Bootstrapping agent infrastructure...")
+    print("🔄 Bootstrapping agent infrastructure...")
     print(f"   Deployment mode: {builder.config.deployment_mode.value}")
     print(f"   Event bus: {builder.config.event_bus.type.value}")
     print(f"   Channel: {builder.config.communication_channel.type.value}")

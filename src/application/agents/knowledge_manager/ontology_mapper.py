@@ -21,7 +21,6 @@ from domain.ontologies.registry import (
     get_hierarchy_path,
     get_auto_relationships,
     suggest_type_mapping,
-    OntologyDomain,
 )
 
 

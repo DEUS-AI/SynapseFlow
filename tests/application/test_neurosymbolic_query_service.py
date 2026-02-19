@@ -1,8 +1,8 @@
 """Unit tests for Neurosymbolic Query Service."""
 
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 from application.services.neurosymbolic_query_service import (
     NeurosymbolicQueryService,
@@ -12,7 +12,6 @@ from application.services.neurosymbolic_query_service import (
     QueryTrace,
 )
 from domain.confidence_models import (
-    Confidence,
     ConfidenceSource,
     KnowledgeLayer,
     CrossLayerConfidencePropagation,

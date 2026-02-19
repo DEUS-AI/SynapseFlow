@@ -6,7 +6,7 @@ para representar snapshots de memoria, diffs, escenarios y resultados.
 """
 
 from datetime import datetime, UTC
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from enum import Enum
 from pydantic import BaseModel, Field
 import unicodedata

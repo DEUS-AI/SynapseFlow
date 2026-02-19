@@ -1,6 +1,5 @@
 
 import asyncio
-import os
 from graphiti_core import Graphiti
 
 async def explore_graphiti():

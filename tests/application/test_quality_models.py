@@ -4,7 +4,6 @@ Unit tests for DocumentQualityReport and OntologyQualityReport models.
 """
 
 import pytest
-from datetime import datetime
 from src.domain.quality_models import (
     QualityLevel,
     ContextualRelevancyScore,
@@ -617,7 +616,7 @@ class TestIndividualScoreModels:
         assert score.schema_org_types == 0
         assert score.schema_org_properties == 0
         assert score.schema_org_coverage == 0.0
-        assert score.linked_data_ready == False
-        assert score.sparql_compatible == False
-        assert score.rdf_exportable == False
+        assert not score.linked_data_ready
+        assert not score.sparql_compatible
+        assert not score.rdf_exportable
         assert score.exchange_readiness == 0.0

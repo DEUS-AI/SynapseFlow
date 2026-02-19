@@ -29,9 +29,6 @@ from .models import (
     Neo4jDIKWLayerSnapshot,
     MemoryLayer,
     DIKWLayer,
-    normalize_text,
-    entities_match,
-    relationships_match,
 )
 
 logger = logging.getLogger(__name__)

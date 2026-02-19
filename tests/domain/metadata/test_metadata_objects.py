@@ -1,7 +1,6 @@
 """Tests for Tag, Watermark and Description metadata models."""
 
 import unittest
-from datetime import datetime, timezone
 from domain.metadata.metadata_objects import Tag, Watermark, Description
 from domain.metadata.table import Table
 from domain.metadata.schema import Schema

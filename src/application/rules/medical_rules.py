@@ -12,8 +12,7 @@ alerts, warnings, and recommendations.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Set
+from typing import Dict, List, Optional, Any
 
 from domain.medical_rules_models import (
     MedicalRule,

@@ -14,7 +14,6 @@ if _SRC_PATH not in sys.path:
 @pytest.fixture
 def sample_metadata_entities():
     """Provide sample metadata entities for testing."""
-    from domain.metadata.base import MetadataEntity
     from domain.metadata.database import Cluster, Database
     from domain.metadata.schema import Schema
     from domain.metadata.table import Table, Column
@@ -96,7 +95,7 @@ def sample_metadata_entities():
 @pytest.fixture
 def sample_relationships():
     """Provide sample relationships for testing."""
-    from domain.metadata.relationships import MetadataRelationship, RelationshipTypes
+    from domain.metadata.relationships import MetadataRelationship
 
     # Create sample relationships
     db_schema_rel = MetadataRelationship(

@@ -7,9 +7,8 @@ and explore the data created by the SynapseFlow demo in Neo4j.
 """
 
 import asyncio
-import os
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 # Add src to path
 import sys

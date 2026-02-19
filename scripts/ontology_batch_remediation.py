@@ -89,7 +89,7 @@ def print_report(results: Dict[str, Any], is_dry_run: bool = False):
             print(f"  [{status}] {step['name']}: {step['updated']:,}")
 
         print(f"\n## Total Updated: {results.get('total_updated', 0):,}")
-        print(f"\n## Coverage Improvement")
+        print("\n## Coverage Improvement")
         print(f"  Before: {results.get('coverage_before', 0)}%")
         print(f"  After: {results.get('coverage_after', 0)}%")
 

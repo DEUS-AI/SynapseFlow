@@ -12,7 +12,7 @@ print(f"Total nodes in knowledge_graph: {result.result_set}")
 
 # Show labels
 result = graph.query("MATCH (n) RETURN labels(n)[0] as label, count(n) as cnt")
-print(f"\nNode labels:")
+print("\nNode labels:")
 for row in result.result_set:
     print(f"  {row[0]}: {row[1]}")
 

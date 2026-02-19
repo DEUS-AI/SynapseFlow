@@ -8,7 +8,7 @@ and symptom patterns.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Any
 
 
 class RuleSeverity(str, Enum):

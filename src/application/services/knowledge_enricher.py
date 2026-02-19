@@ -7,9 +7,7 @@ Enhanced with entity resolution to prevent duplicate concept creation.
 """
 
 from typing import List, Dict, Any, Optional
-from datetime import datetime
 from graphiti_core import Graphiti
-from domain.event import KnowledgeEvent
 from domain.ontologies.odin import ODIN
 from domain.knowledge_layers import KnowledgeLayer
 from application.services.entity_resolver import EntityResolver, ResolutionStrategy

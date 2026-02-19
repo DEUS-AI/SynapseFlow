@@ -18,7 +18,7 @@ async def process_all_ddas():
     from src.composition_root import bootstrap_graphiti, create_modeling_command_handler
     from src.application.commands.modeling_command import ModelingCommand
     print("🔧 Initializing Graphiti...")
-    graph = await bootstrap_graphiti("batch-modeling")
+    await bootstrap_graphiti("batch-modeling")
     
     # Create modeling handler with Neo4j credentials (architecture graph writer)
     print("🔧 Creating modeling handler with Neo4j credentials...\n")
@@ -61,7 +61,7 @@ async def process_all_ddas():
             if result["success"]:
                 successful += 1
                 graph_doc = result['graph_document']
-                print(f"    ✅ Success!")
+                print("    ✅ Success!")
                 print(f"       Entities: {graph_doc.get('entities_count', 0)}")
                 print(f"       Nodes: {graph_doc.get('nodes_created', 0)}")
                 print(f"       Edges: {graph_doc.get('edges_created', 0)}")
@@ -110,14 +110,14 @@ async def process_all_ddas():
     total_nodes = sum(r.get('nodes', 0) for r in results if r['status'] == 'success')
     total_edges = sum(r.get('edges', 0) for r in results if r['status'] == 'success')
     
-    print(f"\n📈 Total Graph Statistics:")
+    print("\n📈 Total Graph Statistics:")
     print(f"   Entities defined: {total_entities}")
     print(f"   Nodes created: {total_nodes}")
     print(f"   Edges created: {total_edges}")
     
     # Show failed files if any
     if failed > 0:
-        print(f"\n⚠️  Failed files:")
+        print("\n⚠️  Failed files:")
         for r in results:
             if r['status'] != 'success':
                 print(f"   - {r['file']}: {r.get('error', 'Unknown error')}")

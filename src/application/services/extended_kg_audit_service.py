@@ -20,7 +20,6 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 from domain.chunk_separation_models import (
     SubgraphType,
@@ -801,7 +800,7 @@ if __name__ == "__main__":
 
     async def main():
         report = await run_extended_audit(output_path=args.output)
-        print(f"\n========== EXTENDED AUDIT SUMMARY ==========")
+        print("\n========== EXTENDED AUDIT SUMMARY ==========")
         print(f"Separation Readiness: {report.separation_readiness.upper()}")
         print(f"Total Entities: {report.total_entities:,}")
 

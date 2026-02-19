@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any, TypeVar, Generic
 from uuid import UUID
 
-from sqlalchemy import select, update, delete, func, and_, or_
+from sqlalchemy import select, update, delete, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import (
@@ -21,7 +21,6 @@ from .models import (
     DocumentQuality,
     OntologyQuality,
     AuditLog,
-    QueryAnalytics,
     FeatureFlag,
 )
 
@@ -235,12 +234,12 @@ class FeedbackRepository(BaseRepository[Feedback]):
 
         # Positive/negative counts
         positive_result = await self.session.execute(
-            select(func.count()).select_from(Feedback).where(Feedback.thumbs_up == True)
+            select(func.count()).select_from(Feedback).where(Feedback.thumbs_up)
         )
         positive = positive_result.scalar() or 0
 
         negative_result = await self.session.execute(
-            select(func.count()).select_from(Feedback).where(Feedback.thumbs_up == False)
+            select(func.count()).select_from(Feedback).where(not Feedback.thumbs_up)
         )
         negative = negative_result.scalar() or 0
 
@@ -310,7 +309,7 @@ class FeedbackRepository(BaseRepository[Feedback]):
         """Get feedback not yet used for training."""
         result = await self.session.execute(
             select(Feedback)
-            .where(Feedback.used_for_training == False)
+            .where(not Feedback.used_for_training)
             .order_by(Feedback.created_at.asc())
             .limit(limit)
         )

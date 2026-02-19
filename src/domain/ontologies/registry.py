@@ -18,7 +18,7 @@ Usage:
     config = get_ontology_config("table")        # -> data architecture (with alias)
 """
 
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any, Optional
 from enum import Enum
 
 # Import core ODIN
@@ -26,13 +26,8 @@ from domain.ontologies.odin import ODIN
 
 # Import medical extension
 from domain.ontologies.odin_medical import (
-    ODINMedical,
     MEDICAL_ONTOLOGY_REGISTRY,
     MEDICAL_TYPE_ALIASES,
-    MedicalOntologySystem,
-    resolve_medical_type,
-    get_medical_ontology_config,
-    is_medical_type,
 )
 
 

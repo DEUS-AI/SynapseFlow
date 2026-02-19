@@ -86,7 +86,7 @@ async def test_reasoning_improvements():
             response = await chat_service.query(test["question"])
 
             # Display results
-            print(f"\n📝 Answer Preview:")
+            print("\n📝 Answer Preview:")
             print(f"  {response.answer[:200]}...")
 
             print(f"\n🎯 Confidence: {response.confidence:.2f}")
@@ -110,7 +110,7 @@ async def test_reasoning_improvements():
             expected = test["expected_reasoning"]
             reasoning_text = " ".join(response.reasoning_trail)
 
-            print(f"\n✅ Reasoning Validation:")
+            print("\n✅ Reasoning Validation:")
             for rule in expected:
                 if rule in reasoning_text:
                     print(f"  ✓ {rule} - APPLIED")
@@ -128,8 +128,8 @@ async def test_reasoning_improvements():
 
     print("\n📊 Summary:")
     print(f"  - Tested {len(test_queries)} queries")
-    print(f"  - All queries completed successfully")
-    print(f"  - Reasoning engine working with chat_query action")
+    print("  - All queries completed successfully")
+    print("  - Reasoning engine working with chat_query action")
 
     return 0
 

@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from application.services.layer_transition import (
     LayerTransitionService,
     LayerTransitionRequest,

@@ -1,6 +1,6 @@
 """Conflict detection and resolution for knowledge graph operations."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from domain.kg_backends import KnowledgeGraphBackend
 from domain.event import KnowledgeEvent
 

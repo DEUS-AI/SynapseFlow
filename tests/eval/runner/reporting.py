@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .models import AssertionResult, EvalResult, TurnResult
 
@@ -582,7 +582,7 @@ class ConsoleReporter:
         print()
 
         # Scenarios
-        print(f"  Scenarios:")
+        print("  Scenarios:")
         print(f"    Total:  {suite.total_scenarios}")
         print(f"    Passed: {self._color(str(suite.passed_scenarios), 'green')}")
         print(f"    Failed: {self._color(str(suite.failed_scenarios), 'red') if suite.failed_scenarios else '0'}")
@@ -590,7 +590,7 @@ class ConsoleReporter:
         print()
 
         # Assertions
-        print(f"  Assertions:")
+        print("  Assertions:")
         print(f"    Total:  {suite.total_assertions}")
         print(f"    Passed: {self._color(str(suite.passed_assertions), 'green')}")
         print(f"    Failed: {self._color(str(suite.failed_assertions), 'red') if suite.failed_assertions else '0'}")

@@ -32,7 +32,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from dotenv import load_dotenv
 from composition_root import (
-    bootstrap_command_bus,
     bootstrap_knowledge_management,
     create_modeling_command_handler,
     create_generate_metadata_command_handler
@@ -125,14 +124,14 @@ def print_summary_statistics(results: List[Dict[str, Any]]):
         metadata_created = sum(1 for r in successful if r.get("metadata_created", False))
         total_time = sum(r.get("processing_time_seconds", 0) for r in successful)
 
-        print(f"\n  Knowledge Graph Created:")
+        print("\n  Knowledge Graph Created:")
         print(f"    Architecture Graphs: {architecture_created}")
         print(f"    Metadata Graphs: {metadata_created}")
         print(f"    Total Entities: {total_entities:,}")
         print(f"    Total Relationships: {total_relationships:,}")
         print(f"    Business Concepts Extracted: {total_business_concepts:,}")
 
-        print(f"\n  Performance:")
+        print("\n  Performance:")
         print(f"    Total Time: {total_time:.2f}s")
         print(f"    Avg Time per DDA: {total_time / len(successful):.2f}s")
 
@@ -142,7 +141,7 @@ def print_summary_statistics(results: List[Dict[str, Any]]):
             print(f"    Avg Relationships per DDA: {total_relationships / len(successful):.1f}")
 
     if failed:
-        print(f"\n  Failed DDAs:")
+        print("\n  Failed DDAs:")
         for result in failed:
             print(f"    - {result['dda']}: {result['error']}")
 
@@ -276,9 +275,9 @@ async def main():
     if not args.auto_confirm:
         print_section("Confirmation")
         print(f"\n  This will process {len(dda_files)} DDAs through the neurosymbolic pipeline:")
-        print(f"    1. Data Architect: Create architecture graphs")
-        print(f"    2. Data Engineer: Generate metadata with LLM enrichment")
-        print(f"    3. Knowledge Graph: Populate with multi-layer entities")
+        print("    1. Data Architect: Create architecture graphs")
+        print("    2. Data Engineer: Generate metadata with LLM enrichment")
+        print("    3. Knowledge Graph: Populate with multi-layer entities")
 
         confirm = input("\n  Proceed? (y/n): ").strip().lower()
         if confirm != 'y':

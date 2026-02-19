@@ -55,7 +55,7 @@ async def main():
     for source in response.sources[:5]:
         print(f"  - {source.get('type')}: {source.get('name')}")
 
-    print(f"\n💡 Related Concepts:")
+    print("\n💡 Related Concepts:")
     for concept in response.related_concepts[:5]:
         print(f"  - {concept}")
 

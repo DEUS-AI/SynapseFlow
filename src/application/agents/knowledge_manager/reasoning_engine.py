@@ -4,8 +4,6 @@ from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from domain.kg_backends import KnowledgeGraphBackend
 from domain.event import KnowledgeEvent
 from domain.confidence_models import (
-    Confidence,
-    ConfidenceSource,
     symbolic_confidence,
     neural_confidence
 )
@@ -567,7 +565,7 @@ class ReasoningEngine:
 
     async def _suggest_relationships(self, event: KnowledgeEvent) -> Optional[Dict[str, Any]]:
         """Suggest potential relationships for the entity."""
-        entity_id = event.data.get("id", "")
+        event.data.get("id", "")
         properties = event.data.get("properties", {})
         suggestions = []
         
@@ -1247,7 +1245,7 @@ class ReasoningEngine:
         # Infer domain from column names
         if entity_type == "Column":
             column_name = properties.get("name", "").lower()
-            data_type = properties.get("data_type", "")
+            properties.get("data_type", "")
 
             domain_keywords = {
                 "financial": ["amount", "price", "cost", "balance", "payment", "revenue"],

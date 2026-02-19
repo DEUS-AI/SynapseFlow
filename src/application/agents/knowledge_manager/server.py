@@ -1,13 +1,11 @@
 """HTTP server for the Knowledge Manager Agent."""
 
-import asyncio
-import json
 import logging
 from typing import Dict, Any, List
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from domain.communication import Message
-from .agent import KnowledgeManagerAgent, KGUpdateRequest, KGUpdateType, KGUpdateResult
+from .agent import KnowledgeManagerAgent, KGUpdateRequest, KGUpdateType
 from graphiti_core import Graphiti
 
 logger = logging.getLogger(__name__)

@@ -10,13 +10,13 @@ Implements the nodes of the conversation state machine:
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 import os
 
 from openai import AsyncOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 from domain.conversation_state import (
     ConversationState,
@@ -24,14 +24,12 @@ from domain.conversation_state import (
     UrgencyLevel,
     EmotionalTone,
     AssistantAction,
-    PatientContext,
     ActiveGoal,
     serialize_goal,
     deserialize_goal,
 )
 from domain.goal_templates import (
     GoalType,
-    GOAL_TEMPLATES,
     create_goal_from_template,
     get_slot_question,
     get_completion_prompt,
@@ -108,7 +106,7 @@ class ConversationNodes:
         print(f"[ENTRY_NODE] thread_id={thread_id}")
         print(f"[ENTRY_NODE] Turn {previous_turn_count} -> {turn_count}, Messages in state: {len(messages)}")
         if previous_turn_count == 0:
-            print(f"[ENTRY_NODE] *** NEW CONVERSATION (turn_count was 0) ***")
+            print("[ENTRY_NODE] *** NEW CONVERSATION (turn_count was 0) ***")
         else:
             print(f"[ENTRY_NODE] *** CONTINUING CONVERSATION (turn_count was {previous_turn_count}) ***")
 
@@ -601,7 +599,7 @@ Respond in a friendly, conversational way. If they seem to want to discuss somet
             recently_resolved = patient_context.get("recently_resolved", [])
             patient_name = patient_context.get("patient_name")
             medications = patient_context.get("current_medications", [])
-            conversation_summary = patient_context.get("conversation_summary", "")
+            patient_context.get("conversation_summary", "")
             mem0_memories = patient_context.get("mem0_memories", [])
 
             # Check if user mentioned Matucha by name - they know her
@@ -672,9 +670,9 @@ Good examples (shows memory):
             # Different intro styles for new patients
             intro_styles = [
                 f"{time_greeting}! I'm Matucha, and I'll be your medical assistant.",
-                f"Hi there! My name's Matucha - I'm here to help with any health questions.",
+                "Hi there! My name's Matucha - I'm here to help with any health questions.",
                 f"{time_greeting}! I'm Matucha, your friendly medical assistant.",
-                f"Hello! I'm Matucha. I'm here to help you with health-related questions.",
+                "Hello! I'm Matucha. I'm here to help you with health-related questions.",
             ]
             selected_intro = random.choice(intro_styles)
 
@@ -1012,13 +1010,13 @@ Generate an educational response that:
                 context_lower = refined_context.lower()
                 if any(kw in context_lower for kw in ["desk", "work", "office", "sitting", "computer", "while working"]):
                     goal.fill_slot("exercise_context", "desk_exercises")
-                    print(f"[GOAL_DRIVEN] Updated exercise_context to 'desk_exercises' based on refinement")
+                    print("[GOAL_DRIVEN] Updated exercise_context to 'desk_exercises' based on refinement")
                 elif any(kw in context_lower for kw in ["quick", "short", "5 minute", "10 minute", "brief", "break"]):
                     goal.fill_slot("exercise_context", "quick_breaks")
-                    print(f"[GOAL_DRIVEN] Updated exercise_context to 'quick_breaks' based on refinement")
+                    print("[GOAL_DRIVEN] Updated exercise_context to 'quick_breaks' based on refinement")
                 elif any(kw in context_lower for kw in ["travel", "hotel", "trip", "on the go"]):
                     goal.fill_slot("exercise_context", "travel")
-                    print(f"[GOAL_DRIVEN] Updated exercise_context to 'travel' based on refinement")
+                    print("[GOAL_DRIVEN] Updated exercise_context to 'travel' based on refinement")
 
             # Acknowledge the refinement and continue with updated context
             acknowledgment = await self._generate_refinement_acknowledgment(
@@ -1466,7 +1464,7 @@ Return JSON with extracted values. Only return {{}} if the message is completely
 
         # Build context-aware prompt for generating natural question
         goal_type_friendly = goal.goal_type.value.replace("_", " ")
-        progress_info = f"{len(filled_slots)}/{len([s for s in goal.slots.values() if s.required])}"
+        f"{len(filled_slots)}/{len([s for s in goal.slots.values() if s.required])}"
 
         prompt = f"""You are Matucha, helping a patient with {goal_type_friendly}.
 
@@ -1621,10 +1619,9 @@ Generate only the response, nothing else."""
         """
         messages = state.get("messages", [])
         explored_topics = state.get("explored_topics", [])
-        patient_context = state.get("patient_context", {})
+        state.get("patient_context", {})
 
-        last_message = messages[-1] if messages else None
-        user_text = last_message.content if last_message else ""
+        messages[-1] if messages else None
 
         # Build closing message based on conversation content
         if explored_topics:

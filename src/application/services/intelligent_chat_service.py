@@ -39,8 +39,6 @@ from application.services.neurosymbolic_query_service import NeurosymbolicQueryS
 from application.agents.knowledge_manager.reasoning_engine import ReasoningEngine
 from application.agents.knowledge_manager.validation_engine import ValidationEngine
 from infrastructure.neo4j_backend import Neo4jBackend
-from domain.event import KnowledgeEvent
-from domain.roles import Role
 from domain.confidence_models import CrossLayerConfidencePropagation
 
 # Conversational layer imports (Phase 6)
@@ -889,7 +887,7 @@ Patient message: """ + message
                 )
 
                 # Add layer traversal information
-                layers_str = " → ".join([l.value for l in trace.layers_traversed])
+                layers_str = " → ".join([layer.value for layer in trace.layers_traversed])
                 formatted_provenance.append(
                     f"Layers Traversed: {layers_str}"
                 )

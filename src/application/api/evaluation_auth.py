@@ -10,7 +10,7 @@ import os
 import logging
 from typing import Optional
 
-from fastapi import HTTPException, Header, Depends
+from fastapi import HTTPException, Depends
 from fastapi.security import APIKeyHeader
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ class EvalAPIKeyAuth:
 
         # Verificar que la API key es correcta
         if api_key != self.expected_key:
-            logger.warning(f"Invalid eval API key attempt")
+            logger.warning("Invalid eval API key attempt")
             raise HTTPException(
                 status_code=403,
                 detail="Invalid evaluation API key"

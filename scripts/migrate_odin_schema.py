@@ -10,7 +10,7 @@ node for demonstration.
 
 import os
 from src.infrastructure.falkor_backend import FalkorBackend
-from src.domain.odin_models import Table, Column, Policy, PolicyType
+from src.domain.odin_models import Policy, PolicyType
 
 
 def ensure_governance_fields(backend: FalkorBackend):

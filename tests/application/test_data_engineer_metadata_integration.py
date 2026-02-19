@@ -1,14 +1,13 @@
 """Integration tests for Data Engineer metadata command registration."""
 
 import unittest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 import tempfile
 import os
 from application.commands.base import CommandBus
 from application.commands.metadata_command import GenerateMetadataCommand
 from application.agents.data_engineer.handlers.generate_metadata import GenerateMetadataCommandHandler
 from composition_root import create_generate_metadata_command_handler, bootstrap_knowledge_management
-from infrastructure.in_memory_backend import InMemoryGraphBackend
 from graphiti_core import Graphiti
 
 

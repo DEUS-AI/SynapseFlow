@@ -25,7 +25,7 @@ import argparse
 import sys
 import os
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from dataclasses import dataclass, field
 
 # Add src to path
@@ -221,7 +221,6 @@ async def test_feature_flag_read():
     """Test reading feature flags."""
     from application.services.feature_flag_service import (
         get_feature_flag_service,
-        is_flag_enabled,
         MIGRATION_FLAGS,
     )
 
@@ -303,7 +302,7 @@ async def test_session_dual_write():
                 status="active",
                 extra_data={"test": True}
             )
-            created = await repo.create(pg_session)
+            await repo.create(pg_session)
             await session.commit()
 
             # Verify it was created
@@ -329,7 +328,7 @@ async def test_session_dual_write():
         try:
             from application.services.feature_flag_service import get_feature_flag_service
             get_feature_flag_service().clear_cache()
-        except:
+        except Exception:
             pass
 
 
@@ -362,7 +361,7 @@ async def test_feedback_dual_write():
                 query_text="Test query",
                 response_text="Test response",
             )
-            created = await repo.create(pg_feedback)
+            await repo.create(pg_feedback)
             await session.commit()
 
             # Verify
@@ -387,7 +386,7 @@ async def test_feedback_dual_write():
         try:
             from application.services.feature_flag_service import get_feature_flag_service
             get_feature_flag_service().clear_cache()
-        except:
+        except Exception:
             pass
 
 
@@ -420,7 +419,7 @@ async def test_document_dual_write():
                 chunk_count=5,
                 entity_count=10,
             )
-            created = await repo.create(pg_doc)
+            await repo.create(pg_doc)
             await session.commit()
 
             # Verify
@@ -445,7 +444,7 @@ async def test_document_dual_write():
         try:
             from application.services.feature_flag_service import get_feature_flag_service
             get_feature_flag_service().clear_cache()
-        except:
+        except Exception:
             pass
 
 

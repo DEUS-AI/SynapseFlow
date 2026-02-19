@@ -107,7 +107,7 @@ async def test_patient_creation_and_retrieval(patient_memory_service):
 
     # Verify consent
     consent = await patient_memory_service.check_consent(TEST_PATIENT_ID)
-    assert consent == True
+    assert consent
 
 
 # ========================================
@@ -364,7 +364,7 @@ async def test_medication_adherence(chat_service, patient_memory_service):
 
     # Verify adherence concern detected
     assert response is not None
-    adherence_concern_found = any(
+    any(
         "adherence" in trail.lower() or "missed" in trail.lower()
         for trail in response.reasoning_trail
     )
@@ -444,7 +444,7 @@ async def test_gdpr_data_deletion(patient_memory_service, mem0_client, redis_cac
 
     # Delete all patient data
     success = await patient_memory_service.delete_patient_data(test_patient)
-    assert success == True
+    assert success
 
     # Verify data deleted from Neo4j
     context_after = await patient_memory_service.get_patient_context(test_patient)

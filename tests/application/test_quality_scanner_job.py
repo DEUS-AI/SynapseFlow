@@ -4,7 +4,7 @@ Comprehensive unit tests for the background quality scanner.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass

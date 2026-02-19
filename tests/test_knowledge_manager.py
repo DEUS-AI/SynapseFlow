@@ -1,6 +1,5 @@
 """Tests for the knowledge manager service."""
 
-import asyncio
 import unittest
 import os
 import sys

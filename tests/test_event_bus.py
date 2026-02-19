@@ -1,6 +1,5 @@
 """Tests for the application event bus."""
 
-import asyncio
 import unittest
 import os
 import sys

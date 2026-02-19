@@ -15,7 +15,7 @@ import argparse
 import logging
 import sys
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 from uuid import UUID
 import os
 

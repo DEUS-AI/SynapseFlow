@@ -304,7 +304,6 @@ class EntityResolver:
         matches = []
 
         try:
-            import numpy as np
             from sklearn.metrics.pairwise import cosine_similarity
 
             # Generate embedding for query entity

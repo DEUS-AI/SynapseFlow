@@ -7,7 +7,6 @@ role‑based access control (RBAC).  Additional reasoning, validation and
 escalation logic can be layered on top of this service in the future.
 """
 
-from typing import Dict, Any
 
 from domain.event import KnowledgeEvent
 from domain.kg_backends import KnowledgeGraphBackend

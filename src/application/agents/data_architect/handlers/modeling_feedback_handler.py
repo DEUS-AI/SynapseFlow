@@ -2,7 +2,6 @@ from typing import Dict, Any, List
 from application.commands.base import CommandHandler
 from application.commands.collaboration_commands import ModelingFeedbackCommand
 from graphiti_core import Graphiti
-import json
 
 
 class ModelingFeedbackCommandHandler(CommandHandler):
@@ -74,31 +73,31 @@ class ModelingFeedbackCommandHandler(CommandHandler):
         content_parts = []
         
         # Feedback header
-        content_parts.append(f"DOMAIN MODELING FEEDBACK")
+        content_parts.append("DOMAIN MODELING FEEDBACK")
         content_parts.append(f"Domain: {command.domain}")
         content_parts.append(f"Original Episode UUID: {command.episode_uuid}")
         content_parts.append(f"Feedback Type: {command.feedback_type}")
         content_parts.append(f"Rating: {command.rating}/5" if command.rating else "No rating provided")
         
         # Main feedback content
-        content_parts.append(f"\nFEEDBACK CONTENT:")
+        content_parts.append("\nFEEDBACK CONTENT:")
         content_parts.append(command.feedback_content)
         
         # Entity-specific feedback
         if command.entity_feedback:
-            content_parts.append(f"\nENTITY-SPECIFIC FEEDBACK:")
+            content_parts.append("\nENTITY-SPECIFIC FEEDBACK:")
             for entity_name, feedback in command.entity_feedback.items():
                 content_parts.append(f"- {entity_name}: {feedback}")
         
         # Relationship-specific feedback
         if command.relationship_feedback:
-            content_parts.append(f"\nRELATIONSHIP-SPECIFIC FEEDBACK:")
+            content_parts.append("\nRELATIONSHIP-SPECIFIC FEEDBACK:")
             for rel_name, feedback in command.relationship_feedback.items():
                 content_parts.append(f"- {rel_name}: {feedback}")
         
         # Suggestions
         if command.suggestions:
-            content_parts.append(f"\nSUGGESTIONS:")
+            content_parts.append("\nSUGGESTIONS:")
             for i, suggestion in enumerate(command.suggestions, 1):
                 content_parts.append(f"{i}. {suggestion}")
         

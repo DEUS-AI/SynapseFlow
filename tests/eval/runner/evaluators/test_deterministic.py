@@ -7,22 +7,6 @@ from typing import List
 
 from tests.eval.runner.evaluators.deterministic import (
     DeterministicEvaluator,
-    MustContainEvaluator,
-    MustNotContainEvaluator,
-    MustContainOneOfEvaluator,
-    RegexMatchEvaluator,
-    RegexNotMatchEvaluator,
-    NotEmptyEvaluator,
-    MaxLengthEvaluator,
-    MinLengthEvaluator,
-    SimilarityEvaluator,
-    SemanticSimilarityEvaluator,
-    JsonSchemaEvaluator,
-    IntentMatchEvaluator,
-    StartsWithEvaluator,
-    EndsWithEvaluator,
-    ContainsQuestionEvaluator,
-    WordCountEvaluator,
     create_evaluator,
     evaluate_assertion,
 )

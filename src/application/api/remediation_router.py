@@ -11,7 +11,7 @@ Prefix: /api/ontology/remediation
 """
 
 import logging
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel

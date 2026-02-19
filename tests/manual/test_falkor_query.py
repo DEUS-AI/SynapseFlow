@@ -1,5 +1,4 @@
 import asyncio
-import os
 from src.infrastructure.falkor_backend import FalkorBackend
 
 async def test_query():

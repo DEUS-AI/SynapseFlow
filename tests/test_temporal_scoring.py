@@ -14,8 +14,6 @@ from domain.temporal_models import (
     TemporalScore,
     TemporalQueryContext,
     TemporalWindow,
-    TEMPORAL_KEYWORDS,
-    WINDOW_DURATIONS,
 )
 from application.services.temporal_scoring import (
     TemporalScoringService,

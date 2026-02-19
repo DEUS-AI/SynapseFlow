@@ -43,7 +43,7 @@ async def test_metadata_workflow():
     try:
         backend.graph.delete()
         print("✅ Cleared test graph")
-    except:
+    except Exception:
         pass
     
     # Initialize type inference

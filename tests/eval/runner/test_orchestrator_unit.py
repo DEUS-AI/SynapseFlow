@@ -6,28 +6,16 @@ Tests the orchestration logic without requiring a live API.
 
 import pytest
 from datetime import datetime, UTC
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List
+from unittest.mock import AsyncMock, MagicMock
 
 from tests.eval.runner.scenario_orchestrator import (
     ScenarioOrchestrator,
-    OrchestratorError,
-    SetupError,
-    TurnExecutionError,
 )
 from tests.eval.runner.models import (
-    AssertionResult,
-    AssertionSeverity,
-    EvalResult,
     MemoryDiff,
     MemorySnapshot,
     MemoryEntity,
-    DIKWLayer,
-    TurnResult,
-    RedisLayerSnapshot,
-    Mem0LayerSnapshot,
     GraphitiLayerSnapshot,
-    Neo4jDIKWLayerSnapshot,
 )
 from tests.eval.runner.scenario_models import (
     Scenario,

@@ -1,6 +1,5 @@
 """Tests for the in‑memory knowledge graph backend."""
 
-import asyncio
 import unittest
 import os
 import sys

@@ -9,7 +9,7 @@ Features:
 - Feedback propagation to entity confidence
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

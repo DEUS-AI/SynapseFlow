@@ -1,6 +1,6 @@
 """LLM-based reasoner for semantic inference."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from graphiti_core import Graphiti
 from domain.event import KnowledgeEvent
 

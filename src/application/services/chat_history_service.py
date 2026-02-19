@@ -264,8 +264,6 @@ class ChatHistoryService:
         self, session_uuid: uuid.UUID, patient_id: str, title: str, device: str, neo4j_id: str
     ) -> None:
         try:
-            from infrastructure.database.models import Session as PgSession
-            from infrastructure.database.repositories import SessionRepository
             from sqlalchemy import text
 
             async with self._db_session() as session:
@@ -470,9 +468,8 @@ class ChatHistoryService:
     async def _search_sessions_postgres(
         self, patient_id: str, query: str, limit: int
     ) -> List[SessionMetadata]:
-        from sqlalchemy import select, or_, distinct
+        from sqlalchemy import select, or_
         from infrastructure.database.models import Session as PgSession, Message as PgMessage
-        from infrastructure.database.repositories import SessionRepository
 
         async with self._db_session() as session:
             # Find sessions where title or message content matches

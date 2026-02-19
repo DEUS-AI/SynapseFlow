@@ -6,7 +6,7 @@ and users who interact with the metadata system.
 """
 
 from pydantic import Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
 from .base import MetadataEntity
 

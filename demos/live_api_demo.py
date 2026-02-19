@@ -10,10 +10,8 @@ Usage: python live_api_demo.py
 """
 
 import requests
-import json
 import time
 import sys
-from typing import Dict, Any
 
 
 class LiveAPIDemo:

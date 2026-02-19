@@ -1,10 +1,10 @@
 """Metadata graph builder for creating ODIN-compliant metadata graphs from DDA documents."""
 
 from typing import Dict, Any, List, Optional
-from domain.dda_models import DDADocument, DataEntity, Relationship
+from domain.dda_models import DDADocument, DataEntity
 from domain.odin_models import (
     Catalog, Schema, Table, Column, DataTypeEntity, TypeAssignment,
-    Constraint, ConstraintType, LineageNode, LineageRelationship, LineageType,
+    Constraint, ConstraintType, LineageNode, LineageType,
     DataQualityRule, DataQualityScore, UsageStats
 )
 from domain.kg_backends import KnowledgeGraphBackend

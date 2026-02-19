@@ -121,7 +121,6 @@ def test_openai_key():
 async def test_falkor_backend_integration():
     """Test FalkorDB backend integration with our codebase."""
     try:
-        import asyncio
         from infrastructure.falkor_backend import FalkorBackend
 
         print("\n--- Testing FalkorBackend Integration ---")

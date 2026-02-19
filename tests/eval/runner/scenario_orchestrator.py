@@ -10,7 +10,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime, UTC
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, List, Optional
 
 from .models import (
     AssertionResult,
@@ -22,11 +22,9 @@ from .models import (
 )
 from .memory_inspector import MemoryInspector
 from .scenario_models import (
-    DeterministicAssertion,
     DiffAssertion,
     EntityAssertion,
     InitialState,
-    JudgeAssertion,
     LayerAssertion,
     PropertyAssertion,
     RelationshipAssertion,
@@ -701,7 +699,7 @@ class ScenarioOrchestrator:
             assertion_type="relationship_must_exist",
             passed=found,
             reason=assertion.reason,
-            details="" if found else f"Relationship not found",
+            details="" if found else "Relationship not found",
             severity=AssertionSeverity.MEDIUM,
         )
 
