@@ -2506,6 +2506,37 @@ async def get_latest_session(patient_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/chat/sessions/search")
+async def search_sessions(
+    patient_id: str,
+    query: str,
+    limit: int = 20
+):
+    """
+    Search sessions by content or title.
+
+    Uses full-text search on message content.
+    """
+    try:
+        history_service = await get_chat_history_service()
+
+        sessions = await history_service.search_sessions(
+            patient_id=patient_id,
+            query=query,
+            limit=limit
+        )
+
+        return {
+            "query": query,
+            "sessions": [s.to_dict() for s in sessions],
+            "count": len(sessions)
+        }
+
+    except Exception as e:
+        logger.error(f"Error searching sessions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/chat/sessions/{session_id}")
 async def get_session_metadata(session_id: str):
     """Get metadata for a specific session."""
@@ -2727,35 +2758,6 @@ async def update_session_title(session_id: str, request: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/chat/sessions/search")
-async def search_sessions(
-    patient_id: str,
-    query: str,
-    limit: int = 20
-):
-    """
-    Search sessions by content or title.
-
-    Uses full-text search on message content.
-    """
-    try:
-        history_service = await get_chat_history_service()
-
-        sessions = await history_service.search_sessions(
-            patient_id=patient_id,
-            query=query,
-            limit=limit
-        )
-
-        return {
-            "query": query,
-            "sessions": [s.to_dict() for s in sessions],
-            "count": len(sessions)
-        }
-
-    except Exception as e:
-        logger.error(f"Error searching sessions: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ========================================

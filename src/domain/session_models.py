@@ -291,7 +291,9 @@ class SessionListResponse:
                 older.append(session)
                 continue
 
-            delta = now - session.last_activity
+            # Normalize to naive datetime for comparison (PostgreSQL may return tz-aware)
+            last = session.last_activity.replace(tzinfo=None) if session.last_activity.tzinfo else session.last_activity
+            delta = now - last
 
             if delta.days == 0:
                 today.append(session)

@@ -117,9 +117,8 @@ class ChatHistoryService:
                 patient_id=pg_session.patient_id,
                 title=pg_session.title,
                 status=SessionStatus(pg_session.status) if pg_session.status else SessionStatus.ACTIVE,
-                created_at=pg_session.created_at,
-                updated_at=pg_session.updated_at,
-                last_activity=pg_session.last_activity,
+                started_at=pg_session.created_at,
+                last_activity=pg_session.last_activity or pg_session.created_at,
                 message_count=pg_session.message_count or 0,
             ))
 
@@ -174,9 +173,8 @@ class ChatHistoryService:
             patient_id=pg_session.patient_id,
             title=pg_session.title,
             status=SessionStatus(pg_session.status) if pg_session.status else SessionStatus.ACTIVE,
-            created_at=pg_session.created_at,
-            updated_at=pg_session.updated_at,
-            last_activity=pg_session.last_activity,
+            started_at=pg_session.created_at,
+            last_activity=pg_session.last_activity or pg_session.created_at,
             message_count=pg_session.message_count or 0,
         )
 
@@ -217,7 +215,8 @@ class ChatHistoryService:
         messages = []
         for pg_msg in pg_messages:
             messages.append(Message(
-                message_id=str(pg_msg.id),
+                id=str(pg_msg.id),
+                session_id=session_id,
                 role=pg_msg.role,
                 content=pg_msg.content,
                 timestamp=pg_msg.created_at,
@@ -501,9 +500,8 @@ class ChatHistoryService:
                 patient_id=pg_session.patient_id,
                 title=pg_session.title,
                 status=SessionStatus(pg_session.status) if pg_session.status else SessionStatus.ACTIVE,
-                created_at=pg_session.created_at,
-                updated_at=pg_session.updated_at,
-                last_activity=pg_session.last_activity,
+                started_at=pg_session.created_at,
+                last_activity=pg_session.last_activity or pg_session.created_at,
                 message_count=pg_session.message_count or 0,
             ))
 
