@@ -1080,15 +1080,20 @@ async def get_dual_write_health(kg_backend = Depends(get_kg_backend)):
         "recommendations": [],
     }
 
-    # Helper: compute sync status from counts using percentage thresholds
+    # Helper: compute sync status from counts.
+    # Since PostgreSQL is the migration target, only flag issues when
+    # Neo4j has data that PG is missing (neo4j > pg). PG having more
+    # data than Neo4j is expected and healthy.
     def _compute_sync_status(neo4j_count: int, pg_count: int) -> str:
-        max_count = max(neo4j_count, pg_count)
-        if max_count == 0:
+        if neo4j_count == 0:
             return "synced"
-        diff_pct = abs(neo4j_count - pg_count) / max_count
-        if diff_pct <= 0.05:
+        missing_in_pg = neo4j_count - pg_count
+        if missing_in_pg <= 0:
             return "synced"
-        elif diff_pct <= 0.20:
+        missing_pct = missing_in_pg / neo4j_count
+        if missing_pct <= 0.05:
+            return "synced"
+        elif missing_pct <= 0.20:
             return "minor_drift"
         return "out_of_sync"
 
@@ -1134,8 +1139,8 @@ async def get_dual_write_health(kg_backend = Depends(get_kg_backend)):
             sessions_health["neo4j_count"], sessions_health["postgres_count"]
         )
         if sessions_health["sync_status"] == "out_of_sync":
-            diff = abs(sessions_health["neo4j_count"] - sessions_health["postgres_count"])
-            health["sync_issues"].append(f"Sessions: {diff} records difference")
+            missing = sessions_health["neo4j_count"] - sessions_health["postgres_count"]
+            health["sync_issues"].append(f"Sessions: {missing} Neo4j records missing from PostgreSQL")
             health["status"] = "warning"
     else:
         sessions_health["sync_status"] = "disabled"
@@ -1171,14 +1176,12 @@ async def get_dual_write_health(kg_backend = Depends(get_kg_backend)):
         logger.warning(f"Failed to get PostgreSQL feedback count: {e}")
 
     if feedback_health["dual_write_enabled"]:
-        diff = abs(feedback_health["neo4j_count"] - feedback_health["postgres_count"])
-        if diff == 0:
-            feedback_health["sync_status"] = "synced"
-        elif diff < 10:
-            feedback_health["sync_status"] = "minor_drift"
-        else:
-            feedback_health["sync_status"] = "out_of_sync"
-            health["sync_issues"].append(f"Feedback: {diff} records difference")
+        feedback_health["sync_status"] = _compute_sync_status(
+            feedback_health["neo4j_count"], feedback_health["postgres_count"]
+        )
+        if feedback_health["sync_status"] == "out_of_sync":
+            missing = feedback_health["neo4j_count"] - feedback_health["postgres_count"]
+            health["sync_issues"].append(f"Feedback: {missing} Neo4j records missing from PostgreSQL")
             health["status"] = "warning"
     else:
         feedback_health["sync_status"] = "disabled"
@@ -1214,14 +1217,12 @@ async def get_dual_write_health(kg_backend = Depends(get_kg_backend)):
         logger.warning(f"Failed to get PostgreSQL document count: {e}")
 
     if documents_health["dual_write_enabled"]:
-        diff = abs(documents_health["neo4j_count"] - documents_health["postgres_count"])
-        if diff == 0:
-            documents_health["sync_status"] = "synced"
-        elif diff < 5:
-            documents_health["sync_status"] = "minor_drift"
-        else:
-            documents_health["sync_status"] = "out_of_sync"
-            health["sync_issues"].append(f"Documents: {diff} records difference")
+        documents_health["sync_status"] = _compute_sync_status(
+            documents_health["neo4j_count"], documents_health["postgres_count"]
+        )
+        if documents_health["sync_status"] == "out_of_sync":
+            missing = documents_health["neo4j_count"] - documents_health["postgres_count"]
+            health["sync_issues"].append(f"Documents: {missing} Neo4j records missing from PostgreSQL")
             health["status"] = "warning"
     else:
         documents_health["sync_status"] = "disabled"
