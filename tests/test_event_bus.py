@@ -1,6 +1,5 @@
 """Tests for the application event bus."""
 
-import asyncio
 import unittest
 import os
 import sys
@@ -11,9 +10,9 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from application.event_bus import EventBus
-from domain.event import KnowledgeEvent
-from domain.roles import Role
+from application.event_bus import EventBus  # noqa: E402
+from domain.event import KnowledgeEvent  # noqa: E402
+from domain.roles import Role  # noqa: E402
 
 
 class TestEventBus(unittest.IsolatedAsyncioTestCase):

@@ -1,6 +1,4 @@
-import pytest
 import os
-from typing import AsyncGenerator
 from dotenv import load_dotenv
 
 load_dotenv()

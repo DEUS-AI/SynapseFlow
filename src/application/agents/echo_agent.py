@@ -1,7 +1,6 @@
 from domain.agent import Agent
 from domain.communication import CommunicationChannel
 from domain.command_bus import CommandBus
-from typing import Optional
 
 
 class EchoAgent(Agent):

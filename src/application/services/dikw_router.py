@@ -18,7 +18,6 @@ Fallback Logic:
 import re
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 
 from domain.query_intent_models import (
@@ -240,7 +239,7 @@ class DIKWRouter:
 
         logger.debug(
             f"Routed query: intent={intent.primary_intent.value}, "
-            f"confidence={intent.confidence:.2f}, layers={[l.value for l in decision.layers]}"
+            f"confidence={intent.confidence:.2f}, layers={[layer.value for layer in decision.layers]}"
         )
 
         return decision
@@ -453,10 +452,10 @@ class DIKWRouter:
                 "matched_patterns": decision.intent.matched_patterns,
             },
             "routing": {
-                "layers": [l.value for l in decision.layers],
+                "layers": [layer.value for layer in decision.layers],
                 "strategy": decision.strategy,
                 "fallback_enabled": decision.fallback_enabled,
-                "fallback_layers": [l.value for l in decision.get_fallback_layers()],
+                "fallback_layers": [layer.value for layer in decision.get_fallback_layers()],
             },
             "context": self.get_query_context(decision),
             "requires_inference": decision.intent.requires_inference,

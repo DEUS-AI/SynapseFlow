@@ -63,7 +63,7 @@ async def enrich_all_domains():
             
             if result["success"]:
                 successful += 1
-                print(f"    ✅ Success!")
+                print("    ✅ Success!")
                 results.append({
                     "file": dda_file.name,
                     "domain": domain_name,
@@ -100,7 +100,7 @@ async def enrich_all_domains():
     
     # Show failed files if any
     if failed > 0:
-        print(f"\n⚠️  Failed files:")
+        print("\n⚠️  Failed files:")
         for r in results:
             if r['status'] != 'success':
                 print(f"   - {r['file']}: {r.get('error', 'Unknown error')}")

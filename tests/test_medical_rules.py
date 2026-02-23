@@ -5,7 +5,6 @@ and symptom pattern recognition.
 """
 
 import pytest
-from datetime import datetime
 
 from domain.medical_rules_models import (
     MedicalRule,
@@ -17,7 +16,6 @@ from domain.medical_rules_models import (
     RuleEvaluationSummary,
     RuleSeverity,
     RuleCategory,
-    InteractionType,
 )
 from application.rules.medical_rules import (
     MedicalRulesEngine,

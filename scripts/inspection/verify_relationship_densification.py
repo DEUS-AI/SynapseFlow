@@ -1,16 +1,13 @@
 """Verification script for Relationship Densification."""
 
 import asyncio
-import os
 from datetime import datetime
-from typing import Dict, Any, List
 
 from infrastructure.in_memory_backend import InMemoryGraphBackend
 from application.agents.data_engineer.metadata_graph_builder import MetadataGraphBuilder
 from application.agents.knowledge_manager.reasoning_engine import ReasoningEngine
 from domain.dda_models import DDADocument, DataEntity
 from domain.event import KnowledgeEvent
-from src.domain.knowledge_layers import KnowledgeLayer
 from domain.roles import Role
 
 # Mock Graphiti/LLM
@@ -144,7 +141,7 @@ async def verify_densification():
     for suggestion in result_transitive.get("suggestions", []):
         if suggestion.get("relationship_type") == "is_a" and suggestion.get("source") == "A" and suggestion.get("target") == "C":
             closure_found = True
-            print(f"   ✅ Found transitive closure suggestion: A -> C")
+            print("   ✅ Found transitive closure suggestion: A -> C")
             break
             
     if not closure_found:

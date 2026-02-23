@@ -3,7 +3,6 @@ from domain.communication import CommunicationChannel
 from domain.command_bus import CommandBus
 from graphiti_core import Graphiti
 from typing import Optional, Dict, Any, List
-from domain.event import KnowledgeEvent
 from domain.roles import Role
 from domain.kg_backends import KnowledgeGraphBackend
 from application.event_bus import EventBus

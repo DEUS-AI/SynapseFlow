@@ -1,6 +1,5 @@
 """Tests for the in‑memory knowledge graph backend."""
 
-import asyncio
 import unittest
 import os
 import sys
@@ -11,7 +10,7 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from infrastructure.in_memory_backend import InMemoryGraphBackend
+from infrastructure.in_memory_backend import InMemoryGraphBackend  # noqa: E402
 
 
 class TestInMemoryGraphBackend(unittest.IsolatedAsyncioTestCase):

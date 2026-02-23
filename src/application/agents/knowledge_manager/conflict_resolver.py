@@ -1,6 +1,6 @@
 """Conflict detection and resolution for knowledge graph operations."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from domain.kg_backends import KnowledgeGraphBackend
 from domain.event import KnowledgeEvent
 
@@ -104,7 +104,7 @@ class ConflictResolver:
                     "type": "duplicate_relationship",
                     "source": source,
                     "target": target,
-                    "type": rel_type,
+                    "rel_type": rel_type,
                     "severity": "low",
                     "description": f"Relationship {source}-[{rel_type}]->{target} already exists"
                 })

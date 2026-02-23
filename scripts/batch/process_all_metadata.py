@@ -73,7 +73,7 @@ async def process_all_metadata():
             if result["success"]:
                 successful += 1
                 metadata_summary = result['metadata_graph']
-                print(f"    ✅ Success!")
+                print("    ✅ Success!")
                 print(f"       Tables: {metadata_summary.get('tables_created', 0)}")
                 print(f"       Columns: {metadata_summary.get('columns_created', 0)}")
                 
@@ -118,13 +118,13 @@ async def process_all_metadata():
     total_tables = sum(r.get('tables', 0) for r in results if r['status'] == 'success')
     total_columns = sum(r.get('columns', 0) for r in results if r['status'] == 'success')
     
-    print(f"\n📈 Total Metadata Statistics:")
+    print("\n📈 Total Metadata Statistics:")
     print(f"   Tables created: {total_tables}")
     print(f"   Columns created: {total_columns}")
     
     # Show failed files if any
     if failed > 0:
-        print(f"\n⚠️  Failed files:")
+        print("\n⚠️  Failed files:")
         for r in results:
             if r['status'] != 'success':
                 print(f"   - {r['file']}: {r.get('error', 'Unknown error')}")

@@ -8,14 +8,12 @@ This module provides a comprehensive REST API for:
 - Health monitoring
 """
 
-import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, validator
 
 from domain.event import KnowledgeEvent
@@ -667,14 +665,14 @@ async def get_statistics(
         try:
             entity_result = await kg_backend.query("MATCH (n) RETURN n")
             entity_count = len(entity_result.get("nodes", {})) if isinstance(entity_result, dict) else 0
-        except:
+        except Exception:
             entity_count = 0
         
         # Get relationship count - use a simple query that should work
         try:
             rel_result = await kg_backend.query("MATCH ()-[r]->() RETURN r")
             rel_count = len(rel_result.get("edges", {})) if isinstance(rel_result, dict) else 0
-        except:
+        except Exception:
             rel_count = 0
         
         return {

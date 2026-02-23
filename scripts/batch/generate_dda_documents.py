@@ -5,7 +5,6 @@ This creates a comprehensive set of DDA documents covering various medical speci
 """
 
 import os
-from datetime import datetime
 
 # Define the DDA domains and their specific content
 DDA_DOMAINS = [

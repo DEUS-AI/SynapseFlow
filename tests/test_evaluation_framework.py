@@ -9,7 +9,6 @@ import pytest
 import os
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
 
 # Set eval mode before importing the app
@@ -30,7 +29,6 @@ class TestEvaluationAuth:
     def test_is_eval_mode_disabled_by_default(self):
         """Verifica que eval mode está deshabilitado por defecto."""
         with patch.dict(os.environ, {"SYNAPSEFLOW_EVAL_MODE": "false"}):
-            from src.application.api.evaluation_auth import is_eval_mode_enabled
             # Need to reload to pick up env change
             assert os.getenv("SYNAPSEFLOW_EVAL_MODE") == "false"
 
@@ -105,7 +103,6 @@ class TestEvaluationModels:
             MemorySnapshot,
             MemoryEntityModel,
             Neo4jDIKWLayerSnapshot,
-            DIKWLayer,
         )
 
         snapshot = MemorySnapshot(

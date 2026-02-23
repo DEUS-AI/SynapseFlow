@@ -8,28 +8,27 @@ Tests the complete workflow of:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import MagicMock
 import sys
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from application.services.layer_transition import (
+from application.services.layer_transition import (  # noqa: E402
     LayerTransitionService,
     LayerTransitionRequest,
     Layer,
     TransitionStatus
 )
-from domain.event import KnowledgeEvent
-from domain.roles import Role
+from domain.event import KnowledgeEvent  # noqa: E402
+from domain.roles import Role  # noqa: E402
 
 # Mock graphiti_core to avoid import errors
 sys.modules['graphiti_core'] = MagicMock()
 
-from application.agents.knowledge_manager.reasoning_engine import ReasoningEngine
-from application.agents.knowledge_manager.validation_engine import ValidationEngine
+from application.agents.knowledge_manager.reasoning_engine import ReasoningEngine  # noqa: E402
+from application.agents.knowledge_manager.validation_engine import ValidationEngine  # noqa: E402
 
 
 class TestLayerTransitionWorkflow:

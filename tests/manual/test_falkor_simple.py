@@ -11,7 +11,7 @@ os.environ["FALKORDB_PORT"] = "6379"
 
 async def test_simple_metadata():
     from src.infrastructure.falkor_backend import FalkorBackend
-    from domain.odin_models import Catalog, Schema, Table, Column
+    from domain.odin_models import Catalog, Schema
     
     print("🔧 Testing FalkorDB backend...")
     
@@ -22,7 +22,7 @@ async def test_simple_metadata():
     try:
         backend.graph.delete()
         print("✅ Cleared test graph")
-    except:
+    except Exception:
         pass
     
     # Test 1: Create Catalog

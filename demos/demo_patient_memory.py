@@ -219,7 +219,7 @@ async def main():
     print("\n⚡ Checking Redis session cache...")
     session_data = await redis.get_session(session_id)
     if session_data:
-        print(f"  ✅ Session active")
+        print("  ✅ Session active")
         print(f"    - Device: {session_data.get('device')}")
         print(f"    - Conversation count: {session_data.get('conversation_count')}")
         print(f"    - Last activity: {session_data.get('last_activity')}")
@@ -227,7 +227,7 @@ async def main():
     # Check patient context
     print("\n🩺 Checking complete patient context...")
     context = await memory_service.get_patient_context(patient_id)
-    print(f"  ✅ Patient context retrieved:")
+    print("  ✅ Patient context retrieved:")
     print(f"    - Diagnoses: {len(context.diagnoses)}")
     for dx in context.diagnoses:
         print(f"      • {dx['condition']} ({dx.get('icd10_code', 'N/A')})")

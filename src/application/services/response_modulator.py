@@ -10,7 +10,7 @@ Generates natural, contextual responses that feel human-like.
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from openai import AsyncOpenAI
 import os
 
@@ -18,8 +18,7 @@ from domain.conversation_models import (
     IntentType,
     IntentResult,
     MemoryContext,
-    AgentPersona,
-    RESPONSE_TEMPLATES
+    AgentPersona
 )
 
 logger = logging.getLogger(__name__)
@@ -545,7 +544,7 @@ Your role:
 
         # Add memory context if available
         if is_returning:
-            prompt += f"- This is a RETURNING patient"
+            prompt += "- This is a RETURNING patient"
             if memory_context.days_since_last_session:
                 prompt += f" (last session {memory_context.days_since_last_session} days ago)"
             prompt += "\n"

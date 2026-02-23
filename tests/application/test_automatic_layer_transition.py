@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from application.services.automatic_layer_transition import (
     AutomaticLayerTransitionService,
@@ -11,8 +11,6 @@ from application.services.automatic_layer_transition import (
 )
 from application.services.layer_transition import (
     Layer,
-    TransitionStatus,
-    LayerTransitionRecord,
 )
 from domain.event import KnowledgeEvent
 from domain.roles import Role
@@ -130,7 +128,7 @@ class TestAutomaticLayerTransitionServiceInit:
 
     def test_event_subscriptions(self, mock_backend, mock_event_bus):
         """Test that service subscribes to required events."""
-        service = AutomaticLayerTransitionService(
+        AutomaticLayerTransitionService(
             backend=mock_backend,
             event_bus=mock_event_bus,
         )

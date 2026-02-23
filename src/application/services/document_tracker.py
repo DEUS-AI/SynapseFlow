@@ -6,7 +6,7 @@ Stores tracking data in a JSON file for simplicity.
 
 import json
 import hashlib
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime

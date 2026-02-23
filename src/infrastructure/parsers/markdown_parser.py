@@ -1,5 +1,6 @@
+import os
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from datetime import datetime
 from application.agents.data_architect.dda_parser import DDAParser
 from domain.dda_models import DDADocument, DataEntity, Relationship, DataQualityRequirement, AccessPattern, Governance
@@ -253,7 +254,7 @@ class MarkdownDDAParser(DDAParser):
             return None
         
         # Extract relationship name from first line
-        relationship_name = lines[0].strip()
+        lines[0].strip()
         
         source_entity = ""
         target_entity = ""
@@ -324,6 +325,3 @@ class MarkdownDDAParser(DDAParser):
         # you'd want more sophisticated parsing
         return Governance()
 
-
-# Add missing import
-import os 

@@ -14,7 +14,7 @@ Configuration via environment variables:
 import asyncio
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field

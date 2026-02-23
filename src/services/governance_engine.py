@@ -16,6 +16,7 @@ The engine loads all nodes of the specified type, evaluates the Python expressio
 in a safe sandbox, and records any violations.
 """
 
+import asyncio
 import os
 import yaml
 from typing import List, Dict, Any
@@ -36,8 +37,6 @@ def load_rules(path: str = RULES_PATH) -> List[Dict[str, Any]]:
         data = yaml.safe_load(f)
     return data or []
 
-
-import asyncio
 
 def evaluate_node(node: Dict[str, Any], condition: str) -> bool:
     """Safely evaluate a condition expression against a node.

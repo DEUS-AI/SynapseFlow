@@ -314,7 +314,7 @@ class OntologyQualityReport:
 
         # Use orphan breakdown for context-aware recommendations
         knowledge_orphans = self.taxonomy.orphan_breakdown.get("knowledge", 0)
-        episodic_orphans = self.taxonomy.orphan_breakdown.get("episodic", 0)
+        self.taxonomy.orphan_breakdown.get("episodic", 0)
         if knowledge_orphans > 0:
             recommendations.append(
                 f"Connect {knowledge_orphans} knowledge orphan nodes to the hierarchy"

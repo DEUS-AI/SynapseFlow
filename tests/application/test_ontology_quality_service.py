@@ -4,8 +4,8 @@ Comprehensive unit tests for ontology quality assessment.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any, List, Set
+from unittest.mock import AsyncMock, patch
+from typing import Dict, Any, List
 
 from domain.ontology_quality_models import OntologyQualityLevel
 

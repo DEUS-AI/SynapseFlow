@@ -9,17 +9,14 @@ Tests cover:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from datetime import datetime
 
 from domain.conversation_state import (
-    ConversationState,
     ConversationMode,
     UrgencyLevel,
     EmotionalTone,
     GoalType,
-    ActiveGoal,
-    GoalSlot,
     PatientContext,
     create_initial_state,
     serialize_goal,
@@ -469,7 +466,6 @@ class TestTemporalAwareness:
     def test_patient_context_dataclass_defaults(self):
         """Test that PatientContext temporal fields have correct defaults."""
         from application.services.patient_memory_service import PatientContext
-        from datetime import datetime
 
         context = PatientContext(
             patient_id="test-patient",

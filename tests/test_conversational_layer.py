@@ -16,7 +16,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from application.services.conversational_intent_service import ConversationalIntentService
-from application.services.memory_context_builder import MemoryContextBuilder
 from application.services.response_modulator import ResponseModulator
 from domain.conversation_models import IntentType, MemoryContext
 from config.persona_config import get_persona
@@ -71,7 +70,7 @@ async def test_memory_context_mock():
         conversation_turn_count=0
     )
 
-    print(f"✅ Mock memory context created:")
+    print("✅ Mock memory context created:")
     print(f"   Patient: {mock_context.patient_name}")
     print(f"   Recent topics: {', '.join(mock_context.recent_topics)}")
     print(f"   Days since last session: {mock_context.days_since_last_session}")
@@ -106,7 +105,7 @@ async def test_response_modulation(mock_context):
             intent=intent,
             memory_context=mock_context
         )
-        print(f"✅ Generated greeting:")
+        print("✅ Generated greeting:")
         print(f"   {response}")
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -125,7 +124,7 @@ async def test_response_modulation(mock_context):
             intent=intent,
             memory_context=new_user_context
         )
-        print(f"✅ Generated greeting:")
+        print("✅ Generated greeting:")
         print(f"   {response}")
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -141,7 +140,7 @@ async def test_response_modulation(mock_context):
             memory_context=mock_context,
             medical_response=medical_response
         )
-        print(f"✅ Wrapped medical response:")
+        print("✅ Wrapped medical response:")
         print(f"   {response}")
     except Exception as e:
         print(f"❌ Error: {e}")

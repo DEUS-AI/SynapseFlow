@@ -9,8 +9,8 @@ Estos tests verifican:
 """
 
 import pytest
-from datetime import datetime, timedelta, UTC
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, UTC
+from unittest.mock import AsyncMock, MagicMock
 
 from tests.eval.runner.models import (
     MemorySnapshot,
@@ -18,21 +18,15 @@ from tests.eval.runner.models import (
     MemoryEntity,
     MemoryRelationship,
     Mem0Memory,
-    EntityChange,
-    RedisLayerSnapshot,
     Mem0LayerSnapshot,
     GraphitiLayerSnapshot,
     Neo4jDIKWLayerSnapshot,
-    MemoryLayer,
-    DIKWLayer,
     normalize_text,
     entities_match,
     relationships_match,
 )
 from tests.eval.runner.memory_inspector import (
     MemoryInspector,
-    MemoryInspectorError,
-    QuiescenceTimeoutError,
 )
 
 
@@ -648,5 +642,4 @@ class TestEvalResult:
         assert result.pass_rate == 2 / 3
 
 
-# Import EvalResult at module level
-from tests.eval.runner.models import EvalResult
+from tests.eval.runner.models import EvalResult  # noqa: E402

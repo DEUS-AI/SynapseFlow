@@ -1,17 +1,13 @@
 """Tests for the Knowledge Manager Agent."""
 
 import pytest
-import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
 from src.application.agents.knowledge_manager.agent import (
     KnowledgeManagerAgent,
     KGUpdateRequest,
     KGUpdateType,
     KGUpdateResult
 )
-from src.domain.communication import Message
-from src.domain.agent import Agent
 
 
 class TestKnowledgeManagerAgent:

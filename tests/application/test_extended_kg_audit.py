@@ -5,8 +5,7 @@ by using mock backends.
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 from domain.chunk_separation_models import (
     SubgraphType,
@@ -24,7 +23,6 @@ from domain.chunk_separation_models import (
 from application.services.extended_kg_audit_service import ExtendedKGAuditService
 from application.services.chunk_impact_analyzer import (
     ChunkImpactAnalyzer,
-    ChunkDependency,
     CHUNK_DEPENDENCIES,
 )
 

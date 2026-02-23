@@ -5,7 +5,7 @@ Tests the flow from Graphiti/FalkorDB episodic memory to Neo4j DIKW layers.
 
 import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from application.services.entity_resolver import (
     EntityResolver,
@@ -16,14 +16,11 @@ from application.services.crystallization_service import (
     CrystallizationService,
     CrystallizationConfig,
     CrystallizationMode,
-    CrystallizationResult,
 )
 from application.services.promotion_gate import (
     PromotionGate,
-    PromotionGateConfig,
 )
 from domain.promotion_models import (
-    PromotionDecision,
     PromotionStatus,
     RiskLevel,
     EntityCategory,

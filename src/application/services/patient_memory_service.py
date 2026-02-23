@@ -1091,7 +1091,7 @@ class PatientMemoryService:
         )
 
         # Store in Mem0 for conversational recall
-        status_text = f"is scheduled for" if status == "scheduled" else f"had"
+        status_text = "is scheduled for" if status == "scheduled" else "had"
         self.mem0.add(
             f"Patient {status_text} a {name} ({procedure_type})" +
             (f" on {scheduled_date}" if scheduled_date else ""),
@@ -1755,7 +1755,7 @@ class PatientMemoryService:
         result = await self.neo4j.query_raw(query, {"patient_id": patient_id})
 
         if result:
-            consent = result[0]["consent"] == True
+            consent = result[0]["consent"]
             logger.debug(f"Consent check for patient {patient_id}: {consent}")
             return consent
 

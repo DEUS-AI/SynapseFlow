@@ -12,7 +12,7 @@ from application.services.semantic_grounding import (
 
 # Check if sentence-transformers is available
 try:
-    import sentence_transformers
+    import sentence_transformers  # noqa: F401
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False

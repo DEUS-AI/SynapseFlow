@@ -6,7 +6,7 @@ Retrieval-Augmented Generation pipeline that combines:
 3. LLM for generating answers
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import dataclass
 import os
 

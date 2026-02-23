@@ -23,21 +23,16 @@ import os
 import json
 
 from langgraph.graph import StateGraph, END
-from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from domain.conversation_state import (
     ConversationState,
-    ConversationMode,
     create_initial_state,
-    PatientContext,
 )
 from application.services.conversation_nodes import ConversationNodes
 from application.services.conversation_router import (
     route_by_mode,
-    should_skip_synthesizer,
-    should_persist_memory,
 )
 
 logger = logging.getLogger(__name__)
@@ -288,7 +283,6 @@ class ConversationGraph:
         Returns:
             True if reset successful
         """
-        config = {"configurable": {"thread_id": thread_id}}
 
         try:
             # For MemorySaver, we need to clear the storage directly

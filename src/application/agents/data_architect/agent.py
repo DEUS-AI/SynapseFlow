@@ -1,7 +1,6 @@
 from domain.agent import Agent
 from application.commands.agent_commands import StartProjectCommand
 from graphiti_core import Graphiti
-from langchain_core.documents import Document
 from typing import Optional, Dict, Any, List
 from domain.communication import CommunicationChannel
 from domain.command_bus import CommandBus

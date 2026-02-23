@@ -21,7 +21,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from domain.chunk_separation_models import (
     ChunkSeparationOption,
@@ -213,7 +213,7 @@ class ChunkImpactAnalyzer:
 
             if result:
                 row = result[0]
-                chunk_count = row.get("chunk_count", 0)
+                row.get("chunk_count", 0)
                 total_bytes = row.get("total_bytes", 0)
                 report.data_volume_mb = total_bytes / (1024 * 1024) if total_bytes else 0
 
@@ -701,7 +701,7 @@ if __name__ == "__main__":
 
     async def main():
         report = await run_impact_analysis(output_path=args.output)
-        print(f"\n========== IMPACT ANALYSIS SUMMARY ==========")
+        print("\n========== IMPACT ANALYSIS SUMMARY ==========")
 
         if report.recommendation:
             print(f"Recommended Option: {report.recommendation.recommended_option.value}")

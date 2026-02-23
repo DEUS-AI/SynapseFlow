@@ -4,15 +4,12 @@ Tests for LLMJudgeEvaluator.
 
 import json
 import pytest
-from unittest.mock import MagicMock, AsyncMock
-from typing import List
 
 from tests.eval.runner.evaluators.llm_judge import (
     LLMJudgeEvaluator,
     JudgeResponse,
     EvaluationCriterion,
     DEFAULT_RUBRICS,
-    JudgeError,
     create_mock_judge,
 )
 from tests.eval.runner.scenario_models import JudgeAssertion

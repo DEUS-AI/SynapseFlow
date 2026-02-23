@@ -3,7 +3,6 @@
 Tests the medical ontology extension and unified registry functionality.
 """
 
-import pytest
 from domain.ontologies.registry import (
     get_ontology_config,
     is_known_type,

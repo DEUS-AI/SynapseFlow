@@ -6,9 +6,7 @@ Requires running Docker containers: neo4j, falkordb
 
 import pytest
 import os
-import asyncio
 from datetime import datetime
-from typing import Optional
 
 # Set test environment variables before imports
 os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
@@ -26,7 +24,6 @@ from application.services.promotion_gate import PromotionGate, PromotionGateConf
 from domain.promotion_models import RiskLevel, PromotionStatus
 from application.event_bus import EventBus
 from domain.event import KnowledgeEvent
-from domain.roles import Role
 
 
 # ========================================
@@ -218,7 +215,7 @@ async def test_crystallization_batch_processing(crystallization_service, neo4j_b
     assert result.entities_created >= 0  # May be 0 if entities already exist
     assert len(result.errors) == 0
 
-    print(f"✅ Batch crystallization complete:")
+    print("✅ Batch crystallization complete:")
     print(f"   Processed: {result.entities_processed}")
     print(f"   Created: {result.entities_created}")
     print(f"   Merged: {result.entities_merged}")
@@ -366,7 +363,7 @@ async def test_full_pipeline_flow(neo4j_backend, entity_resolver, promotion_gate
             target_layer="SEMANTIC",
         )
 
-        print(f"✅ Step 3: Promotion evaluation:")
+        print("✅ Step 3: Promotion evaluation:")
         print(f"   Status: {decision.status.value}")
         print(f"   Risk Level: {decision.risk_level.value}")
         print(f"   Criteria Met: {decision.all_criteria_met}")

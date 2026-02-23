@@ -2,7 +2,6 @@
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from domain.dda_models import DDADocument
-from domain.communication import CommunicationChannel, Message
 from application.commands.modeling_command import ModelingCommand
 from application.commands.metadata_command import GenerateMetadataCommand
 from application.agents.data_architect.dda_parser import DDAParserFactory
@@ -10,7 +9,6 @@ from infrastructure.architecture_graph_writer import ArchitectureGraphWriter
 import json
 import os
 from datetime import datetime
-import shutil
 
 
 class ValidationResult(BaseModel):

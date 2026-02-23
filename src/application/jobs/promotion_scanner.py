@@ -215,7 +215,7 @@ class PromotionScannerJob:
                         entity_data=entity_data,
                         from_layer=Layer(actual_layer),
                         to_layer=Layer(to_layer),
-                        reason=f"Background scan promotion"
+                        reason="Background scan promotion"
                     )
 
                     if record and record.status.value == "completed":

@@ -14,7 +14,7 @@ Features:
 import math
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
 from domain.temporal_models import (

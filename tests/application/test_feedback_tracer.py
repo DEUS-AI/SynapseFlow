@@ -1,9 +1,8 @@
 """Unit tests for Feedback Tracer Service."""
 
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-import uuid
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 from application.services.feedback_tracer import (
     FeedbackTracerService,
@@ -193,7 +192,7 @@ class TestSubmitFeedback:
     @pytest.mark.asyncio
     async def test_submit_feedback_negative(self, service):
         """Test negative feedback submission."""
-        feedback = await service.submit_feedback(
+        await service.submit_feedback(
             response_id="response-123",
             patient_id="patient-456",
             session_id="session-789",

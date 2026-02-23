@@ -7,7 +7,7 @@ classification for ambiguous cases (fallback).
 
 import re
 import logging
-from typing import Optional, Dict, List
+from typing import Optional
 from openai import AsyncOpenAI
 import os
 

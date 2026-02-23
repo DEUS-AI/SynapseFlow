@@ -155,7 +155,7 @@ class RedisSessionCache:
             list[str]: List of active session IDs for the patient
         """
         try:
-            pattern = f"session:*"
+            pattern = "session:*"
             sessions = []
 
             async for key in self.redis.scan_iter(match=pattern):

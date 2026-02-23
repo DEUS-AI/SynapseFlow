@@ -11,7 +11,7 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "..", "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from domain.metadata.base import MetadataEntity
+from domain.metadata.base import MetadataEntity  # noqa: E402
 
 
 class TestMetadataEntity(unittest.TestCase):

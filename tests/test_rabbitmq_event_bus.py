@@ -1,9 +1,7 @@
 """Tests for the RabbitMQ event bus."""
 
 import pytest
-import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
 from src.infrastructure.event_bus.rabbitmq_event_bus import RabbitMQEventBus
 from src.domain.event import KnowledgeEvent
 

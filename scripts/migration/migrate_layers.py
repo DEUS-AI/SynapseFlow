@@ -14,7 +14,7 @@ import asyncio
 import os
 import logging
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict
 
 from neo4j import AsyncGraphDatabase
 

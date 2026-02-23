@@ -7,8 +7,7 @@ from domain.canonical_concepts import (
     ConceptAlias,
     ConceptRelationship,
     ConceptRegistry,
-    ConceptStatus,
-    ConceptConfidenceSource
+    ConceptStatus
 )
 
 

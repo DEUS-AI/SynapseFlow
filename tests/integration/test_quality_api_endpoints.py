@@ -6,8 +6,7 @@ Tests the quality assessment API endpoints end-to-end.
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
-from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from fastapi.testclient import TestClient

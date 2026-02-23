@@ -3,7 +3,6 @@
 """Run full demo with Advanced Knowledge Representation features."""
 
 import asyncio
-import os
 from pathlib import Path
 from dotenv import load_dotenv
 from unittest.mock import MagicMock, AsyncMock
@@ -14,7 +13,7 @@ load_dotenv()
 
 # Mock dependencies if not available
 try:
-    import pyshacl
+    import pyshacl  # noqa: F401
 except ImportError:
     sys.modules["pyshacl"] = MagicMock()
     sys.modules["rdflib"] = MagicMock()
@@ -23,7 +22,6 @@ async def run_demo():
     print("🚀 Starting Advanced Knowledge Graph Demo...")
     
     # 1. Bootstrap Components
-    from src.composition_root import bootstrap_knowledge_management
     from src.application.commands.metadata_command import GenerateMetadataCommand
     from src.infrastructure.in_memory_backend import InMemoryGraphBackend
     
@@ -36,7 +34,6 @@ async def run_demo():
     
     # Force InMemory Backend for demo to ensure it runs
     kg_backend = InMemoryGraphBackend()
-    event_bus = None # Not needed for this demo script flow
     
     # We need a Graphiti instance for the enricher
     # We can mock it or use a real one if configured

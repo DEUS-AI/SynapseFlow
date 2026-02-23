@@ -122,7 +122,7 @@ async def main():
                 metadata={"category": pdf_path.parent.name}
             )
 
-            print(f"  ✓ Success!")
+            print("  ✓ Success!")
             print(f"    - Document ID: {doc.id}")
             print(f"    - Chunks created: {doc.chunk_count}")
             successful += 1
@@ -138,13 +138,13 @@ async def main():
     print(f"  Failed: {failed}/{len(pdfs)}")
 
     # Show FAISS index stats
-    print(f"\n📊 FAISS Index Statistics:")
+    print("\n📊 FAISS Index Statistics:")
     print(f"  - Total chunks: {len(doc_service._chunk_store)}")
     print(f"  - Index path: {doc_service.faiss_index_path}.index")
 
     # Test search
     if doc_service._faiss_index is not None:
-        print(f"\n🔍 Testing search...")
+        print("\n🔍 Testing search...")
         try:
             results = await doc_service.search_similar("Crohn's disease", top_k=3)
             print(f"  ✓ Search working! Found {len(results)} results")

@@ -1,7 +1,7 @@
 """Tests for metadata relationships."""
 
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime
 from domain.metadata.relationships import MetadataRelationship, RelationshipTypes
 
 

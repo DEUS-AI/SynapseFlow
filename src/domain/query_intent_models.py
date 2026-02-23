@@ -6,7 +6,7 @@ Defines query intent types and their mappings to DIKW layers.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Dict, List
 
 
 class QueryIntent(str, Enum):

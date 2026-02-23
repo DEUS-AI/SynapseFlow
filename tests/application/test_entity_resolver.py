@@ -11,7 +11,7 @@ from application.services.entity_resolver import (
 
 # Check if rapidfuzz is available
 try:
-    import rapidfuzz
+    import rapidfuzz  # noqa: F401
     RAPIDFUZZ_AVAILABLE = True
 except ImportError:
     RAPIDFUZZ_AVAILABLE = False
@@ -205,7 +205,7 @@ class TestEntityResolverEmbeddingMatch:
         with patch('sklearn.metrics.pairwise.cosine_similarity') as mock_cosine:
             mock_cosine.return_value = [[0.95]]
 
-            result = await resolver.resolve_entity(
+            await resolver.resolve_entity(
                 "Client",
                 "BusinessConcept",
                 strategy=ResolutionStrategy.EMBEDDING_SIMILARITY

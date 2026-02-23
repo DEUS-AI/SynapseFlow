@@ -4,7 +4,7 @@ This module bypasses Graphiti's LLM-based entity extraction and directly creates
 a structured graph from the parsed DDA document.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 from neo4j import GraphDatabase
 from domain.dda_models import DDADocument, DataEntity, Relationship
 

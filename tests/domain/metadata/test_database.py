@@ -3,7 +3,6 @@
 import unittest
 import os
 import sys
-from datetime import datetime
 
 # Ensure the src directory is on the import path
 _TEST_DIR = os.path.dirname(__file__)
@@ -11,7 +10,7 @@ _SRC_PATH = os.path.abspath(os.path.join(_TEST_DIR, "..", "..", "..", "src"))
 if _SRC_PATH not in sys.path:
     sys.path.insert(0, _SRC_PATH)
 
-from domain.metadata.database import Cluster, Database
+from domain.metadata.database import Cluster, Database  # noqa: E402
 
 
 class TestCluster(unittest.TestCase):

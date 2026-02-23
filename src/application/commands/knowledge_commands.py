@@ -1,6 +1,6 @@
 """Commands for knowledge management operations."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from domain.commands import Command
 from pydantic import BaseModel
 from datetime import datetime

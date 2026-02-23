@@ -29,7 +29,7 @@ async def check_neo4j():
         
         # Get sample entities
         result = session.run("MATCH (n:Entity) RETURN n.name as name LIMIT 5")
-        print(f"\n📝 Sample Entities:")
+        print("\n📝 Sample Entities:")
         for record in result:
             print(f"   - {record['name']}")
     
@@ -52,14 +52,14 @@ def check_falkordb():
     # Count by label
     result = graph.query("MATCH (n) RETURN labels(n)[0] as label, count(n) as count")
     if result.result_set:
-        print(f"\n📝 Nodes by Label:")
+        print("\n📝 Nodes by Label:")
         for row in result.result_set:
             print(f"   - {row[0]}: {row[1]}")
     
     # Sample nodes
     result = graph.query("MATCH (n) RETURN n LIMIT 5")
     if result.result_set:
-        print(f"\n🔍 Sample Nodes:")
+        print("\n🔍 Sample Nodes:")
         for row in result.result_set:
             node = row[0]
             print(f"   - {node}")

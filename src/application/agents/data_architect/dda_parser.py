@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
 from domain.dda_models import DDADocument
-import os
 
 
 class DDAParser(ABC):

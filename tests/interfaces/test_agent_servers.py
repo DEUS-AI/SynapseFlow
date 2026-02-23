@@ -4,8 +4,6 @@ from fastapi.testclient import TestClient
 from src.application.agents.data_engineer.server import create_app as create_data_engineer_app
 from src.application.agents.data_architect.server import create_app as create_data_architect_app
 from src.application.commands.base import CommandBus
-from src.application.commands.collaboration_commands import BuildKGCommand
-from src.application.agents.data_engineer.handlers.build_kg import BuildKGCommandHandler
 from src.domain.agent_definition import AgentDefinition
 
 

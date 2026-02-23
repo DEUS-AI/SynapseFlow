@@ -379,7 +379,7 @@ class CrossGraphQueryBuilder:
         params = {"entity_name": entity_name, "max_results": max_results}
 
         if relationship_types:
-            rel_filter = f"AND type(r) IN $relationship_types"
+            rel_filter = "AND type(r) IN $relationship_types"
             params["relationship_types"] = relationship_types
 
         query = f"""

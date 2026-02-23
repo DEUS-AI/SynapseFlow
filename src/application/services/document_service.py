@@ -15,7 +15,7 @@ from application.services.markitdown_wrapper import MarkItDownWrapper
 from application.services.text_chunker import TextChunker, TextChunk
 from application.services.entity_extractor import EntityExtractor, ExtractedEntity
 from application.services.document_quality_service import DocumentQualityService
-from domain.quality_models import DocumentQualityReport, QualityLevel
+from domain.quality_models import DocumentQualityReport
 
 
 @dataclass
@@ -304,7 +304,6 @@ class DocumentService:
     def _simple_embedding(self, text: str, dim: int = 256) -> List[float]:
         """Simple fallback embedding using hashing."""
         import hashlib
-        import struct
         
         # Create a deterministic pseudo-embedding
         hash_bytes = hashlib.sha256(text.encode()).digest()
@@ -539,7 +538,7 @@ class DocumentService:
                         assessed_at=quality_report.assessed_at,
                     )
                     session.add(quality_entry)
-                    print(f"    📊 Stored quality metrics in PostgreSQL")
+                    print("    📊 Stored quality metrics in PostgreSQL")
 
                 await session.commit()
                 return True

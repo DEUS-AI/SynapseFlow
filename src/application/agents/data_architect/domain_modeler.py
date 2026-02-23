@@ -2,10 +2,8 @@ from typing import Dict, Any, List
 from domain.dda_models import DDADocument, DataEntity, Relationship
 from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
-from datetime import datetime
 import json
 import hashlib
-from functools import lru_cache
 
 
 class DomainModeler:
@@ -321,12 +319,12 @@ class DomainModeler:
         
         # Update header
         content_parts.append(f"DOMAIN UPDATE: {dda_document.domain}")
-        content_parts.append(f"Update Type: Merge with existing domain")
+        content_parts.append("Update Type: Merge with existing domain")
         content_parts.append(f"Existing Domain UUID: {existing_domain.get('uuid', 'Unknown')}")
         content_parts.append(f"Update Date: {dda_document.effective_date.strftime('%Y-%m-%d')}")
         
         # Domain information (if changed)
-        content_parts.append(f"\nDomain Information:")
+        content_parts.append("\nDomain Information:")
         content_parts.append(f"Business Context: {dda_document.business_context}")
         content_parts.append(f"Data Owner: {dda_document.data_owner}")
         content_parts.append(f"Stakeholders: {', '.join(dda_document.stakeholders)}")

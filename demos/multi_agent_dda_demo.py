@@ -14,10 +14,8 @@ Usage: python multi_agent_dda_demo.py [--dda-file] [--interactive]
 """
 
 import asyncio
-import json
 import time
 import sys
-import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -657,7 +655,7 @@ class MultiAgentDDADemo:
         
         print("✅ Event bus initialized successfully")
         print(f"   Type: {type(self.event_bus).__name__}")
-        print(f"   Status: Operational")
+        print("   Status: Operational")
         print("   - Asynchronous event processing")
         print("   - Role-based access control")
         print("   - Event validation and routing")

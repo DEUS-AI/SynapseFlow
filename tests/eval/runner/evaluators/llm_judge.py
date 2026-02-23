@@ -8,10 +8,9 @@ to assess subjective qualities like tone, empathy, medical accuracy, etc.
 import json
 import logging
 import re
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 from ..models import AssertionResult, AssertionSeverity
 from ..scenario_models import JudgeAssertion
@@ -504,7 +503,7 @@ Score 5: Excellent
         if context:
             context_items = [f"- {k}: {v}" for k, v in context.items() if v]
             if context_items:
-                context_str = f"\n\nAdditional Context:\n" + "\n".join(context_items)
+                context_str = "\n\nAdditional Context:\n" + "\n".join(context_items)
 
         prompt = f"""You are an expert medical AI evaluator. Your task is to evaluate an AI medical assistant's response to a patient.
 

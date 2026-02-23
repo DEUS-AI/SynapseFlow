@@ -13,12 +13,8 @@ This script demonstrates the full capabilities of the SynapseFlow system:
 Usage: python demo_presentation.py
 """
 
-import asyncio
-import json
 import time
-import subprocess
 import sys
-import os
 from pathlib import Path
 
 # Add src to path for imports
@@ -26,8 +22,6 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from infrastructure.in_memory_backend import InMemoryGraphBackend
 from application.event_bus import EventBus
-from domain.event import KnowledgeEvent
-from domain.roles import Role
 from interfaces.kg_operations_api import app, initialize_api
 from fastapi.testclient import TestClient
 
@@ -134,7 +128,7 @@ class SynapseFlowDemo:
         
         if response.status_code == 200:
             result = response.json()
-            print(f"✅ Query executed successfully")
+            print("✅ Query executed successfully")
             print(f"   Results: {result['result_count']} items found")
             print(f"   Execution time: {result['execution_time']:.3f}s")
         else:
@@ -149,7 +143,7 @@ class SynapseFlowDemo:
         
         print("✅ Event bus initialized successfully")
         print(f"   Type: {type(self.event_bus).__name__}")
-        print(f"   Status: Operational")
+        print("   Status: Operational")
         
         # Step 2: Simulate event publishing
         self.print_step(2, "Simulating Event Publishing")
@@ -218,7 +212,7 @@ class SynapseFlowDemo:
         
         if response.status_code == 200:
             result = response.json()
-            print(f"✅ Batch executed successfully")
+            print("✅ Batch executed successfully")
             print(f"   Total operations: {result['total_operations']}")
             print(f"   Successful: {result['successful']}")
             print(f"   Failed: {result['failed']}")
@@ -247,7 +241,7 @@ class SynapseFlowDemo:
         response = self.api_client.get("/stats")
         if response.status_code == 200:
             result = response.json()
-            print(f"✅ Statistics retrieved")
+            print("✅ Statistics retrieved")
             print(f"   Entities: {result['entity_count']}")
             print(f"   Relationships: {result['relationship_count']}")
             print(f"   Total nodes: {result['total_nodes']}")
@@ -298,7 +292,7 @@ class SynapseFlowDemo:
         response = self.api_client.post("/query", json=complex_query)
         if response.status_code == 200:
             result = response.json()
-            print(f"✅ Complex query executed")
+            print("✅ Complex query executed")
             print(f"   Results: {result['result_count']} items")
             print(f"   Execution time: {result['execution_time']:.3f}s")
         else:

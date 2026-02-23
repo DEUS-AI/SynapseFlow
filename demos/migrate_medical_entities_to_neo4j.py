@@ -10,11 +10,9 @@ Usage:
 """
 
 import sys
-import asyncio
 from pathlib import Path
 from datetime import datetime
 import logging
-from typing import List, Dict, Any
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -208,7 +206,7 @@ def migrate_entities_and_relationships():
         result = session.run("MATCH (n) WHERE n:Table OR n:Column RETURN count(n) as count")
         data_count = result.single()["count"]
 
-        print(f"\n  Neo4j Status:")
+        print("\n  Neo4j Status:")
         print(f"    Medical Entities: {medical_count}")
         print(f"    Medical Relationships: {rel_count}")
         print(f"    Data Entities (DDAs): {data_count}")
@@ -223,4 +221,4 @@ def migrate_entities_and_relationships():
 if __name__ == "__main__":
     entities, relationships = migrate_entities_and_relationships()
     print(f"\n✅ Successfully migrated {entities} entities and {relationships} relationships")
-    print(f"✅ Neo4j is now the unified backend for medical KG + DDA metadata")
+    print("✅ Neo4j is now the unified backend for medical KG + DDA metadata")

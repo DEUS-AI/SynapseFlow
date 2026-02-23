@@ -17,7 +17,7 @@ SYNAPSEFLOW_EVAL_MODE=true y requieren X-Eval-API-Key header.
 import logging
 import uuid
 from datetime import datetime, UTC
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -33,7 +33,6 @@ from .evaluation_models import (
     Neo4jDIKWLayerSnapshot,
     SeedStateRequest,
     SeedStateResponse,
-    SeedEntityRequest,
     ResetPatientResponse,
     FlushPipelinesResponse,
     PipelineStatus,
@@ -103,14 +102,14 @@ async def evaluation_health(
     try:
         crystallization = await get_crystallization_service()
         services["crystallization"] = crystallization is not None
-    except Exception as e:
+    except Exception:
         services["crystallization"] = False
 
     # Check episodic memory (optional)
     try:
         episodic = await get_episodic_memory()
         services["episodic_memory"] = episodic is not None
-    except Exception as e:
+    except Exception:
         services["episodic_memory"] = False
 
     all_critical_ok = all([
@@ -621,7 +620,7 @@ async def _reset_patient_memory(
                 if session_id:
                     await patient_memory.redis.delete_session(session_id)
             layers_cleared.append("redis")
-            logger.debug(f"Redis: cleared sessions for patient")
+            logger.debug("Redis: cleared sessions for patient")
     except Exception as e:
         logger.error(f"Failed to clear Redis: {e}")
         errors.append(f"Redis: {str(e)}")
@@ -633,7 +632,7 @@ async def _reset_patient_memory(
             # Graphiti doesn't have a simple delete-by-patient API
             # This would need custom implementation
             layers_cleared.append("graphiti")
-            logger.debug(f"Graphiti: marked for clearing (may need manual cleanup)")
+            logger.debug("Graphiti: marked for clearing (may need manual cleanup)")
     except Exception as e:
         logger.error(f"Failed to clear Graphiti: {e}")
         errors.append(f"Graphiti: {str(e)}")

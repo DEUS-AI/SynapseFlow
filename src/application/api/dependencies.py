@@ -1,10 +1,8 @@
 """Dependency injection for FastAPI application."""
 
-from functools import lru_cache
-from typing import AsyncGenerator, Tuple, Optional
+from typing import AsyncGenerator, Tuple
 import os
 
-from fastapi import Depends
 from graphiti_core import Graphiti
 from domain.kg_backends import KnowledgeGraphBackend
 from application.event_bus import EventBus
@@ -85,7 +83,7 @@ async def get_episodic_memory():
     global _episodic_memory_instance, _event_bus_instance
 
     # Check if episodic memory is enabled
-    if not os.getenv("ENABLE_EPISODIC_MEMORY", "").lower() in ("true", "1", "yes"):
+    if os.getenv("ENABLE_EPISODIC_MEMORY", "").lower() not in ("true", "1", "yes"):
         return None
 
     if _episodic_memory_instance is None:
@@ -431,7 +429,7 @@ async def get_crystallization_service():
     global _crystallization_service, _promotion_gate, _entity_resolver
 
     # Check if crystallization is enabled
-    if not os.getenv("ENABLE_CRYSTALLIZATION", "").lower() in ("true", "1", "yes"):
+    if os.getenv("ENABLE_CRYSTALLIZATION", "").lower() not in ("true", "1", "yes"):
         return None
 
     if _crystallization_service is None:

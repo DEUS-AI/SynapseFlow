@@ -3,7 +3,6 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-import pytest
 from src.application.agents.knowledge_manager.ontology_mapper import OntologyMapper
 from domain.ontologies.odin import ODIN
 from domain.ontologies.schema_org import SCHEMA

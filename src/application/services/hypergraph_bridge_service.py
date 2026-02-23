@@ -39,25 +39,16 @@ Usage:
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List
 
 from domain.hypergraph_models import (
     FactUnit,
-    FactType,
-    HyperEdge,
     EntityMention,
-    ConfidenceScore,
-    ConfidenceSource,
     CoOccurrenceContext,
-    NeurosymbolicLink,
     BridgeStatistics,
 )
 from domain.ontologies.registry import (
-    get_ontology_config,
     is_known_type,
-    resolve_entity_type,
-    get_domain_for_type,
-    get_layer_for_type,
 )
 
 logger = logging.getLogger(__name__)
@@ -666,7 +657,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     async def main():
-        stats = await run_bridge_builder()
+        await run_bridge_builder()
 
         if args.propagate:
             from infrastructure.neo4j_backend import Neo4jBackend

@@ -4,7 +4,6 @@ Tests query intent classification and layer routing.
 """
 
 import pytest
-from datetime import datetime
 
 from domain.query_intent_models import (
     QueryIntent,

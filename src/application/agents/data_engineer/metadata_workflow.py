@@ -135,7 +135,7 @@ class MetadataGenerationWorkflow:
             # Try to search for nodes in the architecture graph
             # graph_ref could be a group_id like "dda_customer_analytics"
             search_results = await self.graph.search(
-                query=f"domain architecture entities relationships",
+                query="domain architecture entities relationships",
                 group_ids=[graph_ref],
                 num_results=50
             )

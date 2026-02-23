@@ -5,7 +5,6 @@ Handles PostgreSQL connection settings and URL construction.
 
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass

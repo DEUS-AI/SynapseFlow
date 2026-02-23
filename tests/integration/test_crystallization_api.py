@@ -226,7 +226,7 @@ async def test_promotion_evaluate_nonexistent_entity(async_client):
 
     if response.status_code == 200:
         data = response.json()
-        assert data.get("approved") == False
+        assert not data.get("approved")
         assert "not found" in data.get("reason", "").lower()
         print("✅ Nonexistent entity correctly rejected")
 

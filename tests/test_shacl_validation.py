@@ -8,8 +8,8 @@ sys.path.append(os.getcwd())
 
 # Mock pyshacl and rdflib if not installed
 try:
-    import pyshacl
-    import rdflib
+    import pyshacl  # noqa: F401
+    import rdflib  # noqa: F401
 except ImportError:
     # Create mocks
     sys.modules["pyshacl"] = MagicMock()
@@ -49,7 +49,7 @@ async def test_shacl_validation_pass():
     )
     
     result = await engine.validate_event(event)
-    assert result["is_valid"] == True
+    assert result["is_valid"]
 
 @pytest.mark.asyncio
 async def test_shacl_validation_fail():

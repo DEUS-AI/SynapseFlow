@@ -1,8 +1,6 @@
 """Tests for startup configuration validation."""
 
 import logging
-import os
-from unittest.mock import patch
 
 import pytest
 from infrastructure.config_validation import validate_config, REQUIRED_VARS, OPTIONAL_VARS

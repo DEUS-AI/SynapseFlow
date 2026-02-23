@@ -2,7 +2,6 @@
 # Customize the SynapseFlow Multi-Agent DDA Demo
 
 import os
-from typing import Dict, Any
 
 class DemoConfig:
     """Configuration for the SynapseFlow Multi-Agent DDA Demo."""

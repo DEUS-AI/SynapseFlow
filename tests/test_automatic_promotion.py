@@ -8,7 +8,7 @@ Tests the automatic promotion of entities between knowledge layers:
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from application.services.automatic_layer_transition import (
     AutomaticLayerTransitionService,
@@ -18,7 +18,6 @@ from application.services.automatic_layer_transition import (
 from application.services.layer_transition import (
     Layer,
     TransitionStatus,
-    LayerTransitionService,
 )
 from application.jobs.promotion_scanner import PromotionScannerJob
 from application.event_bus import EventBus

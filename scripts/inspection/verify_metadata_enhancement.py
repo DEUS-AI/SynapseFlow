@@ -1,13 +1,10 @@
 """Verification script for Metadata Model Enhancements."""
 
 import asyncio
-import os
 from datetime import datetime
 
 from infrastructure.in_memory_backend import InMemoryGraphBackend
 from application.agents.data_engineer.metadata_graph_builder import MetadataGraphBuilder
-from application.agents.data_engineer.type_inference import TypeInferenceService
-from infrastructure.graphiti import get_graphiti
 from domain.dda_models import DDADocument, DataEntity
 
 # Mock DDA Document
@@ -40,7 +37,7 @@ async def verify_enhancements():
     # We'll mock the type inference service to avoid needing real LLM/Graphiti here
     class MockTypeInference:
         async def infer_data_type(self, *args):
-            from domain.odin_models import DataTypeEntity, DataType
+            from domain.odin_models import DataTypeEntity
             return DataTypeEntity(name="VARCHAR", base_type="STRING")
         async def infer_precision(self, *args): return 50
         async def infer_scale(self, *args): return None

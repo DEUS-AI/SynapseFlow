@@ -10,8 +10,6 @@ Evaluates document quality for RAG systems using multiple metrics:
 """
 
 import re
-import os
-import json
 import time
 import hashlib
 from typing import List, Dict, Any, Optional, Tuple
@@ -26,7 +24,6 @@ from domain.quality_models import (
     StructuralClarityScore,
     EntityDensityScore,
     ChunkingQualityScore,
-    QualityLevel,
 )
 from application.services.text_chunker import TextChunk
 

@@ -6,24 +6,13 @@ Tests the loading, parsing, and validation of YAML evaluation scenarios.
 
 import pytest
 from pathlib import Path
-from unittest.mock import patch, mock_open
 import tempfile
-import os
 
 from tests.eval.runner.scenario_loader import (
     ScenarioLoader,
     ScenarioLoaderError,
     ScenarioValidationError,
     FixtureNotFoundError,
-)
-from tests.eval.runner.scenario_models import (
-    Scenario,
-    ScenarioTurn,
-    DeterministicAssertion,
-    JudgeAssertion,
-    EntityAssertion,
-    InitialStateEntity,
-    InitialStateRelationship,
 )
 
 

@@ -26,12 +26,11 @@ from domain.confidence_models import (
     CrossLayerConfidencePropagation,
     create_confidence,
     symbolic_confidence,
-    neural_confidence,
 )
 from domain.event import KnowledgeEvent
 from domain.roles import Role
-from domain.temporal_models import TemporalQueryContext, TemporalWindow
-from domain.query_intent_models import QueryIntent, DIKWLayer, RoutingDecision
+from domain.temporal_models import TemporalQueryContext
+from domain.query_intent_models import QueryIntent
 
 if TYPE_CHECKING:
     from application.services.temporal_scoring import TemporalScoringService
@@ -183,7 +182,7 @@ class NeurosymbolicQueryService:
             "temporal_adjustments": 0,
             "intent_routed": 0,
             "by_strategy": {s.value: 0 for s in QueryStrategy},
-            "by_layer": {l.value: 0 for l in KnowledgeLayer},
+            "by_layer": {layer.value: 0 for layer in KnowledgeLayer},
             "by_intent": {intent.value: 0 for intent in QueryIntent},
         }
 
@@ -282,7 +281,7 @@ class NeurosymbolicQueryService:
         # Add trace info to result
         result["query_id"] = query_id
         result["strategy"] = strategy.value
-        result["layers_traversed"] = [l.value for l in trace.layers_traversed]
+        result["layers_traversed"] = [layer.value for layer in trace.layers_traversed]
         result["confidence"] = trace.final_confidence.score
         result["execution_time_ms"] = total_time
 
@@ -299,7 +298,7 @@ class NeurosymbolicQueryService:
             result["routing"] = {
                 "intent": routing_decision.intent.primary_intent.value,
                 "intent_confidence": routing_decision.intent.confidence,
-                "recommended_layers": [l.value for l in routing_decision.layers],
+                "recommended_layers": [layer.value for layer in routing_decision.layers],
                 "matched_patterns": routing_decision.intent.matched_patterns[:3],
                 "requires_inference": routing_decision.intent.requires_inference,
             }
@@ -314,7 +313,7 @@ class NeurosymbolicQueryService:
 
         logger.info(
             f"Query {query_id} completed: confidence={trace.final_confidence.score:.2f}, "
-            f"layers={[l.value for l in trace.layers_traversed]}, time={total_time:.0f}ms, "
+            f"layers={[layer.value for layer in trace.layers_traversed]}, time={total_time:.0f}ms, "
             f"entities={len(entity_ids)}"
         )
 

@@ -3,7 +3,6 @@ import asyncio
 import sys
 import os
 from unittest.mock import MagicMock, AsyncMock
-from datetime import datetime
 
 sys.path.append(os.getcwd())
 
@@ -13,18 +12,14 @@ sys.modules["neo4j"] = MagicMock()
 # We need pyshacl for validation, but if it's not installed, the engine skips it.
 # We'll assume it's installed or handled gracefully.
 
-from src.application.agents.data_engineer.metadata_workflow import MetadataGenerationWorkflow
-from src.application.agents.data_engineer.metadata_graph_builder import MetadataGraphBuilder
-from src.application.agents.data_architect.dda_parser import DDAParserFactory
-from src.application.agents.knowledge_manager.reasoning_engine import ReasoningEngine
-from src.application.agents.knowledge_manager.validation_engine import ValidationEngine
-from src.application.services.knowledge_enricher import KnowledgeEnricher
-from src.infrastructure.in_memory_backend import InMemoryGraphBackend
-from domain.dda_models import DDADocument, DataEntity
-from domain.ontologies.odin import ODIN
-from domain.ontologies.schema_org import SCHEMA
-from domain.event import KnowledgeEvent
-from domain.roles import Role
+from src.application.agents.knowledge_manager.reasoning_engine import ReasoningEngine  # noqa: E402
+from src.application.agents.knowledge_manager.validation_engine import ValidationEngine  # noqa: E402
+from src.application.services.knowledge_enricher import KnowledgeEnricher  # noqa: E402
+from src.infrastructure.in_memory_backend import InMemoryGraphBackend  # noqa: E402
+from domain.ontologies.odin import ODIN  # noqa: E402
+from domain.ontologies.schema_org import SCHEMA  # noqa: E402
+from domain.event import KnowledgeEvent  # noqa: E402
+from domain.roles import Role  # noqa: E402
 
 async def verify_hybrid_ontology():
     print("🚀 Verifying Advanced Knowledge Representation...")

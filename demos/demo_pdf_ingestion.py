@@ -112,12 +112,12 @@ def print_summary_statistics(results: list):
         total_time = sum(r.get("total_time_seconds", 0) for r in successful)
         total_words = sum(r.get("markdown_words", 0) for r in successful)
 
-        print(f"\n  Knowledge Extracted:")
+        print("\n  Knowledge Extracted:")
         print(f"    Entities: {total_entities:,}")
         print(f"    Relationships: {total_relationships:,}")
         print(f"    Total Words Processed: {total_words:,}")
 
-        print(f"\n  Performance:")
+        print("\n  Performance:")
         print(f"    Total Time: {total_time:.2f}s")
         print(f"    Avg Time per Document: {total_time / len(successful):.2f}s")
 
@@ -127,7 +127,7 @@ def print_summary_statistics(results: list):
             print(f"    Avg Relationships per Document: {total_relationships / len(successful):.1f}")
 
     if failed:
-        print(f"\n  Failed Documents:")
+        print("\n  Failed Documents:")
         for result in failed:
             print(f"    - {result['document']}: {result['error']}")
 
@@ -175,14 +175,14 @@ async def main():
         return 1
 
     print_header("PDF Knowledge Ingestion Demo")
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  PDF Directory: {args.pdf_dir}")
     print(f"  Max Documents: {args.max_docs or 'All'}")
     print(f"  Save Markdown: {args.save_markdown}")
     if args.save_markdown:
         print(f"  Markdown Directory: {args.markdown_dir}")
-    print(f"  Graph Database: FalkorDB (localhost:6379)")
-    print(f"  Graph Name: medical_knowledge")
+    print("  Graph Database: FalkorDB (localhost:6379)")
+    print("  Graph Name: medical_knowledge")
 
     # Initialize service
     print_section("Initializing Service")
@@ -280,8 +280,8 @@ async def main():
     print_summary_statistics(results)
 
     print_header("Ingestion Complete")
-    print(f"\nKnowledge graph 'medical_knowledge' updated in FalkorDB")
-    print(f"View at: http://localhost:3000")
+    print("\nKnowledge graph 'medical_knowledge' updated in FalkorDB")
+    print("View at: http://localhost:3000")
 
     return 0
 

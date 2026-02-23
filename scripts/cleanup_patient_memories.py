@@ -71,7 +71,7 @@ def show_status():
             shared_collections.append((name, count))
             print(f"  ⚠️  SHARED: {name}")
             print(f"      Points: {count}")
-            print(f"      WARNING: This is the old shared collection that can leak data!")
+            print("      WARNING: This is the old shared collection that can leak data!")
         elif name.startswith("patient_mem_"):
             patient_collections.append((name, count))
             patient_id = name.replace("patient_mem_", "").replace("_", ":")

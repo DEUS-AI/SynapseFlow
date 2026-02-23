@@ -1,6 +1,6 @@
 """Command handlers for knowledge management operations."""
 
-from typing import Dict, Any, List
+from typing import Dict
 from domain.command_bus import CommandHandler
 from application.commands.knowledge_commands import (
     EscalateKGUpdateCommand,
@@ -13,7 +13,6 @@ from application.commands.knowledge_commands import (
     AuditLogResult
 )
 from application.agents.knowledge_manager.agent import KnowledgeManagerAgent, KGUpdateRequest, KGUpdateType
-from graphiti_core import Graphiti
 import logging
 
 logger = logging.getLogger(__name__)
