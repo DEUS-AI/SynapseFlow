@@ -1,16 +1,27 @@
 """Advanced validation engine for knowledge graph operations."""
 
+from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 from domain.kg_backends import KnowledgeGraphBackend
 from domain.event import KnowledgeEvent
 from domain.roles import Role
 
 
+@dataclass
+class ValidationLimits:
+    """Configurable size limits for validation checks."""
+
+    max_id_length: int = 100
+    max_property_value_size: int = 1000
+    max_relationship_type_length: int = 50
+
+
 class ValidationEngine:
     """Advanced validation for knowledge graph operations."""
 
-    def __init__(self, backend: KnowledgeGraphBackend):
+    def __init__(self, backend: KnowledgeGraphBackend, config: Optional[ValidationLimits] = None):
         self.backend = backend
+        self.config = config or ValidationLimits()
         self._validation_rules = self._initialize_validation_rules()
         self.shacl_graph = self._load_shacl_shapes()
 
@@ -167,8 +178,8 @@ class ValidationEngine:
         warnings = []
         
         # Check for common ID format issues
-        if len(entity_id) > 100:
-            warnings.append("Entity ID is very long (>100 characters)")
+        if len(entity_id) > self.config.max_id_length:
+            warnings.append(f"Entity ID is very long (>{self.config.max_id_length} characters)")
         
         if " " in entity_id:
             warnings.append("Entity ID contains spaces - consider using underscores or hyphens")
@@ -215,8 +226,8 @@ class ValidationEngine:
             # Check property values
             if value is None:
                 warnings.append(f"Property '{key}' has null value")
-            elif isinstance(value, (dict, list)) and len(str(value)) > 1000:
-                warnings.append(f"Property '{key}' has very large value (>1000 characters)")
+            elif isinstance(value, (dict, list)) and len(str(value)) > self.config.max_property_value_size:
+                warnings.append(f"Property '{key}' has very large value (>{self.config.max_property_value_size} characters)")
         
         return {
             "is_valid": True,
@@ -252,8 +263,8 @@ class ValidationEngine:
             }
         
         # Check relationship type format
-        if len(rel_type) > 50:
-            warnings.append("Relationship type is very long (>50 characters)")
+        if len(rel_type) > self.config.max_relationship_type_length:
+            warnings.append(f"Relationship type is very long (>{self.config.max_relationship_type_length} characters)")
         
         if " " in rel_type:
             warnings.append("Relationship type contains spaces - consider using underscores or hyphens")

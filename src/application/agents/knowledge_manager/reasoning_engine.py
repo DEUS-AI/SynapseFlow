@@ -9,6 +9,7 @@ from domain.confidence_models import (
 )
 from graphiti_core import Graphiti
 from .ontology_mapper import OntologyMapper
+from .reasoning_config import ReasoningEngineConfig
 import logging
 
 if TYPE_CHECKING:
@@ -33,10 +34,12 @@ class ReasoningEngine:
         backend: KnowledgeGraphBackend,
         llm: Optional[Graphiti] = None,
         enable_confidence_tracking: bool = True,
-        medical_rules_engine: Optional["MedicalRulesEngine"] = None
+        medical_rules_engine: Optional["MedicalRulesEngine"] = None,
+        config: Optional[ReasoningEngineConfig] = None,
     ):
         self.backend = backend
         self.llm = llm
+        self.config = config or ReasoningEngineConfig()
         self.ontology_mapper = OntologyMapper()  # Initialize Mapper
         self._reasoning_rules = self._initialize_reasoning_rules()
         self.enable_confidence_tracking = enable_confidence_tracking
@@ -194,6 +197,12 @@ class ReasoningEngine:
         import time
         start_time = time.time()
 
+        rules = self._reasoning_rules.get(event.action, [])
+        logger.info(
+            "Reasoning: strategy=%s action=%s rules=%d",
+            strategy, event.action, len(rules),
+        )
+
         # Apply reasoning based on strategy
         if strategy == "neural_first":
             reasoning_result = await self._neural_first_reasoning(event, reasoning_result)
@@ -210,6 +219,17 @@ class ReasoningEngine:
         if self.enable_confidence_tracking:
             entity_id = event.data.get("id", "unknown")
             self._reasoning_provenance[entity_id] = reasoning_result.get("provenance", [])
+
+        logger.info(
+            "Reasoning complete: strategy=%s action=%s rules_fired=%d "
+            "inferences=%d suggestions=%d warnings=%d time=%.2fms",
+            strategy, event.action,
+            len(reasoning_result["applied_rules"]),
+            len(reasoning_result["inferences"]),
+            len(reasoning_result["suggestions"]),
+            len(reasoning_result["warnings"]),
+            reasoning_time,
+        )
 
         return reasoning_result
 
@@ -241,7 +261,7 @@ class ReasoningEngine:
                         # Create confidence object
                         if self.enable_confidence_tracking:
                             conf = neural_confidence(
-                                inference.get("confidence", 0.7),
+                                inference.get("confidence", self.config.strategy.default_neural_confidence),
                                 "llm_reasoner"
                             )
                             inference["confidence_obj"] = conf
@@ -301,6 +321,16 @@ class ReasoningEngine:
                         "type": "symbolic",
                         "contribution": len(rule_result.get("inferences", []))
                     })
+
+                    logger.debug(
+                        "Rule fired: %s inferences=%d suggestions=%d warnings=%d",
+                        rule["name"],
+                        len(rule_result.get("inferences", [])),
+                        len(rule_result.get("suggestions", [])),
+                        len(rule_result.get("warnings", [])),
+                    )
+                else:
+                    logger.debug("Rule skipped: %s (no results)", rule["name"])
 
             except Exception as e:
                 reasoning_result["warnings"].append(
@@ -363,13 +393,23 @@ class ReasoningEngine:
                         "contribution": len(rule_result.get("inferences", []))
                     })
 
+                    logger.debug(
+                        "Rule fired: %s inferences=%d suggestions=%d warnings=%d",
+                        rule["name"],
+                        len(rule_result.get("inferences", [])),
+                        len(rule_result.get("suggestions", [])),
+                        len(rule_result.get("warnings", [])),
+                    )
+                else:
+                    logger.debug("Rule skipped: %s (no results)", rule["name"])
+
             except Exception as e:
                 reasoning_result["warnings"].append(
                     f"Reasoning rule '{rule['name']}' failed: {str(e)}"
                 )
 
         # Step 2: LLM fills gaps (only if symbolic rules didn't produce enough)
-        if len(reasoning_result["inferences"]) < 2 and self.llm_reasoner:
+        if len(reasoning_result["inferences"]) < self.config.strategy.symbolic_first_min_inferences and self.llm_reasoner:
             try:
                 neural_result = await self._llm_semantic_inference(event)
                 if neural_result and neural_result.get("inferences"):
@@ -379,7 +419,7 @@ class ReasoningEngine:
 
                         if self.enable_confidence_tracking:
                             conf = neural_confidence(
-                                inference.get("confidence", 0.7),
+                                inference.get("confidence", self.config.strategy.default_neural_confidence),
                                 "llm_reasoner"
                             )
                             inference["confidence_obj"] = conf
@@ -439,7 +479,7 @@ class ReasoningEngine:
                             if self.enable_confidence_tracking:
                                 if is_neural:
                                     conf = neural_confidence(
-                                        inference.get("confidence", 0.7),
+                                        inference.get("confidence", self.config.strategy.default_neural_confidence),
                                         rule["name"]
                                     )
                                 else:
@@ -463,6 +503,16 @@ class ReasoningEngine:
                         "type": "neural" if is_neural else "symbolic",
                         "contribution": len(rule_result.get("inferences", []))
                     })
+
+                    logger.debug(
+                        "Rule fired: %s inferences=%d suggestions=%d warnings=%d",
+                        rule["name"],
+                        len(rule_result.get("inferences", [])),
+                        len(rule_result.get("suggestions", [])),
+                        len(rule_result.get("warnings", [])),
+                    )
+                else:
+                    logger.debug("Rule skipped: %s (no results)", rule["name"])
 
             except Exception as e:
                 reasoning_result["warnings"].append(
@@ -495,23 +545,23 @@ class ReasoningEngine:
                 inferences.append({
                     "property": "entity_type",
                     "value": "identifier",
-                    "confidence": 0.8,
+                    "confidence": self.config.confidence.id_pattern_confidence,
                     "reason": "ID pattern suggests identifier entity"
                 })
-            
+
             if any(keyword in entity_id.lower() for keyword in ["user", "customer", "person"]):
                 inferences.append({
                     "property": "entity_type",
                     "value": "person",
-                    "confidence": 0.7,
+                    "confidence": self.config.confidence.person_keyword_confidence,
                     "reason": "ID contains person-related keywords"
                 })
-            
+
             if any(keyword in entity_id.lower() for keyword in ["order", "transaction", "purchase"]):
                 inferences.append({
                     "property": "entity_type",
                     "value": "transaction",
-                    "confidence": 0.7,
+                    "confidence": self.config.confidence.transaction_keyword_confidence,
                     "reason": "ID contains transaction-related keywords"
                 })
         
@@ -520,15 +570,15 @@ class ReasoningEngine:
             inferences.append({
                 "property": "has_contact_info",
                 "value": True,
-                "confidence": 0.9,
+                "confidence": self.config.confidence.contact_info_confidence,
                 "reason": "Entity has email property"
             })
-        
+
         if "created_date" in properties:
             inferences.append({
                 "property": "is_temporal",
                 "value": True,
-                "confidence": 0.8,
+                "confidence": self.config.confidence.temporal_property_confidence,
                 "reason": "Entity has temporal properties"
             })
         
@@ -543,21 +593,21 @@ class ReasoningEngine:
         if "name" in properties and "email" in properties:
             suggestions.append({
                 "classification": "person",
-                "confidence": 0.8,
+                "confidence": self.config.confidence.classify_person_confidence,
                 "reason": "Has name and email properties"
             })
-        
+
         if "amount" in properties or "price" in properties:
             suggestions.append({
                 "classification": "financial",
-                "confidence": 0.7,
+                "confidence": self.config.confidence.classify_financial_confidence,
                 "reason": "Has financial properties"
             })
-        
+
         if "status" in properties and "created_date" in properties:
             suggestions.append({
                 "classification": "process",
-                "confidence": 0.6,
+                "confidence": self.config.confidence.classify_process_confidence,
                 "reason": "Has status and temporal properties"
             })
         
@@ -574,15 +624,15 @@ class ReasoningEngine:
             suggestions.append({
                 "relationship_type": "HAS_EMAIL",
                 "target_pattern": "email_*",
-                "confidence": 0.7,
+                "confidence": self.config.confidence.suggest_email_rel_confidence,
                 "reason": "Entity has email property"
             })
-        
+
         if "created_date" in properties:
             suggestions.append({
                 "relationship_type": "CREATED_ON",
                 "target_pattern": "date_*",
-                "confidence": 0.6,
+                "confidence": self.config.confidence.suggest_date_rel_confidence,
                 "reason": "Entity has creation date"
             })
         
@@ -630,7 +680,7 @@ class ReasoningEngine:
         if rel_type in inverse_patterns:
             suggestions.append({
                 "inverse_type": inverse_patterns[rel_type],
-                "confidence": 0.8,
+                "confidence": self.config.confidence.inverse_relationship_confidence,
                 "reason": f"Standard inverse of '{rel_type}' relationship"
             })
         
@@ -655,7 +705,7 @@ class ReasoningEngine:
                     "relationship_type": rel_type,
                     "source": source,
                     "target": rel["target"],
-                    "confidence": 0.9,
+                    "confidence": self.config.confidence.transitive_closure_confidence,
                     "reason": f"Transitive closure: {source} -> {target} -> {rel['target']}"
                 })
                 
@@ -667,7 +717,7 @@ class ReasoningEngine:
                     "relationship_type": rel_type,
                     "source": rel["source"],
                     "target": target,
-                    "confidence": 0.9,
+                    "confidence": self.config.confidence.transitive_closure_confidence,
                     "reason": f"Transitive closure: {rel['source']} -> {source} -> {target}"
                 })
         
@@ -717,7 +767,7 @@ class ReasoningEngine:
                     })
         
         # Suggest relationship optimizations
-        if len(relationship_types) > 10:
+        if len(relationship_types) > self.config.strategy.relationship_type_consolidation_threshold:
             advanced_result["optimization_suggestions"].append({
                 "type": "relationship_consolidation",
                 "message": "Consider consolidating similar relationship types",
@@ -834,17 +884,17 @@ class ReasoningEngine:
             entity_type = entity.get("type", "unknown")
             confidence = entity.get("confidence", 0.0)
 
-            if confidence >= 0.8:
+            if confidence >= self.config.confidence.medical_high_threshold:
                 high_confidence_entities.append(entity)
                 inferences.append({
                     "type": "validated_medical_entity",
                     "entity": entity_name,
                     "entity_type": entity_type,
-                    "confidence": 0.9,
+                    "confidence": self.config.confidence.validated_entity_confidence,
                     "source": entity.get("source_document", "knowledge_graph"),
                     "reason": f"High-confidence medical entity: {entity_name} ({entity_type})"
                 })
-            elif confidence < 0.6:
+            elif confidence < self.config.confidence.medical_low_threshold:
                 low_confidence_entities.append(entity)
                 warnings.append(
                     f"Low confidence entity: {entity_name} ({confidence:.2f}) - may need verification"
@@ -899,7 +949,7 @@ class ReasoningEngine:
                         "medical": med_entity.get("name"),
                         "data": table.get("name"),
                         "type": "table",
-                        "confidence": 0.75
+                        "confidence": self.config.confidence.cross_graph_table_confidence
                     })
 
             for column in data_columns:
@@ -910,7 +960,7 @@ class ReasoningEngine:
                         "medical": med_entity.get("name"),
                         "data": column.get("name"),
                         "type": "column",
-                        "confidence": 0.70
+                        "confidence": self.config.confidence.cross_graph_column_confidence
                     })
 
         if potential_connections:
@@ -969,7 +1019,7 @@ class ReasoningEngine:
                     {
                         "type": "treatment_recommendation_detected",
                         "disclaimer_required": True,
-                        "confidence": 0.95,
+                        "confidence": self.config.confidence.treatment_recommendation_confidence,
                         "reason": "Detected treatment recommendation query - medical disclaimer required"
                     }
                 ]
@@ -998,35 +1048,37 @@ class ReasoningEngine:
         data_tables = event.data.get("data_tables", [])
         data_columns = event.data.get("data_columns", [])
 
-        # Base availability score
-        availability_score = 0.5
+        sc = self.config.scoring
 
-        # Boost for medical entities (up to +0.3)
+        # Base availability score
+        availability_score = sc.base_availability_score
+
+        # Boost for medical entities
         if medical_entities:
-            entity_boost = 0.1 * min(len(medical_entities), 3)
+            entity_boost = sc.entity_boost_per_item * min(len(medical_entities), sc.max_entity_boost_items)
             availability_score += entity_boost
 
-        # Boost for relationships (up to +0.2)
+        # Boost for relationships
         if relationships:
-            rel_boost = 0.1 * min(len(relationships), 2)
+            rel_boost = sc.relationship_boost_per_item * min(len(relationships), sc.max_relationship_boost_items)
             availability_score += rel_boost
 
-        # Boost for data catalog context (up to +0.2)
+        # Boost for data catalog context
         if data_tables:
-            table_boost = 0.1 * min(len(data_tables), 2)
+            table_boost = sc.table_boost_per_item * min(len(data_tables), sc.max_table_boost_items)
             availability_score += table_boost
 
         if data_columns:
-            col_boost = 0.05
+            col_boost = sc.column_boost
             availability_score += col_boost
 
         # Cap at 1.0
         availability_score = min(1.0, availability_score)
 
         # Determine quality level
-        if availability_score >= 0.8:
+        if availability_score >= sc.quality_high_threshold:
             quality_assessment = "Strong data availability - high-confidence answer possible"
-        elif availability_score >= 0.6:
+        elif availability_score >= sc.quality_medium_threshold:
             quality_assessment = "Moderate data availability - answer with caveats"
         else:
             quality_assessment = "Limited data availability - answer may be incomplete"
@@ -1036,8 +1088,8 @@ class ReasoningEngine:
                 {
                     "type": "data_availability_assessment",
                     "score": availability_score,
-                    "confidence": 0.85,
-                    "quality_level": "high" if availability_score >= 0.8 else "medium" if availability_score >= 0.6 else "low",
+                    "confidence": sc.availability_assessment_confidence,
+                    "quality_level": "high" if availability_score >= sc.quality_high_threshold else "medium" if availability_score >= sc.quality_medium_threshold else "low",
                     "reason": quality_assessment,
                     "context_summary": {
                         "medical_entities": len(medical_entities),
@@ -1065,35 +1117,37 @@ class ReasoningEngine:
         Returns:
             Confidence score calculation
         """
+        sc = self.config.scoring
+
         # Start with base confidence
-        base_confidence = 0.5
+        base_confidence = sc.base_answer_confidence
 
         # Get entities for confidence boost
         medical_entities = event.data.get("medical_entities", [])
-        validated_count = sum(1 for e in medical_entities if e.get("confidence", 0) >= 0.8)
+        validated_count = sum(1 for e in medical_entities if e.get("confidence", 0) >= sc.validated_entity_threshold)
 
-        # Boost for validated entities (up to +0.3)
+        # Boost for validated entities
         if validated_count > 0:
-            entity_boost = 0.1 * min(validated_count, 3)
+            entity_boost = sc.answer_entity_boost * min(validated_count, sc.max_answer_entity_boost_items)
             base_confidence += entity_boost
 
-        # Boost for relationships (up to +0.1)
+        # Boost for relationships
         relationships = event.data.get("medical_relationships", [])
         if relationships:
-            rel_boost = 0.05 * min(len(relationships), 2)
+            rel_boost = sc.answer_relationship_boost * min(len(relationships), sc.max_answer_relationship_boost_items)
             base_confidence += rel_boost
 
-        # Boost for cross-graph context (up to +0.1)
+        # Boost for cross-graph context
         data_tables = event.data.get("data_tables", [])
         data_columns = event.data.get("data_columns", [])
         if data_tables or data_columns:
-            cross_boost = 0.1
+            cross_boost = sc.answer_cross_graph_boost
             base_confidence += cross_boost
 
         # Penalize for warnings
         warnings = event.data.get("warnings", [])
         if warnings:
-            base_confidence *= 0.95
+            base_confidence *= sc.warning_penalty_factor
 
         # Cap at 1.0
         final_confidence = min(1.0, base_confidence)
@@ -1175,6 +1229,13 @@ class ReasoningEngine:
                 result["suggestions"].extend(application_result.get("suggestions", []))
                 result["cross_layer_rules_applied"].append("application_to_perception")
 
+        logger.debug(
+            "Cross-layer reasoning: layer=%s rules_applied=%s inferences=%d",
+            current_layer,
+            result["cross_layer_rules_applied"],
+            len(result["inferences"]),
+        )
+
         return result
 
     async def _perception_to_semantic_reasoning(
@@ -1224,11 +1285,11 @@ class ReasoningEngine:
                     matches = sum(1 for col in pattern_cols if any(col in name for name in column_names_lower))
                     match_score = matches / len(pattern_cols)
 
-                    if match_score >= 0.4:  # At least 40% match
+                    if match_score >= self.config.cross_layer.concept_match_threshold:
                         inferences.append({
                             "type": "business_concept_inference",
                             "concept": concept.capitalize(),
-                            "confidence": min(0.6 + (match_score * 0.4), 1.0),
+                            "confidence": min(self.config.cross_layer.min_concept_confidence + (match_score * self.config.cross_layer.concept_confidence_boost), 1.0),
                             "reason": f"Table '{table_name}' matches {int(match_score*100)}% of {concept} pattern",
                             "matched_columns": [col for col in pattern_cols if any(col in name for name in column_names_lower)],
                             "target_layer": "SEMANTIC"
@@ -1239,7 +1300,7 @@ class ReasoningEngine:
                 suggestions.append({
                     "action": "promote_to_semantic",
                     "reason": "Table structure suggests business concepts",
-                    "confidence": 0.8
+                    "confidence": self.config.cross_layer.promote_to_semantic_confidence
                 })
 
         # Infer domain from column names
@@ -1260,7 +1321,7 @@ class ReasoningEngine:
                     inferences.append({
                         "type": "domain_classification",
                         "domain": domain,
-                        "confidence": 0.75,
+                        "confidence": self.config.cross_layer.domain_classification_confidence,
                         "reason": f"Column name '{column_name}' suggests {domain} domain",
                         "target_layer": "SEMANTIC"
                     })
@@ -1322,7 +1383,7 @@ class ReasoningEngine:
                     "rule_name": rule["rule"],
                     "reason": rule["reason"],
                     "concept": concept_type,
-                    "confidence": 0.85,
+                    "confidence": self.config.cross_layer.quality_rule_confidence,
                     "target_layer": "REASONING"
                 })
 
@@ -1337,7 +1398,7 @@ class ReasoningEngine:
                         "type": "referential_integrity_rule",
                         "rule_name": "foreign_key_constraint",
                         "reason": "Foreign key relationship requires referential integrity",
-                        "confidence": 0.95,
+                        "confidence": self.config.cross_layer.referential_integrity_confidence,
                         "target_layer": "REASONING"
                     })
 
@@ -1346,7 +1407,7 @@ class ReasoningEngine:
                         "type": "composition_rule",
                         "rule_name": "parent_child_consistency",
                         "reason": "Part-of relationship requires parent existence",
-                        "confidence": 0.9,
+                        "confidence": self.config.cross_layer.composition_rule_confidence,
                         "target_layer": "REASONING"
                     })
 
@@ -1355,7 +1416,7 @@ class ReasoningEngine:
             suggestions.append({
                 "action": "promote_to_reasoning",
                 "reason": "Business concept has derived quality rules",
-                "confidence": 0.8
+                "confidence": self.config.cross_layer.promote_to_reasoning_confidence
             })
 
         return {"inferences": inferences, "suggestions": suggestions} if inferences or suggestions else None
@@ -1391,7 +1452,7 @@ class ReasoningEngine:
                     "type": "query_pattern",
                     "pattern": "duplicate_detection_query",
                     "reason": "Uniqueness rule suggests duplicate detection queries",
-                    "confidence": 0.8,
+                    "confidence": self.config.cross_layer.duplicate_detection_confidence,
                     "target_layer": "APPLICATION"
                 })
 
@@ -1400,7 +1461,7 @@ class ReasoningEngine:
                     "type": "query_pattern",
                     "pattern": "temporal_analysis_query",
                     "reason": "Temporal rules suggest time-series analysis",
-                    "confidence": 0.75,
+                    "confidence": self.config.cross_layer.temporal_analysis_confidence,
                     "target_layer": "APPLICATION"
                 })
 
@@ -1409,17 +1470,17 @@ class ReasoningEngine:
                     "type": "query_pattern",
                     "pattern": "aggregation_query",
                     "reason": "Numeric rules suggest aggregation patterns",
-                    "confidence": 0.8,
+                    "confidence": self.config.cross_layer.aggregation_confidence,
                     "target_layer": "APPLICATION"
                 })
 
         # Suggest materialized views for frequently validated rules
         confidence = properties.get("confidence", 0.0)
-        if confidence > 0.9:
+        if confidence > self.config.cross_layer.materialized_view_threshold:
             suggestions.append({
                 "action": "create_materialized_view",
                 "reason": "High-confidence rule benefits from materialized view",
-                "confidence": 0.7
+                "confidence": self.config.cross_layer.materialized_view_confidence
             })
 
         # Suggest indexes for performance
@@ -1428,7 +1489,7 @@ class ReasoningEngine:
                 "type": "optimization_suggestion",
                 "suggestion": "create_index_on_foreign_key",
                 "reason": "Foreign key constraint benefits from index",
-                "confidence": 0.9,
+                "confidence": self.config.cross_layer.fk_index_confidence,
                 "target_layer": "APPLICATION"
             })
 
@@ -1463,7 +1524,7 @@ class ReasoningEngine:
                 "action": "collect_temporal_data",
                 "reason": "Frequent temporal queries suggest need for timestamp columns",
                 "recommended_columns": ["created_at", "updated_at", "deleted_at"],
-                "confidence": 0.75,
+                "confidence": self.config.cross_layer.temporal_data_confidence,
                 "target_layer": "PERCEPTION"
             })
 
@@ -1472,27 +1533,27 @@ class ReasoningEngine:
                 "action": "collect_aggregate_metadata",
                 "reason": "Aggregation queries benefit from pre-computed summaries",
                 "recommended_tables": ["summary_stats", "daily_aggregates"],
-                "confidence": 0.7,
+                "confidence": self.config.cross_layer.aggregate_metadata_confidence,
                 "target_layer": "PERCEPTION"
             })
 
         # High-frequency queries suggest missing indexes or tables
-        if access_count > 100:
+        if access_count > self.config.cross_layer.high_access_threshold:
             inferences.append({
                 "type": "data_gap_detection",
                 "gap": "missing_optimized_structure",
                 "reason": f"Query accessed {access_count} times suggests need for optimized data structure",
-                "confidence": 0.8,
+                "confidence": self.config.cross_layer.data_gap_confidence,
                 "target_layer": "PERCEPTION"
             })
 
         # Suggest new data collection based on failed queries
         query_errors = properties.get("query_errors", 0)
-        if query_errors > 10:
+        if query_errors > self.config.cross_layer.query_error_threshold:
             suggestions.append({
                 "action": "review_data_sources",
                 "reason": f"{query_errors} query errors suggest missing or incomplete data",
-                "confidence": 0.85,
+                "confidence": self.config.cross_layer.review_data_confidence,
                 "target_layer": "PERCEPTION"
             })
 

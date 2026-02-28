@@ -1,14 +1,25 @@
 """LLM-based reasoner for semantic inference."""
 
-from typing import Dict, Any, List
+from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
 from graphiti_core import Graphiti
 from domain.event import KnowledgeEvent
 
+
+@dataclass
+class LLMReasonerConfig:
+    """Configuration for LLM reasoner confidence defaults."""
+
+    default_inference_confidence: float = 0.7
+    default_linking_confidence: float = 0.8
+
+
 class LLMReasoner:
     """Uses LLM to infer semantic relationships and properties."""
-    
-    def __init__(self, llm: Graphiti):
+
+    def __init__(self, llm: Graphiti, config: Optional[LLMReasonerConfig] = None):
         self.llm = llm
+        self.config = config or LLMReasonerConfig()
         
     async def suggest_semantic_relationships(self, event: KnowledgeEvent) -> List[Dict[str, Any]]:
         """Suggest semantic relationships for an entity using LLM."""
@@ -50,7 +61,7 @@ class LLMReasoner:
                         "relationship": rel_type,
                         "target": target,
                         "source": source,
-                        "confidence": 0.7, # LLM inference is probabilistic
+                        "confidence": self.config.default_inference_confidence,
                         "reason": f"LLM suggested '{rel_type}' relationship"
                     })
             
@@ -116,7 +127,7 @@ class LLMReasoner:
                         "type": "semantic_linking",
                         "relationship": rel_type,
                         "target_concept": target,
-                        "confidence": 0.8,
+                        "confidence": self.config.default_linking_confidence,
                         "reason": f"LLM identified '{target}' as a related Business Concept"
                     })
             
