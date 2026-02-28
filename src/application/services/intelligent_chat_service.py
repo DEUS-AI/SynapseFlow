@@ -175,11 +175,19 @@ Answer:"""
         neo4j_backend = Neo4jBackend(uri=neo4j_uri, username=neo4j_user, password=neo4j_password)
 
         # Initialize document service for RAG (with FAISS vector search)
+        doc_db_session_factory = None
+        try:
+            from infrastructure.database.session import is_initialized, db_session
+            if is_initialized():
+                doc_db_session_factory = db_session
+        except ImportError:
+            pass
         self.document_service = DocumentService(
             kg_backend=neo4j_backend,
             chunk_size=1500,
             chunk_overlap=300,
-            faiss_index_path="data/faiss_index"
+            faiss_index_path="data/faiss_index",
+            db_session_factory=doc_db_session_factory,
         )
 
         # Initialize sub-services

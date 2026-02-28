@@ -237,6 +237,11 @@ def use_postgres_feedback() -> bool:
     return is_flag_enabled("use_postgres_feedback")
 
 
+def use_postgres_documents() -> bool:
+    """Check if documents should use PostgreSQL."""
+    return is_flag_enabled("use_postgres_documents")
+
+
 def dual_write_enabled(data_type: str) -> bool:
     """Check if dual-write is enabled for a data type."""
     return is_flag_enabled(f"dual_write_{data_type}")

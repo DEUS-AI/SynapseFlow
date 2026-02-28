@@ -14,6 +14,7 @@ import logging
 
 from application.services.document_tracker import DocumentTracker
 from application.services.document_quality_service import DocumentQualityService, quick_quality_check
+from application.services.feature_flag_service import use_postgres_documents
 from domain.quality_models import QualityLevel
 
 logger = logging.getLogger(__name__)
@@ -32,8 +33,45 @@ document_tracker = DocumentTracker(
     markdown_directory=MARKDOWN_DIRECTORY
 )
 
+# PostgreSQL session factory (set during app startup)
+_db_session_factory = None
+
+
+def configure_postgres(db_session_factory):
+    """Configure PostgreSQL access for the document router."""
+    global _db_session_factory
+    _db_session_factory = db_session_factory
+    logger.info("Document router configured with PostgreSQL support")
+
+
+def _has_postgres() -> bool:
+    return _db_session_factory is not None
+
+
 # Active ingestion jobs
 active_jobs: dict = {}
+
+
+def _pg_doc_to_tracker_dict(pg_doc) -> dict:
+    """Map a PostgreSQL Document model to the DocumentTracker response shape."""
+    return {
+        "id": pg_doc.external_id or str(pg_doc.id),
+        "filename": pg_doc.filename,
+        "path": pg_doc.source_path or "",
+        "category": pg_doc.category or "general",
+        "size_bytes": pg_doc.size_bytes or 0,
+        "status": pg_doc.status or "not_started",
+        "ingested_at": pg_doc.ingested_at.isoformat() if pg_doc.ingested_at else None,
+        "entity_count": pg_doc.entity_count or 0,
+        "relationship_count": pg_doc.relationship_count or 0,
+        "error_message": pg_doc.error_message,
+        "markdown_path": pg_doc.markdown_path,
+        "created_at": pg_doc.created_at.isoformat() if pg_doc.created_at else None,
+        "updated_at": pg_doc.updated_at.isoformat() if pg_doc.updated_at else None,
+        "quality_score": None,
+        "quality_level": None,
+        "quality_assessed_at": None,
+    }
 
 
 @router.get("")
@@ -44,6 +82,16 @@ async def list_documents(
 ):
     """List all documents with their ingestion status."""
     try:
+        if _has_postgres() and use_postgres_documents():
+            from infrastructure.database.repositories import DocumentRepository
+
+            async with _db_session_factory() as session:
+                repo = DocumentRepository(session)
+                pg_docs = await repo.list_filtered(
+                    status=status, category=category, search=search
+                )
+            return [_pg_doc_to_tracker_dict(d) for d in pg_docs]
+
         documents = document_tracker.list_documents(
             status=status,
             category=category,
@@ -59,6 +107,14 @@ async def list_documents(
 async def get_categories():
     """Get all document categories."""
     try:
+        if _has_postgres() and use_postgres_documents():
+            from infrastructure.database.repositories import DocumentRepository
+
+            async with _db_session_factory() as session:
+                repo = DocumentRepository(session)
+                categories = await repo.get_categories()
+            return {"categories": categories}
+
         categories = document_tracker.get_categories()
         return {"categories": categories}
     except Exception as e:
@@ -70,6 +126,14 @@ async def get_categories():
 async def get_statistics():
     """Get document statistics."""
     try:
+        if _has_postgres() and use_postgres_documents():
+            from infrastructure.database.repositories import DocumentRepository
+
+            async with _db_session_factory() as session:
+                repo = DocumentRepository(session)
+                stats = await repo.get_full_statistics()
+            return stats
+
         stats = document_tracker.get_statistics()
         return stats
     except Exception as e:
@@ -87,6 +151,32 @@ async def get_active_jobs():
 async def get_document_details(doc_id: str):
     """Get detailed information about a document."""
     try:
+        if _has_postgres() and use_postgres_documents():
+            from infrastructure.database.repositories import DocumentRepository
+
+            async with _db_session_factory() as session:
+                repo = DocumentRepository(session)
+                pg_doc = await repo.get_by_external_id(doc_id)
+
+            if not pg_doc:
+                raise HTTPException(status_code=404, detail="Document not found")
+
+            result = _pg_doc_to_tracker_dict(pg_doc)
+            result["processed_at"] = result.get("ingested_at")
+
+            # Add markdown preview from filesystem
+            md_path = pg_doc.markdown_path
+            if md_path and Path(md_path).exists():
+                try:
+                    content = Path(md_path).read_text(encoding='utf-8')
+                    result["markdown_preview"] = content[:2000]
+                    result["markdown_length"] = len(content)
+                except Exception as e:
+                    logger.warning(f"Could not read markdown: {e}")
+                    result["markdown_preview"] = None
+
+            return result
+
         doc = document_tracker.get_document(doc_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")

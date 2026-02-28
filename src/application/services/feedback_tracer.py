@@ -9,7 +9,7 @@ Features:
 - Feedback propagation to entity confidence
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -19,6 +19,10 @@ import uuid
 from domain.event import KnowledgeEvent
 from domain.roles import Role
 from application.event_bus import EventBus
+from application.services.feature_flag_service import (
+    dual_write_enabled,
+    use_postgres_feedback,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +91,7 @@ class FeedbackTracerService:
         event_bus: Optional[EventBus] = None,
         confidence_decay_on_negative: float = 0.05,
         confidence_boost_on_positive: float = 0.02,
+        db_session_factory: Optional[Callable] = None,
     ):
         """
         Initialize feedback tracer service.
@@ -96,11 +101,13 @@ class FeedbackTracerService:
             event_bus: Optional event bus for publishing feedback events
             confidence_decay_on_negative: How much to reduce confidence on negative feedback
             confidence_boost_on_positive: How much to increase confidence on positive feedback
+            db_session_factory: Optional async context manager yielding AsyncSession for PostgreSQL
         """
         self.backend = backend
         self.event_bus = event_bus
         self.confidence_decay = confidence_decay_on_negative
         self.confidence_boost = confidence_boost_on_positive
+        self._db_session = db_session_factory
 
         # In-memory storage (would be persisted in production)
         self._feedbacks: List[UserFeedback] = []
@@ -114,6 +121,17 @@ class FeedbackTracerService:
             "corrections_count": 0,
             "entities_affected": 0,
         }
+
+        if self._db_session:
+            logger.info(
+                "FeedbackTracerService initialized with PostgreSQL support "
+                f"(dual_write={dual_write_enabled('feedback')}, "
+                f"use_postgres={use_postgres_feedback()})"
+            )
+
+    @property
+    def _has_postgres(self) -> bool:
+        return self._db_session is not None
 
     async def submit_feedback(
         self,
@@ -202,6 +220,22 @@ class FeedbackTracerService:
         # Check for preference pair creation
         if correction_text:
             await self._create_preference_pair(feedback)
+
+        # Dual-write to PostgreSQL if enabled
+        try:
+            await self.dual_write_to_postgres(
+                feedback_id=feedback.feedback_id,
+                response_id=response_id,
+                patient_id=patient_id,
+                session_id=session_id,
+                rating=rating,
+                feedback_type=feedback_type.value if isinstance(feedback_type, FeedbackType) else str(feedback_type),
+                correction_text=correction_text,
+                entities_involved=entities_involved,
+                layers_traversed=layers_traversed,
+            )
+        except Exception as e:
+            logger.warning(f"Dual-write to PostgreSQL failed in submit_feedback: {e}")
 
         return feedback
 
@@ -361,8 +395,11 @@ class FeedbackTracerService:
         logger.info(f"Created preference pair: {pair['pair_id']}")
 
     async def get_feedback_statistics(self) -> FeedbackStatistics:
-        """Get aggregated feedback statistics from memory and Neo4j."""
-        # Try to load feedbacks from Neo4j if in-memory is empty
+        """Get aggregated feedback statistics."""
+        if self._has_postgres and use_postgres_feedback():
+            return await self._get_statistics_postgres()
+
+        # Existing in-memory + Neo4j fallback path
         feedbacks_to_analyze = self._feedbacks
         if not feedbacks_to_analyze and hasattr(self.backend, "query_raw"):
             try:
@@ -415,6 +452,54 @@ class FeedbackTracerService:
             feedback_type_distribution=type_dist,
             layer_performance=layer_perf,
             recent_trends=self._calculate_trends(),
+        )
+
+    async def _get_statistics_postgres(self) -> FeedbackStatistics:
+        """Load feedback statistics from PostgreSQL."""
+        from infrastructure.database.repositories import FeedbackRepository
+
+        async with self._db_session() as session:
+            repo = FeedbackRepository(session)
+            stats = await repo.get_statistics()
+
+            # Get rating distribution via a separate query on all feedback
+            all_feedback = await repo.get_all(limit=10000)
+
+        # Build rating distribution
+        rating_dist = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        type_dist: Dict[str, int] = {}
+        layer_perf: Dict[str, Dict[str, float]] = {}
+
+        for f in all_feedback:
+            if f.rating:
+                rating_dist[f.rating] = rating_dist.get(f.rating, 0) + 1
+
+            if f.feedback_type:
+                type_dist[f.feedback_type] = type_dist.get(f.feedback_type, 0) + 1
+
+            layers = f.layers_traversed or []
+            for layer in layers:
+                if layer not in layer_perf:
+                    layer_perf[layer] = {"total": 0, "rating_sum": 0, "negative": 0}
+                layer_perf[layer]["total"] += 1
+                layer_perf[layer]["rating_sum"] += f.rating or 0
+                if f.rating and f.rating <= 2:
+                    layer_perf[layer]["negative"] += 1
+
+        for layer in layer_perf:
+            total = layer_perf[layer]["total"]
+            layer_perf[layer]["avg_rating"] = layer_perf[layer]["rating_sum"] / total
+            layer_perf[layer]["negative_rate"] = layer_perf[layer]["negative"] / total
+
+        total_count = stats.get("total_feedback", 0)
+
+        return FeedbackStatistics(
+            total_feedbacks=total_count,
+            average_rating=stats.get("avg_rating") or 0.0,
+            rating_distribution=rating_dist,
+            feedback_type_distribution=type_dist,
+            layer_performance=layer_perf,
+            recent_trends={"trend": "see_database"},
         )
 
     async def _load_feedbacks_from_neo4j(self) -> List[UserFeedback]:
@@ -525,16 +610,27 @@ class FeedbackTracerService:
         Returns:
             List of preference pairs
         """
-        # Filter by rating gap
-        pairs = [p for p in self._preference_pairs if p["rating_gap"] >= min_rating_gap]
+        if self._has_postgres and use_postgres_feedback():
+            return await self._get_preference_pairs_postgres(min_rating_gap, limit or 100)
 
-        # Sort by rating gap (highest first)
+        # Existing in-memory path
+        pairs = [p for p in self._preference_pairs if p["rating_gap"] >= min_rating_gap]
         pairs.sort(key=lambda p: p["rating_gap"], reverse=True)
 
         if limit:
             pairs = pairs[:limit]
 
         return pairs
+
+    async def _get_preference_pairs_postgres(
+        self, min_rating_gap: int, limit: int
+    ) -> List[Dict[str, Any]]:
+        """Load preference pairs from PostgreSQL."""
+        from infrastructure.database.repositories import FeedbackRepository
+
+        async with self._db_session() as session:
+            repo = FeedbackRepository(session)
+            return await repo.get_preference_pairs(min_rating_gap, limit)
 
     async def get_correction_examples(
         self,
@@ -551,6 +647,10 @@ class FeedbackTracerService:
         Returns:
             List of correction examples
         """
+        if self._has_postgres and use_postgres_feedback():
+            return await self._get_correction_examples_postgres(feedback_type, limit or 100)
+
+        # Existing in-memory path
         corrections = []
 
         for f in self._feedbacks:
@@ -576,6 +676,42 @@ class FeedbackTracerService:
 
         if limit:
             corrections = corrections[:limit]
+
+        return corrections
+
+    async def _get_correction_examples_postgres(
+        self, feedback_type: Optional[FeedbackType], limit: int
+    ) -> List[Dict[str, Any]]:
+        """Load correction examples from PostgreSQL."""
+        from infrastructure.database.repositories import FeedbackRepository
+        from sqlalchemy import select
+        from infrastructure.database.models import Feedback as PgFeedback
+
+        async with self._db_session() as session:
+            query = (
+                select(PgFeedback)
+                .where(PgFeedback.correction_text.isnot(None))
+                .order_by(PgFeedback.created_at.desc())
+            )
+            if feedback_type:
+                query = query.where(PgFeedback.feedback_type == feedback_type.value)
+            query = query.limit(limit)
+
+            result = await session.execute(query)
+            pg_feedbacks = list(result.scalars().all())
+
+        corrections = []
+        for f in pg_feedbacks:
+            corrections.append({
+                "query": f.query_text,
+                "original_response": f.response_text,
+                "corrected_response": f.correction_text,
+                "feedback_type": f.feedback_type,
+                "severity": f.severity,
+                "entities": f.entities_involved or [],
+                "layers": f.layers_traversed or [],
+                "timestamp": f.created_at.isoformat() if f.created_at else "",
+            })
 
         return corrections
 
@@ -735,3 +871,64 @@ class FeedbackTracerService:
             await self.backend.query_raw(update_query, {"entity_id": entity_id})
         except Exception as e:
             logger.warning(f"Failed to update negative count for {entity_id}: {e}")
+
+    # ------------------------------------------------------------------
+    # PostgreSQL dual-write
+    # ------------------------------------------------------------------
+
+    async def dual_write_to_postgres(
+        self,
+        feedback_id: str,
+        response_id: str,
+        patient_id: str,
+        session_id: str,
+        query_text: str,
+        response_text: str,
+        rating: int,
+        feedback_type: str,
+        severity: Optional[str],
+        correction_text: Optional[str],
+        entities_involved: List[str],
+        layers_traversed: List[str],
+        thumbs_up: Optional[bool] = None,
+    ) -> bool:
+        """Dual-write feedback to PostgreSQL."""
+        if not self._has_postgres or not dual_write_enabled("feedback"):
+            return False
+
+        try:
+            from infrastructure.database.repositories import FeedbackRepository
+            from infrastructure.database.models import Feedback as PgFeedback
+            from uuid import UUID
+
+            async with self._db_session() as session:
+                repo = FeedbackRepository(session)
+
+                session_uuid = None
+                if session_id and session_id.startswith("session:"):
+                    try:
+                        session_uuid = UUID(session_id[8:])
+                    except ValueError:
+                        pass
+
+                pg_feedback = PgFeedback(
+                    response_id=response_id,
+                    session_id=session_uuid,
+                    patient_id=patient_id,
+                    rating=rating,
+                    thumbs_up=thumbs_up,
+                    feedback_type=feedback_type,
+                    correction_text=correction_text,
+                    severity=severity,
+                    query_text=query_text,
+                    response_text=response_text,
+                    entities_involved=entities_involved,
+                    layers_traversed=layers_traversed,
+                )
+                await repo.create(pg_feedback)
+                logger.debug(f"Dual-write: Stored feedback {feedback_id} in PostgreSQL")
+                return True
+
+        except Exception as e:
+            logger.error(f"Dual-write feedback to PostgreSQL failed: {e}")
+            return False

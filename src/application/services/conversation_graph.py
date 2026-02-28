@@ -54,6 +54,7 @@ class ConversationGraph:
         openai_api_key: Optional[str] = None,
         model: str = "gpt-4o",
         checkpointer=None,
+        chat_history_service=None,
     ):
         """
         Initialize the conversation graph.
@@ -65,6 +66,7 @@ class ConversationGraph:
             openai_api_key: OpenAI API key
             model: LLM model to use
             checkpointer: LangGraph checkpointer for state persistence
+            chat_history_service: Service for chat history (used for dual-write)
         """
         self.patient_memory = patient_memory_service
         self.neurosymbolic = neurosymbolic_service
@@ -79,6 +81,7 @@ class ConversationGraph:
             neurosymbolic_service=neurosymbolic_service,
             episodic_memory_service=episodic_memory_service,
             model=model,
+            chat_history_service=chat_history_service,
         )
 
         # Build and compile the graph
@@ -396,6 +399,7 @@ def build_conversation_graph(
     openai_api_key: Optional[str] = None,
     model: str = "gpt-4o",
     checkpointer=None,
+    chat_history_service=None,
 ) -> ConversationGraph:
     """
     Factory function to build a conversation graph.
@@ -407,6 +411,7 @@ def build_conversation_graph(
         openai_api_key: OpenAI API key
         model: LLM model to use
         checkpointer: LangGraph checkpointer for state persistence
+        chat_history_service: Service for chat history (used for dual-write)
 
     Returns:
         Configured ConversationGraph instance
@@ -418,6 +423,7 @@ def build_conversation_graph(
         openai_api_key=openai_api_key,
         model=model,
         checkpointer=checkpointer,
+        chat_history_service=chat_history_service,
     )
 
 

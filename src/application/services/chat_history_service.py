@@ -368,6 +368,50 @@ class ChatHistoryService:
         except Exception as e:
             logger.error(f"Postgres message write failed for session {session_id}: {e}")
 
+    async def dual_write_messages(
+        self,
+        session_id: str,
+        patient_id: str,
+        user_msg: str,
+        assistant_msg: str,
+    ) -> None:
+        """Write a user+assistant message pair to PostgreSQL.
+
+        Non-blocking: failures are logged but do not raise.
+        Called by external callers (e.g. ConversationNodes) that need
+        to persist messages without duplicating dual-write logic.
+        """
+        if not self._has_postgres or not dual_write_enabled("sessions"):
+            return
+
+        pg_uuid = self._extract_uuid_from_session_id(session_id)
+        if not pg_uuid:
+            return
+
+        try:
+            from infrastructure.database.models import Message as PgMessage
+            from infrastructure.database.repositories import MessageRepository, SessionRepository
+
+            async with self._db_session() as session:
+                msg_repo = MessageRepository(session)
+                for role, content in [("user", user_msg), ("assistant", assistant_msg)]:
+                    pg_message = PgMessage(
+                        session_id=pg_uuid,
+                        patient_id=patient_id,
+                        role=role,
+                        content=content,
+                        response_id=f"msg:{uuid.uuid4()}",
+                    )
+                    await msg_repo.create(pg_message)
+
+                sess_repo = SessionRepository(session)
+                await sess_repo.increment_message_count(pg_uuid)
+                await sess_repo.increment_message_count(pg_uuid)
+
+            logger.debug(f"Postgres: Persisted message pair for session {session_id}")
+        except Exception as e:
+            logger.warning(f"Dual-write messages failed for session {session_id}: {e}")
+
     # ------------------------------------------------------------------
     # End session
     # ------------------------------------------------------------------

@@ -64,15 +64,15 @@ frontend:
 
 # Start required Docker services (Neo4j, Redis, Qdrant, FalkorDB)
 services:
-	docker-compose -f docker-compose.services.yml up -d
-	docker-compose -f docker-compose.memory.yml up -d
+	docker compose -f docker-compose.services.yml up -d
+	docker compose -f docker-compose.memory.yml up -d
 	@echo "✅ Services started: Neo4j (7687), Redis (6380), Qdrant (6333), FalkorDB (6379)"
 
 # Stop all Docker services
 services-stop:
-	docker-compose -f docker-compose.services.yml down
-	docker-compose -f docker-compose.memory.yml down
+	docker compose -f docker-compose.services.yml down
+	docker compose -f docker-compose.memory.yml down
 
 # View service logs
 services-logs:
-	docker-compose -f docker-compose.services.yml logs -f
+	docker compose -f docker-compose.services.yml logs -f

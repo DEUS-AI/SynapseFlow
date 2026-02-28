@@ -239,12 +239,21 @@ async def get_conversation_graph():
         # This enables store_turn_episode() in conversation_nodes.py
         episodic_memory_service = await get_episodic_memory()
 
+        # Get chat history service for dual-write delegation
+        chat_history_svc = None
+        try:
+            from application.api.main import get_chat_history_service
+            chat_history_svc = await get_chat_history_service()
+        except Exception:
+            pass
+
         _conversation_graph_instance = build_conversation_graph(
             patient_memory_service=_patient_memory_instance,
             neurosymbolic_service=neurosymbolic_service,
             episodic_memory_service=episodic_memory_service,  # CRITICAL for entity extraction!
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             model=os.getenv("CHAT_MODEL", "gpt-4o"),
+            chat_history_service=chat_history_svc,
         )
 
         if episodic_memory_service:

@@ -377,6 +377,75 @@ class DocumentRepository(BaseRepository[Document]):
             "by_category": category_counts,
         }
 
+    async def list_filtered(
+        self,
+        status: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 500,
+    ) -> List[Document]:
+        """List documents with optional filters."""
+        query = select(Document)
+
+        if status:
+            query = query.where(Document.status == status)
+        if category:
+            query = query.where(Document.category == category)
+        if search:
+            query = query.where(Document.filename.ilike(f"%{search}%"))
+
+        query = query.order_by(Document.created_at.desc()).limit(limit)
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def get_categories(self) -> List[str]:
+        """Get sorted list of distinct non-null categories."""
+        result = await self.session.execute(
+            select(func.distinct(Document.category))
+            .where(Document.category.isnot(None))
+            .order_by(Document.category)
+        )
+        return [row[0] for row in result.all()]
+
+    async def get_full_statistics(self) -> Dict[str, Any]:
+        """Get full statistics matching DocumentTracker output shape."""
+        total = await self.count()
+
+        # Per-status counts
+        status_result = await self.session.execute(
+            select(Document.status, func.count())
+            .group_by(Document.status)
+        )
+        status_counts = {row[0]: row[1] for row in status_result.all()}
+
+        # Entity and relationship sums
+        sums_result = await self.session.execute(
+            select(
+                func.coalesce(func.sum(Document.entity_count), 0),
+                func.coalesce(func.sum(Document.relationship_count), 0),
+            )
+        )
+        sums_row = sums_result.first()
+
+        # Markdown count
+        markdown_result = await self.session.execute(
+            select(func.count())
+            .select_from(Document)
+            .where(Document.markdown_path.isnot(None))
+        )
+        with_markdown = markdown_result.scalar() or 0
+
+        return {
+            "total": total,
+            "not_started": status_counts.get("not_started", 0),
+            "processing": status_counts.get("processing", 0),
+            "completed": status_counts.get("completed", 0),
+            "failed": status_counts.get("failed", 0),
+            "total_entities": int(sums_row[0]) if sums_row else 0,
+            "total_relationships": int(sums_row[1]) if sums_row else 0,
+            "with_markdown": with_markdown,
+        }
+
 
 class FeatureFlagRepository(BaseRepository[FeatureFlag]):
     """Repository for feature flags."""

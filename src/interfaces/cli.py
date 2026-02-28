@@ -140,9 +140,17 @@ def ingest_doc(
         kg_backend, _ = await bootstrap_knowledge_management()
         
         # Create document service
+        cli_db_session_factory = None
+        try:
+            from infrastructure.database.session import is_initialized, db_session
+            if is_initialized():
+                cli_db_session_factory = db_session
+        except ImportError:
+            pass
         doc_service = DocumentService(
             kg_backend=kg_backend,
-            chunk_size=chunk_size
+            chunk_size=chunk_size,
+            db_session_factory=cli_db_session_factory,
         )
         
         # Ingest the document

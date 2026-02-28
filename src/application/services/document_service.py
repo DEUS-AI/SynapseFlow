@@ -47,6 +47,7 @@ class DocumentService:
         faiss_index_path: str = "data/faiss_index",
         enable_quality_assessment: bool = True,
         pg_document_repo=None,
+        db_session_factory=None,
     ):
         """Initialize the document service.
 
@@ -57,6 +58,7 @@ class DocumentService:
             faiss_index_path: Path to store FAISS index
             enable_quality_assessment: Whether to run quality assessment during ingestion
             pg_document_repo: Optional PostgreSQL document repository for dual-write
+            db_session_factory: Optional async context manager for PostgreSQL sessions
         """
         self.kg_backend = kg_backend
         self.converter = MarkItDownWrapper()
@@ -65,6 +67,7 @@ class DocumentService:
         self.faiss_index_path = faiss_index_path
         self.enable_quality_assessment = enable_quality_assessment
         self.pg_document_repo = pg_document_repo
+        self._db_session = db_session_factory
 
         # Initialize quality service
         self.quality_service = DocumentQualityService()
@@ -470,8 +473,10 @@ class DocumentService:
         if not dual_write_enabled("documents"):
             return False
 
+        if self._db_session is None:
+            return False
+
         try:
-            from infrastructure.database.session import db_session
             from infrastructure.database.repositories import DocumentRepository
             from infrastructure.database.models import (
                 Document as PgDocument,
@@ -479,7 +484,7 @@ class DocumentService:
             )
             from uuid import uuid4
 
-            async with db_session() as session:
+            async with self._db_session() as session:
                 repo = DocumentRepository(session)
 
                 # Check if document already exists

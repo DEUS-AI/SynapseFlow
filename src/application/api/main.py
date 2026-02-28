@@ -98,6 +98,15 @@ async def startup_event():
         from infrastructure.database.session import init_database
         await init_database(create_tables=True)
         logger.info("✅ PostgreSQL database initialized")
+
+        # Configure document router with PostgreSQL access
+        try:
+            from infrastructure.database.session import is_initialized, db_session
+            if is_initialized():
+                from .document_router import configure_postgres
+                configure_postgres(db_session)
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to configure document router with PostgreSQL: {e}")
     except Exception as e:
         logger.warning(f"⚠️ Failed to initialize PostgreSQL: {e}. Continuing with Neo4j-only mode.")
 
@@ -1067,182 +1076,21 @@ async def get_dual_write_health(kg_backend = Depends(get_kg_backend)):
 
     Returns comparison of record counts and any detected sync issues.
     """
-    from application.services.feature_flag_service import (
-        dual_write_enabled,
-        is_flag_enabled,
+    from application.services.dual_write_health_service import DualWriteHealthService
+
+    db_session_factory = None
+    try:
+        from infrastructure.database.session import is_initialized, db_session
+        if is_initialized():
+            db_session_factory = db_session
+    except ImportError:
+        pass
+
+    service = DualWriteHealthService(
+        kg_backend=kg_backend,
+        db_session_factory=db_session_factory,
     )
-
-    health = {
-        "status": "healthy",
-        "data_types": {},
-        "sync_issues": [],
-        "recommendations": [],
-    }
-
-    # Helper: compute sync status from counts.
-    # Since PostgreSQL is the migration target, only flag issues when
-    # Neo4j has data that PG is missing (neo4j > pg). PG having more
-    # data than Neo4j is expected and healthy.
-    def _compute_sync_status(neo4j_count: int, pg_count: int) -> str:
-        if neo4j_count == 0:
-            return "synced"
-        missing_in_pg = neo4j_count - pg_count
-        if missing_in_pg <= 0:
-            return "synced"
-        missing_pct = missing_in_pg / neo4j_count
-        if missing_pct <= 0.05:
-            return "synced"
-        elif missing_pct <= 0.20:
-            return "minor_drift"
-        return "out_of_sync"
-
-    # Check sessions
-    sessions_health = {
-        "dual_write_enabled": dual_write_enabled("sessions"),
-        "use_postgres": is_flag_enabled("use_postgres_sessions"),
-        "neo4j_count": 0,
-        "postgres_count": 0,
-        "neo4j_message_count": 0,
-        "postgres_message_count": 0,
-        "sync_status": "unknown",
-    }
-
-    try:
-        # Get Neo4j session count
-        query = "MATCH (s:ConversationSession) RETURN count(s) as count"
-        result = await kg_backend.query_raw(query, {})
-        if result:
-            sessions_health["neo4j_count"] = result[0].get("count", 0)
-        # Get Neo4j message count
-        msg_query = "MATCH (m:Message) RETURN count(m) as count"
-        msg_result = await kg_backend.query_raw(msg_query, {})
-        if msg_result:
-            sessions_health["neo4j_message_count"] = msg_result[0].get("count", 0)
-    except Exception as e:
-        logger.warning(f"Failed to get Neo4j session/message count: {e}")
-
-    try:
-        from infrastructure.database.session import is_initialized
-        if is_initialized():
-            from infrastructure.database.session import db_session
-            from infrastructure.database.repositories import SessionRepository, MessageRepository
-            async with db_session() as session:
-                sessions_health["postgres_count"] = await SessionRepository(session).count()
-                sessions_health["postgres_message_count"] = await MessageRepository(session).count()
-    except Exception as e:
-        logger.warning(f"Failed to get PostgreSQL session/message count: {e}")
-
-    # Determine sync status using percentage-based thresholds
-    if sessions_health["dual_write_enabled"]:
-        sessions_health["sync_status"] = _compute_sync_status(
-            sessions_health["neo4j_count"], sessions_health["postgres_count"]
-        )
-        if sessions_health["sync_status"] == "out_of_sync":
-            missing = sessions_health["neo4j_count"] - sessions_health["postgres_count"]
-            health["sync_issues"].append(f"Sessions: {missing} Neo4j records missing from PostgreSQL")
-            health["status"] = "warning"
-    else:
-        sessions_health["sync_status"] = "disabled"
-
-    health["data_types"]["sessions"] = sessions_health
-
-    # Check feedback
-    feedback_health = {
-        "dual_write_enabled": dual_write_enabled("feedback"),
-        "use_postgres": is_flag_enabled("use_postgres_feedback"),
-        "neo4j_count": 0,
-        "postgres_count": 0,
-        "sync_status": "unknown",
-    }
-
-    try:
-        query = "MATCH (f:UserFeedback) RETURN count(f) as count"
-        result = await kg_backend.query_raw(query, {})
-        if result:
-            feedback_health["neo4j_count"] = result[0].get("count", 0)
-    except Exception as e:
-        logger.warning(f"Failed to get Neo4j feedback count: {e}")
-
-    try:
-        from infrastructure.database.session import is_initialized
-        if is_initialized():
-            from infrastructure.database.session import db_session
-            from infrastructure.database.repositories import FeedbackRepository
-            async with db_session() as session:
-                repo = FeedbackRepository(session)
-                feedback_health["postgres_count"] = await repo.count()
-    except Exception as e:
-        logger.warning(f"Failed to get PostgreSQL feedback count: {e}")
-
-    if feedback_health["dual_write_enabled"]:
-        feedback_health["sync_status"] = _compute_sync_status(
-            feedback_health["neo4j_count"], feedback_health["postgres_count"]
-        )
-        if feedback_health["sync_status"] == "out_of_sync":
-            missing = feedback_health["neo4j_count"] - feedback_health["postgres_count"]
-            health["sync_issues"].append(f"Feedback: {missing} Neo4j records missing from PostgreSQL")
-            health["status"] = "warning"
-    else:
-        feedback_health["sync_status"] = "disabled"
-
-    health["data_types"]["feedback"] = feedback_health
-
-    # Check documents
-    documents_health = {
-        "dual_write_enabled": dual_write_enabled("documents"),
-        "use_postgres": is_flag_enabled("use_postgres_documents"),
-        "neo4j_count": 0,
-        "postgres_count": 0,
-        "sync_status": "unknown",
-    }
-
-    try:
-        query = "MATCH (d:Document) RETURN count(d) as count"
-        result = await kg_backend.query_raw(query, {})
-        if result:
-            documents_health["neo4j_count"] = result[0].get("count", 0)
-    except Exception as e:
-        logger.warning(f"Failed to get Neo4j document count: {e}")
-
-    try:
-        from infrastructure.database.session import is_initialized
-        if is_initialized():
-            from infrastructure.database.session import db_session
-            from infrastructure.database.repositories import DocumentRepository
-            async with db_session() as session:
-                repo = DocumentRepository(session)
-                documents_health["postgres_count"] = await repo.count()
-    except Exception as e:
-        logger.warning(f"Failed to get PostgreSQL document count: {e}")
-
-    if documents_health["dual_write_enabled"]:
-        documents_health["sync_status"] = _compute_sync_status(
-            documents_health["neo4j_count"], documents_health["postgres_count"]
-        )
-        if documents_health["sync_status"] == "out_of_sync":
-            missing = documents_health["neo4j_count"] - documents_health["postgres_count"]
-            health["sync_issues"].append(f"Documents: {missing} Neo4j records missing from PostgreSQL")
-            health["status"] = "warning"
-    else:
-        documents_health["sync_status"] = "disabled"
-
-    health["data_types"]["documents"] = documents_health
-
-    # Generate recommendations
-    if not any(dt["dual_write_enabled"] for dt in health["data_types"].values()):
-        health["recommendations"].append(
-            "Enable dual-write for at least one data type to begin migration"
-        )
-    elif health["sync_issues"]:
-        health["recommendations"].append(
-            "Run sync_data_to_postgres.py to reconcile differences"
-        )
-    elif all(dt["sync_status"] == "synced" for dt in health["data_types"].values() if dt["dual_write_enabled"]):
-        health["recommendations"].append(
-            "All enabled dual-writes are in sync - consider enabling use_postgres flags"
-        )
-
-    return health
+    return await service.get_health()
 
 
 @app.get("/api/admin/patients")
@@ -1824,72 +1672,22 @@ async def get_feedback_service():
         from application.services.feedback_tracer import FeedbackTracerService
         backend = await get_kg_backend()
         event_bus = await get_event_bus()
+
+        db_session_factory = None
+        try:
+            from infrastructure.database.session import is_initialized, db_session
+            if is_initialized():
+                db_session_factory = db_session
+        except ImportError:
+            pass
+
         _feedback_service_instance = FeedbackTracerService(
             backend=backend,
-            event_bus=event_bus
+            event_bus=event_bus,
+            db_session_factory=db_session_factory,
         )
     return _feedback_service_instance
 
-
-async def _dual_write_feedback_to_postgres(
-    feedback_id: str,
-    response_id: str,
-    patient_id: str,
-    session_id: str,
-    query_text: str,
-    response_text: str,
-    rating: int,
-    feedback_type: str,
-    severity: Optional[str],
-    correction_text: Optional[str],
-    entities_involved: List[str],
-    layers_traversed: List[str],
-    thumbs_up: Optional[bool] = None,
-) -> bool:
-    """Dual-write feedback to PostgreSQL."""
-    from application.services.feature_flag_service import dual_write_enabled
-
-    if not dual_write_enabled("feedback"):
-        return False
-
-    try:
-        from infrastructure.database.session import db_session
-        from infrastructure.database.repositories import FeedbackRepository
-        from infrastructure.database.models import Feedback as PgFeedback
-        from uuid import UUID
-
-        async with db_session() as session:
-            repo = FeedbackRepository(session)
-
-            # Extract session UUID if possible
-            session_uuid = None
-            if session_id and session_id.startswith("session:"):
-                try:
-                    session_uuid = UUID(session_id[8:])
-                except ValueError:
-                    pass
-
-            pg_feedback = PgFeedback(
-                response_id=response_id,
-                session_id=session_uuid,
-                patient_id=patient_id,
-                rating=rating,
-                thumbs_up=thumbs_up,
-                feedback_type=feedback_type,
-                correction_text=correction_text,
-                severity=severity,
-                query_text=query_text,
-                response_text=response_text,
-                entities_involved=entities_involved,
-                layers_traversed=layers_traversed,
-            )
-            await repo.create(pg_feedback)
-            logger.debug(f"Dual-write: Stored feedback {feedback_id} in PostgreSQL")
-            return True
-
-    except Exception as e:
-        logger.error(f"Dual-write feedback to PostgreSQL failed: {e}")
-        return False
 
 
 @app.post("/api/feedback", response_model=FeedbackResponse)
@@ -1943,22 +1741,6 @@ async def submit_feedback(request: FeedbackRequest):
             rating=request.rating,
             feedback_type=feedback_type,
             severity=severity,
-            correction_text=request.correction_text,
-            entities_involved=entities_involved,
-            layers_traversed=layers_traversed,
-        )
-
-        # Dual-write to PostgreSQL if enabled
-        await _dual_write_feedback_to_postgres(
-            feedback_id=feedback.feedback_id,
-            response_id=request.response_id,
-            patient_id=patient_id,
-            session_id=session_id,
-            query_text=query_text,
-            response_text=response_text,
-            rating=request.rating,
-            feedback_type=request.feedback_type.value,
-            severity=request.severity.value if request.severity else None,
             correction_text=request.correction_text,
             entities_involved=entities_involved,
             layers_traversed=layers_traversed,
@@ -2033,23 +1815,6 @@ async def submit_thumbs_feedback(request: ThumbsFeedbackRequest):
                 "original_confidence": response_data.get("confidence", 0),
                 "feedback_method": "thumbs",
             }
-        )
-
-        # Dual-write to PostgreSQL if enabled
-        await _dual_write_feedback_to_postgres(
-            feedback_id=feedback.feedback_id,
-            response_id=request.response_id,
-            patient_id=response_data.get("patient_id", "anonymous"),
-            session_id=response_data.get("session_id", "default"),
-            query_text=response_data.get("query_text", ""),
-            response_text=response_data.get("response_text", ""),
-            rating=rating,
-            feedback_type=feedback_type.value,
-            severity=None,
-            correction_text=request.correction_text,
-            entities_involved=response_data.get("entities_involved", []),
-            layers_traversed=response_data.get("layers_traversed", []),
-            thumbs_up=request.thumbs_up,
         )
 
         # Check for demotion on negative feedback
