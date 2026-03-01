@@ -52,6 +52,29 @@ app.include_router(document_router)
 app.include_router(crystallization_router)
 app.include_router(remediation_router)
 
+
+# Exception handler for unavailable agents (distributed mode)
+from fastapi.requests import Request
+from fastapi.responses import JSONResponse
+
+
+@app.exception_handler(Exception)
+async def agent_unavailable_handler(request: Request, exc: Exception):
+    """Return 503 when an agent service is unreachable in distributed mode."""
+    # Import here to avoid circular imports
+    from application.services.agent_gateway import AgentUnavailableError
+    if isinstance(exc, AgentUnavailableError):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "agent_unavailable",
+                "agent": exc.agent_role,
+                "retry_after": exc.retry_after_seconds,
+            },
+        )
+    # Re-raise other exceptions for default handling
+    raise exc
+
 # ========================================
 # Evaluation Framework (Conditional)
 # ========================================
@@ -1190,12 +1213,16 @@ async def upload_dda(
             tmp_path = tmp.name
 
         try:
-            # Try to use Data Architect Agent if available and requested
+            # Try to use Data Architect Agent via AgentGateway if available
             if use_agent:
                 try:
-                    from application.api.dependencies import get_data_architect_agent
-                    agent = await get_data_architect_agent()
-                    result = await agent.process_dda(tmp_path)
+                    from application.api.dependencies import get_agent_gateway
+                    from application.services.agent_gateway import AgentUnavailableError
+                    gateway = await get_agent_gateway()
+                    # In local mode, gateway creates the agent in-process.
+                    # In distributed mode, gateway dispatches via RabbitMQ RPC.
+                    from application.commands.modeling_command import ModelingCommand
+                    result = await gateway.invoke("data_architect", ModelingCommand(dda_path=tmp_path))
 
                     if result["success"]:
                         return {
@@ -1213,6 +1240,8 @@ async def upload_dda(
                     else:
                         logger.warning(f"Agent processing failed, falling back to direct: {result['errors']}")
                         # Fall through to direct processing
+                except AgentUnavailableError:
+                    raise
                 except Exception as agent_error:
                     logger.warning(f"Agent unavailable, falling back to direct processing: {agent_error}")
                     # Fall through to direct processing
@@ -1381,7 +1410,12 @@ async def upload_dda(
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
+    except HTTPException:
+        raise
     except Exception as e:
+        from application.services.agent_gateway import AgentUnavailableError
+        if isinstance(e, AgentUnavailableError):
+            raise
         logger.error(f"Error processing DDA: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to process DDA: {str(e)}")
 
