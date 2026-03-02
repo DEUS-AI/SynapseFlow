@@ -221,8 +221,27 @@ async def bootstrap_graphiti(agent_name: str | None = None) -> Graphiti:
     return await get_graphiti(graph_config)
 
 
-def bootstrap_command_bus() -> CommandBus:
-    """Initializes and registers all command handlers."""
+def bootstrap_command_bus(deployment_mode: str = "local") -> CommandBus:
+    """Initializes and registers all command handlers.
+
+    Args:
+        deployment_mode: "local" for in-memory bus, "distributed" for RabbitMQ RPC.
+                         The distributed bus is returned unconnected — caller must
+                         await connect() before dispatching remote commands.
+    """
+    if deployment_mode == "distributed":
+        import os
+        from infrastructure.command_bus.distributed_command_bus import DistributedCommandBus
+        rabbitmq_url = os.environ.get("RABBITMQ_URL", "amqp://guest:guest@localhost/")
+        command_bus = DistributedCommandBus(connection_url=rabbitmq_url)
+        # Register local handlers as fallback
+        command_bus.register(EchoCommand, EchoCommandHandler())
+        command_bus.register(CreateFileCommand, CreateFileCommandHandler())
+        command_bus.register(ReadFileCommand, ReadFileCommandHandler())
+        command_bus.register(ExecuteShellCommand, ExecuteShellCommandHandler())
+        return command_bus
+
+    # Local mode — in-memory CommandBus
     command_bus = CommandBus()
 
     # Register handlers
@@ -235,7 +254,7 @@ def bootstrap_command_bus() -> CommandBus:
     )
     # Note: BuildKGCommand and ModelingCommand handlers require Graphiti instances
     # and are registered dynamically when needed in the CLI or agent creation
-    
+
     # Note: RunAgentHandler is registered dynamically in the CLI
     # because it depends on a runtime agent instance.
 

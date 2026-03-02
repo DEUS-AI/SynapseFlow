@@ -15,13 +15,15 @@ ENV PATH="/root/.local/bin:/root/.cargo/bin:$PATH"
 # Copy project files
 COPY pyproject.toml .
 COPY src/ src/
-COPY .env .
+COPY config/ config/
+COPY .env* ./
 
 # Install dependencies
 RUN uv pip install --system .
 
-# Set python path
+# Set python path, prevent bytecache issues when host mounts differ
 ENV PYTHONPATH=/app/src
+ENV PYTHONDONTWRITEBYTECODE=1
 
-# Default command (can be overridden)
-CMD ["python", "-m", "src.interfaces.cli", "--help"]
+# Default command — override with --role and --port in docker-compose
+CMD ["python", "-m", "interfaces.agent_server", "--role", "echo", "--port", "8005"]

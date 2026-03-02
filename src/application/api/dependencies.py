@@ -37,6 +37,9 @@ _dikw_router_instance = None
 # Agent instances
 _data_architect_agent = None
 
+# Agent Gateway
+_agent_gateway_instance = None
+
 async def get_graphiti() -> AsyncGenerator[Graphiti, None]:
     """Dependency to get Graphiti instance."""
     global _graphiti_instance
@@ -67,6 +70,20 @@ async def get_patient_memory():
     if _patient_memory_instance is None:
         _patient_memory_instance, _mem0_instance = await bootstrap_patient_memory()
     return _patient_memory_instance
+
+
+async def get_agent_gateway():
+    """Dependency to get the AgentGateway (cached singleton).
+
+    The gateway routes agent operations to local or remote agents
+    based on deployment_mode in agent configuration.
+    """
+    global _agent_gateway_instance
+    if _agent_gateway_instance is None:
+        from application.services.agent_gateway import AgentGateway
+        _agent_gateway_instance = AgentGateway()
+        await _agent_gateway_instance.initialize()
+    return _agent_gateway_instance
 
 
 async def get_episodic_memory():

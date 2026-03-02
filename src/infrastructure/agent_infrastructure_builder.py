@@ -116,10 +116,9 @@ class AgentInfrastructureBuilder:
             self._channel = InMemoryCommunicationChannel()
 
         elif ch_config.type == ChannelType.A2A:
-            base_url = agent_url or ch_config.a2a.base_url
-            logger.info(f"Creating A2ACommunicationChannel with base URL: {base_url}")
+            logger.info("Creating A2ACommunicationChannel with per-agent URL resolution")
             from infrastructure.communication.a2a_channel import A2ACommunicationChannel
-            self._channel = A2ACommunicationChannel(base_url=base_url)
+            self._channel = A2ACommunicationChannel.from_agent_config(self.config)
 
         elif ch_config.type == ChannelType.RABBITMQ:
             logger.info(f"Creating RabbitMQCommunicationChannel with URL: {ch_config.rabbitmq.url}")

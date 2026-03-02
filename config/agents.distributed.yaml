@@ -38,20 +38,12 @@ discovery:
   stale_threshold_seconds: 120  # Faster detection for containers
 
 # Agent-specific configurations
+# Hostnames must match docker-compose service names (underscores)
+# Ports must match the --port argument in each service's command
 agents:
-  knowledge_manager:
-    enabled: true
-    url: http://knowledge-manager:8001
-    capabilities:
-      - knowledge_graph_query
-      - entity_resolution
-      - layer_promotion
-      - reasoning
-      - neurosymbolic_query
-
   data_architect:
     enabled: true
-    url: http://data-architect:8002
+    url: http://data_architect:8001
     capabilities:
       - domain_modeling
       - dda_processing
@@ -59,15 +51,25 @@ agents:
 
   data_engineer:
     enabled: true
-    url: http://data-engineer:8003
+    url: http://data_engineer:8002
     capabilities:
       - data_pipeline
       - metadata_generation
       - kg_operations
 
+  knowledge_manager:
+    enabled: true
+    url: http://knowledge_manager:8003
+    capabilities:
+      - knowledge_graph_query
+      - entity_resolution
+      - layer_promotion
+      - reasoning
+      - neurosymbolic_query
+
   medical_assistant:
     enabled: true
-    url: http://medical-assistant:8004
+    url: http://medical_assistant:8004
     capabilities:
       - patient_interaction
       - medical_reasoning

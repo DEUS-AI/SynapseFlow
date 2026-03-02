@@ -73,14 +73,17 @@ services:
       context: .
       dockerfile: Dockerfile.agent
     container_name: data_architect
-    command: python -m src.interfaces.cli run-agent --role data_architect
+    command: python -m interfaces.agent_server --role data_architect --port 8001
     environment:
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USERNAME=neo4j
       - NEO4J_PASSWORD=password
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - FALKORDB_HOST=falkordb
       - FALKORDB_PORT=6379
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AGENT_CONFIG_PATH=/app/config/agents.distributed.yaml
+      - DEPLOYMENT_MODE=distributed
     ports:
       - "8001:8001"
     depends_on:
@@ -90,8 +93,14 @@ services:
         condition: service_healthy
       falkordb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - ./src:/app/src
+      - ./config:/app/config
       - ./examples:/app/examples
 
   data_engineer:
@@ -99,14 +108,17 @@ services:
       context: .
       dockerfile: Dockerfile.agent
     container_name: data_engineer
-    command: python -m src.interfaces.cli run-agent --role data_engineer
+    command: python -m interfaces.agent_server --role data_engineer --port 8002
     environment:
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USERNAME=neo4j
       - NEO4J_PASSWORD=password
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - FALKORDB_HOST=falkordb
       - FALKORDB_PORT=6379
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AGENT_CONFIG_PATH=/app/config/agents.distributed.yaml
+      - DEPLOYMENT_MODE=distributed
     ports:
       - "8002:8002"
     depends_on:
@@ -116,8 +128,85 @@ services:
         condition: service_healthy
       falkordb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - ./src:/app/src
+      - ./config:/app/config
+
+  knowledge_manager:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: knowledge_manager
+    command: python -m interfaces.agent_server --role knowledge_manager --port 8003
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=password
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - FALKORDB_HOST=falkordb
+      - FALKORDB_PORT=6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AGENT_CONFIG_PATH=/app/config/agents.distributed.yaml
+      - DEPLOYMENT_MODE=distributed
+    ports:
+      - "8003:8003"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+
+  medical_assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: medical_assistant
+    command: python -m interfaces.agent_server --role medical_assistant --port 8004
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=password
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - FALKORDB_HOST=falkordb
+      - FALKORDB_PORT=6379
+      - REDIS_HOST=patient_memory_redis
+      - REDIS_PORT=6379
+      - QDRANT_URL=http://patient_memory_qdrant:6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AGENT_CONFIG_PATH=/app/config/agents.distributed.yaml
+      - DEPLOYMENT_MODE=distributed
+    ports:
+      - "8004:8004"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
 
 
 volumes:
