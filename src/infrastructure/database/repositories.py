@@ -199,6 +199,38 @@ class MessageRepository(BaseRepository[Message]):
         )
         return result.scalar_one_or_none()
 
+    async def delete_duplicates(self, session_id: Optional[UUID] = None) -> int:
+        """Delete duplicate messages keeping the oldest per (session_id, role, content).
+
+        Returns the number of deleted rows.
+        """
+        # Find IDs to keep: the MIN(id) per unique (session_id, role, content)
+        from sqlalchemy import text
+
+        scope = "WHERE session_id = :sid" if session_id else ""
+        params: dict = {}
+        if session_id:
+            params["sid"] = str(session_id)
+
+        sql = text(f"""
+            DELETE FROM messages
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY session_id, role, content
+                               ORDER BY created_at ASC
+                           ) AS rn
+                    FROM messages
+                    {scope}
+                ) ranked
+                WHERE rn > 1
+            )
+        """)
+        result = await self.session.execute(sql, params)
+        await self.session.commit()
+        return result.rowcount
+
     async def get_recent_by_patient(
         self,
         patient_id: str,

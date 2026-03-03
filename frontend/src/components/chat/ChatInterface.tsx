@@ -94,7 +94,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   };
 
   // WebSocket URL
-  const wsURL = currentSessionId && typeof window !== 'undefined'
+  const wsURL = currentSessionId && !loadingHistory && typeof window !== 'undefined'
     ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/chat/${patientId}/${currentSessionId}`
     : '';
 

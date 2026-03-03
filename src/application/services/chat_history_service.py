@@ -212,8 +212,16 @@ class ChatHistoryService:
                 session_id=pg_uuid, limit=limit, offset=offset
             )
 
+        # Deduplicate: if two consecutive messages share role + content
+        # (artifact of dual-write), keep only the first occurrence.
+        seen: set[tuple[str, str]] = set()
         messages = []
         for pg_msg in pg_messages:
+            key = (pg_msg.role, pg_msg.content)
+            if key in seen:
+                logger.debug(f"Skipping duplicate message (role={pg_msg.role}) in session {session_id}")
+                continue
+            seen.add(key)
             messages.append(Message(
                 id=str(pg_msg.id),
                 session_id=session_id,
@@ -223,6 +231,11 @@ class ChatHistoryService:
                 response_id=pg_msg.response_id,
             ))
 
+        if len(messages) < len(pg_messages):
+            logger.info(
+                f"Deduplicated {len(pg_messages) - len(messages)} messages "
+                f"for session {session_id}"
+            )
         logger.info(f"Retrieved {len(messages)} messages from PostgreSQL for session {session_id}")
         return messages
 

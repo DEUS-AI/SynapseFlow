@@ -333,25 +333,31 @@ async def chat_websocket_endpoint(
                 await manager.send_personal_message(ws_response, client_id)
 
                 # Dual-write messages to Postgres (non-blocking)
-                try:
-                    history_service = await get_chat_history_service()
-                    await history_service.store_message(
-                        session_id=session_id,
-                        patient_id=patient_id,
-                        role="user",
-                        content=message_text,
-                        postgres_only=True,
-                    )
-                    await history_service.store_message(
-                        session_id=session_id,
-                        patient_id=patient_id,
-                        role="assistant",
-                        content=response.answer,
-                        response_id=response_id,
-                        postgres_only=True,
-                    )
-                except Exception as pg_err:
-                    logger.warning(f"Postgres message dual-write failed (non-blocking): {pg_err}")
+                # Only write from here when NOT using LangGraph — LangGraph's
+                # memory_persist_node already handles Postgres dual-write via
+                # ChatHistoryService.dual_write_messages(), so writing here too
+                # causes duplicate messages on reload.
+                use_langgraph = os.getenv("ENABLE_LANGGRAPH_CHAT", "false").lower() == "true"
+                if not use_langgraph:
+                    try:
+                        history_service = await get_chat_history_service()
+                        await history_service.store_message(
+                            session_id=session_id,
+                            patient_id=patient_id,
+                            role="user",
+                            content=message_text,
+                            postgres_only=True,
+                        )
+                        await history_service.store_message(
+                            session_id=session_id,
+                            patient_id=patient_id,
+                            role="assistant",
+                            content=response.answer,
+                            response_id=response_id,
+                            postgres_only=True,
+                        )
+                    except Exception as pg_err:
+                        logger.warning(f"Postgres message dual-write failed (non-blocking): {pg_err}")
 
                 # Auto-generate title after 3rd message if still "New Conversation"
                 try:
@@ -2384,6 +2390,38 @@ async def get_session_messages(
 
     except Exception as e:
         logger.error(f"Error getting session messages: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/messages/deduplicate")
+async def deduplicate_messages(session_id: Optional[str] = None):
+    """
+    Remove duplicate messages from PostgreSQL (one-time cleanup).
+
+    Keeps the oldest message per (session_id, role, content) group.
+    Optionally scoped to a single session.
+    """
+    try:
+        from infrastructure.database.session import get_db_session
+        from infrastructure.database.repositories import MessageRepository
+
+        async for db in get_db_session():
+            repo = MessageRepository(db)
+            pg_uuid = None
+            if session_id:
+                from uuid import UUID as _UUID
+                try:
+                    pg_uuid = _UUID(session_id.split("_")[-1]) if "_" in session_id else _UUID(session_id)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid session_id format")
+            deleted = await repo.delete_duplicates(session_id=pg_uuid)
+            break
+
+        return {"deleted": deleted, "session_id": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deduplicating messages: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
