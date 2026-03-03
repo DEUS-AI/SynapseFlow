@@ -1,0 +1,687 @@
+{
+  "metadata": {
+    "document_name": "Anti Inflammatory Diet.md",
+    "document_path": "markdown_output/Anti Inflammatory Diet.md",
+    "document_size_bytes": 9706,
+    "run_timestamp": "2026-03-03T13:33:27.856001+00:00",
+    "model_versions": {
+      "markitdown_llm": "gpt-4o-mini",
+      "langextract": "gemini-2.5-flash"
+    }
+  },
+  "config": {
+    "model_ids": {
+      "markitdown_llm": "gpt-4o-mini",
+      "langextract": "gemini-2.5-flash"
+    },
+    "extraction_passes": 1,
+    "max_workers": 1,
+    "environment": {
+      "python_version": "3.13.5 (main, Jun 12 2025, 12:22:43) [Clang 20.1.4 ]",
+      "platform": "Darwin 25.3.0",
+      "langextract_available": true,
+      "markitdown_available": true
+    }
+  },
+  "markitdown_results": {
+    "entities": [
+      {
+        "name": "Anti-Inflammatory Diet",
+        "type": "Disease",
+        "description": "A dietary approach aimed at reducing inflammation in the body.",
+        "confidence": 0.9
+      },
+      {
+        "name": "American Heart Association",
+        "type": "Organization",
+        "description": "A nonprofit organization focused on heart health and disease prevention.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Vitamin C",
+        "type": "Drug",
+        "description": "A vitamin that acts as an antioxidant and is important for immune function.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Vitamin E",
+        "type": "Drug",
+        "description": "A fat-soluble vitamin that acts as an antioxidant and is important for immune function.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Selenium",
+        "type": "Drug",
+        "description": "A mineral that plays a critical role in metabolism and has antioxidant properties.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Zinc",
+        "type": "Drug",
+        "description": "A mineral essential for immune function and has antioxidant properties.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Copper",
+        "type": "Drug",
+        "description": "A mineral that is important for iron metabolism and has antioxidant properties.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Manganese",
+        "type": "Drug",
+        "description": "A trace mineral that plays a role in bone formation and metabolism.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Curcumin",
+        "type": "Drug",
+        "description": "A compound found in turmeric known for its anti-inflammatory properties.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Green Tea",
+        "type": "Drug",
+        "description": "A beverage rich in antioxidants, particularly catechins, which may reduce inflammation.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Olive Oil",
+        "type": "Drug",
+        "description": "A healthy fat rich in monounsaturated fats and antioxidants, beneficial for heart health.",
+        "confidence": 0.9
+      },
+      {
+        "name": "Antioxidants",
+        "type": "Pathway",
+        "description": "Compounds that inhibit oxidation and neutralize free radicals, potentially reducing inflammation.",
+        "confidence": 0.9
+      }
+    ],
+    "relationships": [
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Vitamin C",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes foods rich in Vitamin C to help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Vitamin E",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes foods rich in Vitamin E to help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Selenium",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes foods rich in Selenium to help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Zinc",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes foods rich in Zinc to help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Copper",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes foods rich in Copper to help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Manganese",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes foods rich in Manganese to help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Curcumin",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes foods containing Curcumin to help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Green Tea",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet includes Green Tea, which is rich in antioxidants that may reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Olive Oil",
+        "type": "INDICATES",
+        "description": "The anti-inflammatory diet recommends Olive Oil as a healthy fat that may help reduce inflammation."
+      },
+      {
+        "source": "Anti-Inflammatory Diet",
+        "target": "Antioxidants",
+        "type": "ASSOCIATED_WITH",
+        "description": "The anti-inflammatory diet is associated with the intake of antioxidants to combat inflammation."
+      },
+      {
+        "source": "American Heart Association",
+        "target": "Anti-Inflammatory Diet",
+        "type": "TREATS",
+        "description": "The American Heart Association recommends an anti-inflammatory diet to improve heart health."
+      }
+    ],
+    "metrics": {
+      "extraction_time_seconds": 23.999062082992168,
+      "entity_count": 12,
+      "relationship_count": 11,
+      "entities_by_type": {
+        "Disease": 1,
+        "Organization": 1,
+        "Drug": 9,
+        "Pathway": 1
+      },
+      "relationships_by_type": {
+        "INDICATES": 9,
+        "ASSOCIATED_WITH": 1,
+        "TREATS": 1
+      },
+      "unique_entity_names": [
+        "American Heart Association",
+        "Anti-Inflammatory Diet",
+        "Antioxidants",
+        "Copper",
+        "Curcumin",
+        "Green Tea",
+        "Manganese",
+        "Olive Oil",
+        "Selenium",
+        "Vitamin C",
+        "Vitamin E",
+        "Zinc"
+      ]
+    }
+  },
+  "langextract_results": {
+    "entities": [
+      {
+        "name": "Anti-Inflammatory Diet",
+        "type": "Treatment",
+        "description": "A plant-based dietary approach designed to decrease inflammation by limiting added sugar, processed foods, and certain cooking methods, while emphasizing whole plant foods, omega-3 fats, and specific phytonutrients.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "inflammation",
+        "type": "Symptom",
+        "description": "A biological response of body tissues to harmful stimuli, such as pathogens, damaged cells, or irritants, which the anti-inflammatory diet aims to reduce.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "antioxidants",
+        "type": "Pathway",
+        "description": "Compounds that inhibit oxidation, a chemical reaction that can produce free radicals and chain reactions that may damage cells. They are provided by whole plant foods and help prevent or reduce inflammation.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "omega-3 fats",
+        "type": "Pathway",
+        "description": "A type of polyunsaturated fatty acid known for its anti-inflammatory properties, found in foods like anchovies, salmon, walnuts, and flax seeds.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "American Heart Association (AHA)",
+        "type": "Organization",
+        "description": "A national voluntary health organization in the United States that funds cardiovascular medical research, educates consumers on healthy living, and fosters appropriate cardiac care.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "omega-6 fatty acids",
+        "type": "Pathway",
+        "description": "A type of polyunsaturated fatty acid, which, when consumed in excess relative to omega-3s, can contribute to inflammatory processes.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "vitamins",
+        "type": "Pathway",
+        "description": "Organic compounds that are essential for normal growth and nutrition and are required in small quantities in the diet because they cannot be synthesized by the body.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "minerals",
+        "type": "Pathway",
+        "description": "Inorganic elements that are essential nutrients required for various physiological functions in the body.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "phytonutrients",
+        "type": "Pathway",
+        "description": "Chemical compounds found in plants that give them their color, odor, and flavor, and show promise in decreasing inflammation and preventing disease.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "disease",
+        "type": "Disease",
+        "description": "A disorder of structure or function in a human, animal, or plant, especially one that produces specific symptoms or that affects a specific location and is not simply a direct result of physical injury.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Vitamin C",
+        "type": "Drug",
+        "description": "An essential vitamin and antioxidant found in fruits and vegetables, important for immune function and collagen synthesis.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Vitamin E",
+        "type": "Drug",
+        "description": "A fat-soluble vitamin and antioxidant found in nuts, seeds, and certain vegetables, important for cell protection.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Selenium",
+        "type": "Drug",
+        "description": "An essential trace mineral with antioxidant properties, found in seafood, animal proteins, and whole grains.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Zinc",
+        "type": "Drug",
+        "description": "An essential trace mineral vital for immune function, wound healing, and DNA synthesis, found in animal foods and plant foods like seeds and lentils.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Copper",
+        "type": "Drug",
+        "description": "An essential trace mineral involved in energy production, iron metabolism, and antioxidant defense, found in nuts, seeds, and beans.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Manganese",
+        "type": "Drug",
+        "description": "An essential trace mineral involved in bone formation, metabolism, and antioxidant systems, found in whole grains, beans, and spinach.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Anthocyanins",
+        "type": "Drug",
+        "description": "Phytonutrients that give red, blue, and purple plants their color, known for their antioxidant and anti-inflammatory effects.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Ellagic acid",
+        "type": "Drug",
+        "description": "A phytonutrient found in pomegranates, walnuts, and green tea, with antioxidant properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Lycopene",
+        "type": "Drug",
+        "description": "A carotenoid phytonutrient that gives red and pink fruits and vegetables their color, known for its antioxidant properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Carotenoids",
+        "type": "Drug",
+        "description": "A class of phytonutrients, including beta-carotene, lutein, and zeaxanthin, that provide yellow and orange colors to plants and act as antioxidants.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "beta-carotene",
+        "type": "Drug",
+        "description": "A specific carotenoid phytonutrient that the body converts to Vitamin A, found in carrots, pumpkin, and sweet potato.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Flavonoids",
+        "type": "Drug",
+        "description": "A diverse group of phytonutrients, also called polyphenols, found in various plant foods, known for their antioxidant and anti-inflammatory benefits.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "polyphenols",
+        "type": "Drug",
+        "description": "A broad category of phytonutrients, including flavonoids, with antioxidant and anti-inflammatory properties, found in many plant-based foods.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "curcumin",
+        "type": "Drug",
+        "description": "A polyphenol found in turmeric, known for its potent anti-inflammatory and antioxidant effects.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "naringenin",
+        "type": "Drug",
+        "description": "A flavonoid found in citrus fruit, with antioxidant and anti-inflammatory properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "lutein",
+        "type": "Drug",
+        "description": "A carotenoid phytonutrient found in corn, orange pepper, and green leafy vegetables, important for eye health.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "zeaxanthin",
+        "type": "Drug",
+        "description": "A carotenoid phytonutrient often found with lutein, important for eye health, present in corn and orange pepper.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Glucosinolates",
+        "type": "Drug",
+        "description": "Phytonutrients found in cruciferous vegetables like broccoli and cabbage, which can be converted into bioactive compounds like isothiocyanates and sulforaphane.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "isothiocyanates",
+        "type": "Drug",
+        "description": "Bioactive compounds derived from glucosinolates in cruciferous vegetables, known for their anti-inflammatory and anti-cancer properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "sulforaphane",
+        "type": "Drug",
+        "description": "A specific isothiocyanate found in cruciferous vegetables, particularly broccoli sprouts, with strong antioxidant and anti-inflammatory effects.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "indole-3-carbinol",
+        "type": "Drug",
+        "description": "A compound formed from glucosinolates in cruciferous vegetables, studied for its potential anti-cancer properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Chlorophyll",
+        "type": "Drug",
+        "description": "The green pigment found in plants, involved in photosynthesis, and present in all green vegetables and herbs.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Isoflavones",
+        "type": "Drug",
+        "description": "A class of phytonutrients, including daidzein and genistein, found in soybeans and soy products, with estrogen-like activity.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "daidzein",
+        "type": "Drug",
+        "description": "A specific isoflavone found in soybeans, with potential health benefits.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "genistein",
+        "type": "Drug",
+        "description": "A specific isoflavone found in soybeans, studied for its antioxidant and anti-cancer properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Phytosterols",
+        "type": "Drug",
+        "description": "Plant sterols structurally similar to cholesterol, found in olive oil and other plant foods, known to help lower cholesterol levels.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Catechins",
+        "type": "Drug",
+        "description": "A type of flavonoid, such as EGCG, found in green tea, known for its antioxidant properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "EGCG",
+        "type": "Drug",
+        "description": "Epigallocatechin gallate, a specific catechin found abundantly in green tea, known for its strong antioxidant and anti-inflammatory effects.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Resveratrol",
+        "type": "Drug",
+        "description": "A polyphenol found in grapes, red wine, dark chocolate, and blueberries, known for its antioxidant and anti-inflammatory properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Allicin",
+        "type": "Drug",
+        "description": "A sulfur-containing compound found in garlic, onions, and leeks, responsible for their pungent odor and believed to have various health benefits.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Lignans",
+        "type": "Drug",
+        "description": "A type of polyphenol found in ground flax seeds, other seeds, and nuts, with antioxidant and phytoestrogenic properties.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Chlorogenic acid",
+        "type": "Drug",
+        "description": "A polyphenol found in coffee and tea, known for its antioxidant activity.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "antioxidant supplements",
+        "type": "Treatment",
+        "description": "Dietary supplements containing antioxidants like beta-carotene or vitamin E, which may interact with medicines and should be discussed with a healthcare provider.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "The Ohio State University Wexner Medical Center",
+        "type": "Organization",
+        "description": "A medical institution providing patient care, research, and education, responsible for the patient education material.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      },
+      {
+        "name": "Library for Health Information",
+        "type": "Organization",
+        "description": "A resource within The Ohio State University Wexner Medical Center for obtaining health information.",
+        "confidence": 0.7,
+        "source_grounding": {},
+        "layer": "PERCEPTION"
+      }
+    ],
+    "relationships": [],
+    "metrics": {
+      "extraction_time_seconds": 188.16087249998236,
+      "entity_count": 45,
+      "relationship_count": 0,
+      "entities_by_type": {
+        "Treatment": 2,
+        "Symptom": 1,
+        "Pathway": 6,
+        "Organization": 3,
+        "Disease": 1,
+        "Drug": 32
+      },
+      "relationships_by_type": {},
+      "unique_entity_names": [
+        "Allicin",
+        "American Heart Association (AHA)",
+        "Anthocyanins",
+        "Anti-Inflammatory Diet",
+        "Carotenoids",
+        "Catechins",
+        "Chlorogenic acid",
+        "Chlorophyll",
+        "Copper",
+        "EGCG",
+        "Ellagic acid",
+        "Flavonoids",
+        "Glucosinolates",
+        "Isoflavones",
+        "Library for Health Information",
+        "Lignans",
+        "Lycopene",
+        "Manganese",
+        "Phytosterols",
+        "Resveratrol",
+        "Selenium",
+        "The Ohio State University Wexner Medical Center",
+        "Vitamin C",
+        "Vitamin E",
+        "Zinc",
+        "antioxidant supplements",
+        "antioxidants",
+        "beta-carotene",
+        "curcumin",
+        "daidzein",
+        "disease",
+        "genistein",
+        "indole-3-carbinol",
+        "inflammation",
+        "isothiocyanates",
+        "lutein",
+        "minerals",
+        "naringenin",
+        "omega-3 fats",
+        "omega-6 fatty acids",
+        "phytonutrients",
+        "polyphenols",
+        "sulforaphane",
+        "vitamins",
+        "zeaxanthin"
+      ],
+      "source_grounding_coverage": 0.0
+    }
+  },
+  "overlap_analysis": {
+    "overlap_count": 9,
+    "markitdown_only_count": 3,
+    "langextract_only_count": 36,
+    "overlap_percentage": 18.75,
+    "overlapping_entities": [
+      "anti-inflammatory diet",
+      "antioxidants",
+      "copper",
+      "curcumin",
+      "manganese",
+      "selenium",
+      "vitamin c",
+      "vitamin e",
+      "zinc"
+    ],
+    "markitdown_only": [
+      "american heart association",
+      "green tea",
+      "olive oil"
+    ],
+    "langextract_only": [
+      "allicin",
+      "american heart association (aha)",
+      "anthocyanins",
+      "antioxidant supplements",
+      "beta-carotene",
+      "carotenoids",
+      "catechins",
+      "chlorogenic acid",
+      "chlorophyll",
+      "daidzein",
+      "disease",
+      "egcg",
+      "ellagic acid",
+      "flavonoids",
+      "genistein",
+      "glucosinolates",
+      "indole-3-carbinol",
+      "inflammation",
+      "isoflavones",
+      "isothiocyanates",
+      "library for health information",
+      "lignans",
+      "lutein",
+      "lycopene",
+      "minerals",
+      "naringenin",
+      "omega-3 fats",
+      "omega-6 fatty acids",
+      "phytonutrients",
+      "phytosterols",
+      "polyphenols",
+      "resveratrol",
+      "sulforaphane",
+      "the ohio state university wexner medical center",
+      "vitamins",
+      "zeaxanthin"
+    ]
+  }
+}

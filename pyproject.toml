@@ -56,6 +56,9 @@
 ]
 
     [project.optional-dependencies]
+    langextract = [
+        "langextract>=0.1.0",
+    ]
     develop = [
         "ruff>=0.1.0",
         "black>=23.0.0",
