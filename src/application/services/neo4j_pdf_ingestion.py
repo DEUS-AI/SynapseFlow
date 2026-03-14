@@ -1,6 +1,11 @@
 """Neo4j-based PDF Knowledge Ingestion Service.
 
-Workflow: PDF → Markdown (markitdown) → Clean → LLM Entity Extraction → Neo4j
+Workflow: PDF → Markdown → Clean → LLM Entity Extraction → Neo4j
+
+Converter is selected via PDF_CONVERTER env var:
+  docling     (default) — best quality, ~70s/doc
+  pymupdf4llm — fast, moderate quality, ~30s/doc
+  markitdown  — fastest, lowest quality, ~5s/doc
 
 This version writes directly to Neo4j with proper layer structure for neurosymbolic reasoning:
 - PERCEPTION layer: Raw entities from PDFs
@@ -9,6 +14,7 @@ This version writes directly to Neo4j with proper layer structure for neurosymbo
 - APPLICATION layer: Query patterns (future)
 """
 
+import os
 import re
 import json
 from pathlib import Path
@@ -148,10 +154,9 @@ Extract entities and relationships as JSON:"""
         self.openai_client = AsyncOpenAI(api_key=openai_api_key)
         self.model = model
 
-        # Initialize PDF converter
-        if not MARKITDOWN_AVAILABLE:
-            raise ImportError("markitdown not available")
-        self.converter = MarkItDown()
+        # Initialize PDF converter — selected via PDF_CONVERTER env var
+        self._converter_name = os.getenv("PDF_CONVERTER", "docling").lower()
+        self.converter = self._init_converter(self._converter_name)
 
         # Initialize Neo4j connection
         self.neo4j_uri = neo4j_uri or os.getenv("NEO4J_URI", "bolt://localhost:7687")
@@ -175,6 +180,24 @@ Extract entities and relationships as JSON:"""
         """Close Neo4j connection."""
         if hasattr(self, 'driver'):
             self.driver.close()
+
+    def _init_converter(self, name: str):
+        """Return the configured PDF→Markdown converter instance."""
+        if name == "docling":
+            from application.services.docling_wrapper import DoclingWrapper
+            converter = DoclingWrapper()
+            logger.info("PDF converter: Docling")
+            return converter
+        elif name == "pymupdf4llm":
+            from application.services.pymupdf4llm_wrapper import PyMuPDF4LLMWrapper
+            converter = PyMuPDF4LLMWrapper()
+            logger.info("PDF converter: PyMuPDF4LLM")
+            return converter
+        else:
+            if not MARKITDOWN_AVAILABLE:
+                raise ImportError("markitdown not available")
+            logger.info("PDF converter: MarkItDown")
+            return MarkItDown()
 
     def discover_pdfs(self) -> List[PDFDocument]:
         """Discover all PDF files (same as FalkorDB version)."""
@@ -439,11 +462,18 @@ Extract entities and relationships as JSON:"""
 
     def convert_and_clean(self, document: PDFDocument) -> str:
         """Convert PDF to Markdown and clean."""
-        logger.info(f"Converting: {document.filename}")
+        logger.info(f"Converting: {document.filename} (converter={self._converter_name})")
 
-        # Convert
-        result = self.converter.convert(str(document.path))
-        markdown = result.text_content
+        # Convert — API differs per converter
+        if self._converter_name in ("docling", "pymupdf4llm"):
+            # Wrappers expose convert_to_markdown(path) -> str
+            markdown = self.converter.convert_to_markdown(str(document.path))
+            if markdown is None:
+                raise RuntimeError(f"{self._converter_name} conversion returned None for {document.filename}")
+        else:
+            # MarkItDown: .convert(path).text_content
+            result = self.converter.convert(str(document.path))
+            markdown = result.text_content
 
         # Clean
         cleaned = self._clean_markdown(markdown)

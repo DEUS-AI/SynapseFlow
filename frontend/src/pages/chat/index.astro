@@ -1,0 +1,16 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { AuthenticatedChat } from '../../components/auth/AuthenticatedChat';
+---
+
+<BaseLayout title="Patient Chat">
+  <div class="chat-container">
+    <AuthenticatedChat client:load />
+  </div>
+</BaseLayout>
+
+<style>
+  .chat-container {
+    height: calc(100vh - 4rem);
+  }
+</style>

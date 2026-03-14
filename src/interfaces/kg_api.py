@@ -46,8 +46,20 @@ _manager = KnowledgeManagerService(_backend)
 _bus = EventBus()
 
 # Subscribe the knowledge manager to both entity and relationship events
-_bus.subscribe("create_entity", _manager.handle_event)
-_bus.subscribe("create_relationship", _manager.handle_event)
+import asyncio as _asyncio
+
+async def _setup_subscriptions() -> None:
+    await _bus.subscribe("create_entity", _manager.handle_event)
+    await _bus.subscribe("create_relationship", _manager.handle_event)
+
+try:
+    _loop = _asyncio.get_event_loop()
+    if _loop.is_running():
+        _loop.create_task(_setup_subscriptions())
+    else:
+        _loop.run_until_complete(_setup_subscriptions())
+except RuntimeError:
+    pass
 
 
 @app.post("/events")

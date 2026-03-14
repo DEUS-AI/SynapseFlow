@@ -11,14 +11,23 @@ from typing import Dict, Set, List, Any, Optional
 import tempfile
 import os
 
+from starlette.formparsers import MultiPartParser
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from pydantic import BaseModel, Field
 from typing import Optional as OptionalType
 from enum import Enum as PyEnum
+
+# Allow uploads up to 200MB (default is 1MB, causes 413 on PDF uploads)
+MultiPartParser.max_part_size = 200 * 1024 * 1024
 
 from .kg_router import router as kg_router
 from .document_router import router as document_router
 from .crystallization_router import router as crystallization_router
 from .remediation_router import router as remediation_router
+from .auth_router import router as auth_router
+from .invite_router import router as invite_router
 from .dependencies import (
     get_chat_service,
     get_patient_memory,
@@ -38,15 +47,67 @@ app = FastAPI(
 )
 
 # Configure CORS
+allowed_origins = os.environ.get(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:4321"
+).split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for dev
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Auth middleware: protects all /api/* and /ws/* routes except exempt paths.
+# Exempt: /api/auth/*, /api/admin/*, /health, /docs, /openapi.json, /redoc
+_AUTH_EXEMPT_PREFIXES = ("/api/auth/", "/api/admin/", "/health", "/docs", "/openapi.json", "/redoc")
+
+class _AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        protected = path.startswith("/api/") or path.startswith("/ws/")
+        if not protected or any(path.startswith(p) for p in _AUTH_EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return Response(
+                content='{"detail":"Missing or invalid authorization header"}',
+                status_code=401,
+                media_type="application/json",
+            )
+
+        token = auth_header[7:]
+        from .auth_router import _has_db, _db_session_factory
+        if not _has_db():
+            return await call_next(request)  # DB not yet ready — let route handle it
+
+        try:
+            from infrastructure.database.repositories import UserRepository
+            async with _db_session_factory() as session:
+                user = await UserRepository(session).get_by_session_token(token)
+                if not user:
+                    return Response(
+                        content='{"detail":"Invalid session"}',
+                        status_code=401,
+                        media_type="application/json",
+                    )
+        except Exception as e:
+            logger.warning(f"Auth middleware DB error: {e}")
+            return Response(
+                content='{"detail":"Authentication error"}',
+                status_code=503,
+                media_type="application/json",
+            )
+
+        return await call_next(request)
+
+app.add_middleware(_AuthMiddleware)
+
 # Include routers
+app.include_router(auth_router)
+app.include_router(invite_router)
 app.include_router(kg_router)
 app.include_router(document_router)
 app.include_router(crystallization_router)
@@ -54,7 +115,6 @@ app.include_router(remediation_router)
 
 
 # Exception handler for unavailable agents (distributed mode)
-from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
 
@@ -122,14 +182,28 @@ async def startup_event():
         await init_database(create_tables=True)
         logger.info("✅ PostgreSQL database initialized")
 
-        # Configure document router with PostgreSQL access
+        # Configure routers with PostgreSQL access
         try:
             from infrastructure.database.session import is_initialized, db_session
             if is_initialized():
                 from .document_router import configure_postgres
                 configure_postgres(db_session)
+                from .auth_router import configure_auth
+                configure_auth(db_session)
+                from .invite_router import configure_invites
+                configure_invites(db_session)
         except Exception as e:
-            logger.warning(f"⚠️ Failed to configure document router with PostgreSQL: {e}")
+            logger.warning(f"⚠️ Failed to configure routers with PostgreSQL: {e}")
+
+        # Initialize document storage backend (local or Azure Blob)
+        try:
+            from infrastructure.document_storage import create_document_storage
+            from .document_router import configure_storage
+            storage = create_document_storage()
+            configure_storage(storage)
+            logger.info("✅ Document storage initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to initialize document storage: {e}")
     except Exception as e:
         logger.warning(f"⚠️ Failed to initialize PostgreSQL: {e}. Continuing with Neo4j-only mode.")
 
@@ -198,6 +272,26 @@ async def chat_websocket_endpoint(
     """Real-time patient chat with streaming responses."""
     client_id = f"{patient_id}:{session_id}"
     logger.info(f"WebSocket connection attempt for {client_id}")
+
+    # Verify auth token from query params — fail-closed when DB is available
+    token = websocket.query_params.get("token")
+    try:
+        from .auth_router import _has_db, _db_session_factory
+        if _has_db():
+            if not token:
+                await websocket.close(code=4001, reason="Missing auth token")
+                return
+            from infrastructure.database.repositories import UserRepository
+            async with _db_session_factory() as session:
+                user = await UserRepository(session).get_by_session_token(token)
+                if not user:
+                    await websocket.close(code=4001, reason="Invalid session")
+                    return
+                if user.patient_id != patient_id:
+                    await websocket.close(code=4003, reason="Patient mismatch")
+                    return
+    except Exception as e:
+        logger.warning(f"WebSocket auth check failed: {e}")
 
     # Accept connection first, then initialize dependencies
     await manager.connect(websocket, client_id)

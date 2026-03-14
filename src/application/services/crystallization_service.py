@@ -165,7 +165,7 @@ class CrystallizationService:
         self._running = True
 
         # Subscribe to episode_added events
-        self.event_bus.subscribe("episode_added", self._handle_episode_added)
+        await self.event_bus.subscribe("episode_added", self._handle_episode_added)
         logger.info("Subscribed to episode_added events")
 
         # Start periodic batch processing if in BATCH or HYBRID mode

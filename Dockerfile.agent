@@ -18,8 +18,11 @@ COPY src/ src/
 COPY config/ config/
 COPY .env* ./
 
-# Install dependencies
-RUN uv pip install --system .
+# Install CPU-only PyTorch first (avoids pulling ~5GB NVIDIA CUDA libs)
+RUN uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install dependencies (including docling for high-quality PDF conversion)
+RUN uv pip install --system ".[docling]"
 
 # Set python path, prevent bytecache issues when host mounts differ
 ENV PYTHONPATH=/app/src

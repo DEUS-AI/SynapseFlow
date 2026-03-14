@@ -122,14 +122,23 @@ class AutomaticLayerTransitionService:
             }
         }
 
-        # Subscribe to events
-        self._subscribe_to_events()
+        # Subscribe to events — scheduled as async task to support both sync and async event buses
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._subscribe_to_events())
+            else:
+                loop.run_until_complete(self._subscribe_to_events())
+        except RuntimeError:
+            # No event loop yet — will subscribe on first async context
+            pass
 
-    def _subscribe_to_events(self) -> None:
+    async def _subscribe_to_events(self) -> None:
         """Subscribe to relevant events on the event bus."""
-        self.event_bus.subscribe("entity_created", self._handle_entity_created)
-        self.event_bus.subscribe("entity_updated", self._handle_entity_updated)
-        self.event_bus.subscribe("query_executed", self._handle_query_executed)
+        await self.event_bus.subscribe("entity_created", self._handle_entity_created)
+        await self.event_bus.subscribe("entity_updated", self._handle_entity_updated)
+        await self.event_bus.subscribe("query_executed", self._handle_query_executed)
         logger.info("AutomaticLayerTransitionService subscribed to events")
 
     async def _handle_entity_created(self, event: KnowledgeEvent) -> None:

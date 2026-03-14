@@ -115,11 +115,20 @@ class KnowledgeManagerAgent(Agent):
         self.validation_engine = ValidationEngine(backend)
         self.reasoning_engine = ReasoningEngine(backend, llm=llm)
         
-        # Subscribe to complex operations
-        self.event_bus.subscribe("complex_entity_operation", self.handle_complex_entity)
-        self.event_bus.subscribe("complex_relationship_operation", self.handle_complex_relationship)
-        self.event_bus.subscribe("batch_operation", self.handle_batch_operation)
-        self.event_bus.subscribe("conflict_resolution", self.handle_conflict_resolution)
+        # Subscribe to complex operations — scheduled as async task
+        import asyncio as _asyncio
+        try:
+            loop = _asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._subscribe_to_events())
+        except RuntimeError:
+            pass
+
+    async def _subscribe_to_events(self) -> None:
+        await self.event_bus.subscribe("complex_entity_operation", self.handle_complex_entity)
+        await self.event_bus.subscribe("complex_relationship_operation", self.handle_complex_relationship)
+        await self.event_bus.subscribe("batch_operation", self.handle_batch_operation)
+        await self.event_bus.subscribe("conflict_resolution", self.handle_conflict_resolution)
 
     async def escalate_update(self, request: KGUpdateRequest) -> KGUpdateResult:
         """Handle escalated KG update requests."""

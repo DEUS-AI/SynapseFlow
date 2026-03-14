@@ -21,7 +21,7 @@ class EventBus:
         # Map event action names to lists of subscriber coroutines
         self._subscribers: Dict[str, List[Callable[[KnowledgeEvent], Awaitable[None]]]] = {}
 
-    def subscribe(self, action: str, handler: Callable[[KnowledgeEvent], Awaitable[None]]) -> None:
+    async def subscribe(self, action: str, handler: Callable[[KnowledgeEvent], Awaitable[None]]) -> None:
         """Subscribe a coroutine to a specific action.
 
         Args:

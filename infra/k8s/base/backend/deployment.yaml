@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: synapseflow-backend
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: acrodindev.azurecr.io/synapseflow/backend:latest
+          command: ["uvicorn", "application.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: backend-secrets
+            - secretRef:
+                name: backend-db-config
+          env:
+            - name: NEO4J_URI
+              value: "bolt://neo4j.synapseflow-infra.svc.cluster.local:7687"
+            - name: NEO4J_USERNAME
+              value: "neo4j"
+            - name: FALKORDB_HOST
+              value: "falkordb.synapseflow-infra.svc.cluster.local"
+            - name: FALKORDB_PORT
+              value: "6379"
+            - name: QDRANT_URL
+              value: "http://qdrant.synapseflow-infra.svc.cluster.local:6333"
+            - name: DEPLOYMENT_MODE
+              value: "distributed"
+            - name: PYTHONPATH
+              value: "/app/src"
+            # PostgreSQL (individual vars for database/config.py)
+            - name: POSTGRES_HOST
+              value: "pg-odin-dev-westeurope.postgres.database.azure.com"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: "synapseflow"
+            - name: POSTGRES_USER
+              value: "pgadmin"
+            # Redis (Azure Cache for Redis)
+            - name: REDIS_HOST
+              value: "redis-odin-dev-westeurope.redis.cache.windows.net"
+            - name: REDIS_PORT
+              value: "6380"
+            - name: REDIS_SSL
+              value: "true"
+            # Document storage (Azure Blob)
+            - name: DOCUMENT_STORAGE_BACKEND
+              value: "blob"
+            - name: FEATURE_FLAG_USE_POSTGRES_DOCUMENTS
+              value: "true"
+            - name: CORS_ALLOWED_ORIGINS
+              value: "https://proud-mushroom-0def81803.6.azurestaticapps.net"
+            # PDF converter (docling=best quality, pymupdf4llm=fast, markitdown=fastest)
+            - name: PDF_CONVERTER
+              value: "docling"
+            # RabbitMQ for distributed agent command bus and event bus
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-creds
+                  key: url
+            - name: EVENT_BUS_TYPE
+              value: "rabbitmq"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: secrets
+              mountPath: /mnt/secrets
+              readOnly: true
+      volumes:
+        - name: secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: backend-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: synapseflow-backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
