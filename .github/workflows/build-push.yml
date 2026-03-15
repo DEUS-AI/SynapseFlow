@@ -1,0 +1,44 @@
+name: Build and Push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'Dockerfile*'
+      - 'pyproject.toml'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: acrodindev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name $ACR_NAME
+
+      - name: Build and push agent image
+        run: |
+          docker build -f Dockerfile.agent -t $ACR_NAME.azurecr.io/synapseflow/agent:${{ github.sha }} -t $ACR_NAME.azurecr.io/synapseflow/agent:latest .
+          docker push $ACR_NAME.azurecr.io/synapseflow/agent:${{ github.sha }}
+          docker push $ACR_NAME.azurecr.io/synapseflow/agent:latest
+
+      - name: Build and push backend image
+        run: |
+          docker build -f Dockerfile.agent -t $ACR_NAME.azurecr.io/synapseflow/backend:${{ github.sha }} -t $ACR_NAME.azurecr.io/synapseflow/backend:latest .
+          docker push $ACR_NAME.azurecr.io/synapseflow/backend:${{ github.sha }}
+          docker push $ACR_NAME.azurecr.io/synapseflow/backend:latest

@@ -1,0 +1,58 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build
+        working-directory: frontend
+        env:
+          PUBLIC_API_URL: https://20-50-212-98.nip.io
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy SWA config
+        run: cp frontend/staticwebapp.config.json frontend/dist/client/
+
+      - name: Get SWA deployment token
+        id: token
+        run: |
+          TOKEN=$(az keyvault secret show --vault-name kv-odin-dev-we --name swa-deployment-token --query value -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "swa_token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.swa_token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: frontend
+          output_location: dist
+          skip_app_build: true

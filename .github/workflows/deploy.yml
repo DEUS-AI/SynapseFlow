@@ -1,0 +1,65 @@
+name: Deploy to AKS
+
+on:
+  workflow_run:
+    workflows: ["Build and Push"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AKS_CLUSTER: aks-odin-dev-westeurope
+  RESOURCE_GROUP: RG-ODINDATA-DEV
+  ACR_NAME: acrodindev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER
+
+      - name: Get triggering commit SHA
+        id: sha
+        run: echo "sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Update agent deployments
+        run: |
+          IMAGE=$ACR_NAME.azurecr.io/synapseflow/agent:${{ steps.sha.outputs.sha }}
+          for AGENT in data-architect data-engineer knowledge-manager medical-assistant; do
+            kubectl set image deployment/$AGENT agent=$IMAGE -n synapseflow-agents
+          done
+
+      - name: Update backend deployment
+        run: |
+          IMAGE=$ACR_NAME.azurecr.io/synapseflow/backend:${{ steps.sha.outputs.sha }}
+          kubectl set image deployment/backend backend=$IMAGE -n synapseflow-backend
+
+      - name: Wait for rollout
+        run: |
+          for AGENT in data-architect data-engineer knowledge-manager medical-assistant; do
+            kubectl rollout status deployment/$AGENT -n synapseflow-agents --timeout=120s || {
+              echo "Rollback $AGENT..."
+              kubectl rollout undo deployment/$AGENT -n synapseflow-agents
+              exit 1
+            }
+          done
+          kubectl rollout status deployment/backend -n synapseflow-backend --timeout=120s || {
+            echo "Rollback backend..."
+            kubectl rollout undo deployment/backend -n synapseflow-backend
+            exit 1
+          }
