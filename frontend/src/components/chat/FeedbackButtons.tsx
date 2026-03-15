@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import type { MessageFeedback } from '../../types/chat';
 
 interface FeedbackButtonsProps {
@@ -26,7 +26,7 @@ export function FeedbackButtons({
   const submitThumbsFeedback = async (thumbs: 'up' | 'down') => {
     setIsSubmitting(true);
     try {
-      const res = await fetch(apiUrl('/api/feedback/thumbs'), {
+      const res = await fetchWithAuth(apiUrl('/api/feedback/thumbs'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -56,7 +56,7 @@ export function FeedbackButtons({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(apiUrl('/api/feedback'), {
+      const res = await fetchWithAuth(apiUrl('/api/feedback'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../../lib/api';
 import { Loader2, AlertCircle, Network } from 'lucide-react';
 import { KnowledgeGraphViewer } from '../../graph/KnowledgeGraphViewer';
 
@@ -24,7 +24,7 @@ export function DocumentGraphTab({ docId }: DocumentGraphTabProps) {
         setError(null);
 
         // Fetch document-specific graph data
-        const response = await fetch(apiUrl(`/api/admin/documents/${docId}/graph?limit=200`));
+        const response = await fetchWithAuth(apiUrl(`/api/admin/documents/${docId}/graph?limit=200`));
         if (!response.ok) {
           throw new Error('Failed to load graph data');
         }

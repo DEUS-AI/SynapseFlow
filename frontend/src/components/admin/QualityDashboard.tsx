@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import {
   BarChart3, FileCheck, GitBranch, AlertTriangle,
   CheckCircle, XCircle, AlertCircle, TrendingUp,
@@ -100,11 +100,11 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
     setError(null);
     try {
       const [docResponse, ontResponse, docTrendsResponse, ontTrendsResponse, scannerResponse] = await Promise.all([
-        fetch(apiUrl('/api/admin/documents/quality/summary')),
-        fetch(apiUrl('/api/ontology/quality')),
-        fetch(apiUrl('/api/quality/trends/documents?days=30')),
-        fetch(apiUrl('/api/quality/trends/ontology?days=30')),
-        fetch(apiUrl('/api/quality/scanner/status')),
+        fetchWithAuth(apiUrl('/api/admin/documents/quality/summary')),
+        fetchWithAuth(apiUrl('/api/ontology/quality')),
+        fetchWithAuth(apiUrl('/api/quality/trends/documents?days=30')),
+        fetchWithAuth(apiUrl('/api/quality/trends/ontology?days=30')),
+        fetchWithAuth(apiUrl('/api/quality/scanner/status')),
       ]);
 
       if (docResponse.ok) {
@@ -146,7 +146,7 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
   const handleAssessOntology = async () => {
     setAssessing('ontology');
     try {
-      const response = await fetch(apiUrl('/api/ontology/quality/assess'), {
+      const response = await fetchWithAuth(apiUrl('/api/ontology/quality/assess'), {
         method: 'POST',
       });
       if (response.ok) {
@@ -166,7 +166,7 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
   const handleManualScan = async (scanType: 'documents' | 'ontology' | 'both') => {
     setScanning(true);
     try {
-      const response = await fetch(apiUrl(`/api/quality/scanner/scan?scan_type=${scanType}`), {
+      const response = await fetchWithAuth(apiUrl(`/api/quality/scanner/scan?scan_type=${scanType}`), {
         method: 'POST',
       });
       if (response.ok) {

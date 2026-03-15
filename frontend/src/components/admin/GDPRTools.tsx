@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -24,7 +24,7 @@ export function GDPRTools({ patientId, onClose, onDelete }: GDPRToolsProps) {
     setIsDeleting(true);
 
     try {
-      const response = await fetch(apiUrl(`/api/admin/patients/${patientId}`), {
+      const response = await fetchWithAuth(apiUrl(`/api/admin/patients/${patientId}`), {
         method: 'DELETE',
       });
 

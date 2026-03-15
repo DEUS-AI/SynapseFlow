@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../../lib/api';
 import { Loader2, AlertCircle, FileText, Download, Copy, Check, Maximize2, Minimize2 } from 'lucide-react';
 
 interface DocumentPreviewTabProps {
@@ -26,7 +26,7 @@ export function DocumentPreviewTab({ docId }: DocumentPreviewTabProps) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(apiUrl(`/api/admin/documents/${docId}/content`));
+        const response = await fetchWithAuth(apiUrl(`/api/admin/documents/${docId}/content`));
         if (!response.ok) {
           if (response.status === 404) {
             setError('Document content not found');

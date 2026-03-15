@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiUrl } from '../../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../../lib/api';
 
 interface UsePanelQueryResult<T> {
   data: T | undefined;
@@ -11,7 +11,7 @@ interface UsePanelQueryResult<T> {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(apiUrl(url));
+  const res = await fetchWithAuth(apiUrl(url));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

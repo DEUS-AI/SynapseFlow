@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import { Card } from '../ui/card';
 import { Database, Table as TableIcon, Columns, ChevronRight } from 'lucide-react';
 
@@ -39,7 +39,7 @@ export function MetadataViewer() {
 
   useEffect(() => {
     // Load catalogs on mount
-    fetch(apiUrl('/api/metadata/catalogs'))
+    fetchWithAuth(apiUrl('/api/metadata/catalogs'))
       .then(res => res.json())
       .then(data => {
         setCatalogs(data);
@@ -54,7 +54,7 @@ export function MetadataViewer() {
   useEffect(() => {
     if (selectedCatalog) {
       setLoading(prev => ({ ...prev, schemas: true }));
-      fetch(apiUrl(`/api/metadata/catalogs/${encodeURIComponent(selectedCatalog)}/schemas`))
+      fetchWithAuth(apiUrl(`/api/metadata/catalogs/${encodeURIComponent(selectedCatalog)}/schemas`))
         .then(res => res.json())
         .then(data => {
           setSchemas(data);
@@ -74,7 +74,7 @@ export function MetadataViewer() {
   useEffect(() => {
     if (selectedSchema) {
       setLoading(prev => ({ ...prev, tables: true }));
-      fetch(apiUrl(`/api/metadata/schemas/${encodeURIComponent(selectedSchema)}/tables`))
+      fetchWithAuth(apiUrl(`/api/metadata/schemas/${encodeURIComponent(selectedSchema)}/tables`))
         .then(res => res.json())
         .then(data => {
           setTables(data);

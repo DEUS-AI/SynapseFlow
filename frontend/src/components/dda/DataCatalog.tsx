@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import { Search, Database, Table, Columns } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
@@ -23,7 +23,7 @@ export function DataCatalog() {
 
   useEffect(() => {
     // Load all catalog items
-    fetch(apiUrl('/api/metadata/catalog/all'))
+    fetchWithAuth(apiUrl('/api/metadata/catalog/all'))
       .then(res => res.json())
       .then(data => {
         setItems(data);

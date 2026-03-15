@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../../lib/api';
 import { Loader2, AlertCircle, BarChart3, RefreshCw, Lightbulb } from 'lucide-react';
 import { DocumentQualityRadar } from '../../charts/MetricRadarChart';
 import { RatingBar } from '../../feedback/RatingVisualization';
@@ -60,7 +60,7 @@ export function DocumentQualityTab({ docId }: DocumentQualityTabProps) {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(apiUrl(`/api/admin/documents/${docId}/quality`));
+      const response = await fetchWithAuth(apiUrl(`/api/admin/documents/${docId}/quality`));
       if (!response.ok) {
         if (response.status === 404) {
           setQuality(null);
@@ -87,7 +87,7 @@ export function DocumentQualityTab({ docId }: DocumentQualityTabProps) {
       setAssessing(true);
       setError(null);
 
-      const response = await fetch(apiUrl(`/api/admin/documents/${docId}/quality/assess`), {
+      const response = await fetchWithAuth(apiUrl(`/api/admin/documents/${docId}/quality/assess`), {
         method: 'POST',
       });
 

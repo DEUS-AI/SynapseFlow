@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../../lib/api';
 import { Loader2, AlertCircle, Tags, Search, Filter } from 'lucide-react';
 
 interface DocumentEntitiesTabProps {
@@ -48,7 +48,7 @@ export function DocumentEntitiesTab({ docId }: DocumentEntitiesTabProps) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(apiUrl(`/api/admin/documents/${docId}/entities`));
+        const response = await fetchWithAuth(apiUrl(`/api/admin/documents/${docId}/entities`));
         if (!response.ok) {
           throw new Error('Failed to load entities');
         }

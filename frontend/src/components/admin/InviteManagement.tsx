@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import { Plus, Copy, Trash2, Check, AlertCircle, Loader2, RefreshCw, UserPlus } from 'lucide-react';
 
 interface Invite {
@@ -28,7 +28,7 @@ export function InviteManagement() {
   const fetchInvites = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(apiUrl('/api/admin/invites'));
+      const res = await fetchWithAuth(apiUrl('/api/admin/invites'));
       if (!res.ok) throw new Error('Failed to fetch invites');
       const data = await res.json();
       setInvites(data);
@@ -48,7 +48,7 @@ export function InviteManagement() {
 
     setCreating(true);
     try {
-      const res = await fetch(apiUrl('/api/admin/invites'), {
+      const res = await fetchWithAuth(apiUrl('/api/admin/invites'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -72,7 +72,7 @@ export function InviteManagement() {
   const revokeInvite = async (token: string) => {
     if (!confirm('Revoke this invite? The user will be logged out.')) return;
     try {
-      const res = await fetch(apiUrl(`/api/admin/invites/${token}`), { method: 'DELETE' });
+      const res = await fetchWithAuth(apiUrl(`/api/admin/invites/${token}`), { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to revoke invite');
       await fetchInvites();
     } catch (err) {

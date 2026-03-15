@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import {
   ArrowLeft,
   FileText,
@@ -55,7 +55,7 @@ export function DocumentDetailView({ docId }: DocumentDetailViewProps) {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(apiUrl(`/api/admin/documents/${docId}`));
+        const response = await fetchWithAuth(apiUrl(`/api/admin/documents/${docId}`));
         if (!response.ok) {
           throw new Error('Document not found');
         }
