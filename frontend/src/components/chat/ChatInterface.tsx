@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { apiUrl, API_BASE_URL } from '../../lib/api';
+import { apiUrl, API_BASE_URL, fetchWithAuth, getSessionToken } from '../../lib/api';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
@@ -32,7 +32,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   useEffect(() => {
     async function autoLoadLatestSession() {
       try {
-        const response = await fetch(apiUrl(`/api/chat/sessions/latest?patient_id=${patientId}`));
+        const response = await fetchWithAuth(apiUrl(`/api/chat/sessions/latest?patient_id=${patientId}`));
         if (response.ok) {
           const session = await response.json();
           console.log('Auto-resuming latest session:', session.session_id);
@@ -54,7 +54,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   // Create new session
   const createNewSession = async () => {
     try {
-      const response = await fetch(apiUrl('/api/chat/sessions/start'), {
+      const response = await fetchWithAuth(apiUrl('/api/chat/sessions/start'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient_id: patientId })
@@ -94,16 +94,18 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
     messageCounter.current = loadedMessages.length;
   };
 
-  // WebSocket URL — derive from API_BASE_URL; if empty, use current host (same-origin)
+  // WebSocket URL — derive from API_BASE_URL; token passed as query param (WS can't use headers)
   const wsURL = currentSessionId && !loadingHistory && typeof window !== 'undefined'
     ? (() => {
+        const token = getSessionToken();
+        const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
         if (API_BASE_URL) {
           const base = new URL(API_BASE_URL);
           const wsProto = base.protocol === 'https:' ? 'wss:' : 'ws:';
-          return `${wsProto}//${base.host}/ws/chat/${patientId}/${currentSessionId}`;
+          return `${wsProto}//${base.host}/ws/chat/${patientId}/${currentSessionId}${tokenParam}`;
         }
         const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        return `${wsProto}//${window.location.host}/ws/chat/${patientId}/${currentSessionId}`;
+        return `${wsProto}//${window.location.host}/ws/chat/${patientId}/${currentSessionId}${tokenParam}`;
       })()
     : '';
 

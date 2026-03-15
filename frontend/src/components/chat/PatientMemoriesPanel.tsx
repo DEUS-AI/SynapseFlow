@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Brain, ChevronDown, Sparkles, RefreshCw } from 'lucide-react';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 
 interface PatientMemory {
   id: string;
@@ -83,8 +84,8 @@ export function PatientMemoriesPanel({
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/patients/${encodeURIComponent(patientId)}/memories?limit=20`
+      const response = await fetchWithAuth(
+        apiUrl(`/api/patients/${encodeURIComponent(patientId)}/memories?limit=20`)
       );
 
       if (!response.ok) {

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { apiUrl } from '../../lib/api';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import { MessageSquare, Plus, Search, Clock, AlertCircle, Pencil, Check, X } from 'lucide-react';
 
 interface Session {
@@ -80,7 +80,7 @@ export function SessionList({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         apiUrl(`/api/chat/sessions?patient_id=${patientId}&limit=50`)
       );
 
@@ -110,7 +110,7 @@ export function SessionList({
 
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await fetchWithAuth(
         apiUrl(`/api/chat/sessions/search?patient_id=${patientId}&query=${encodeURIComponent(searchQuery)}`)
       );
 
@@ -157,7 +157,7 @@ export function SessionList({
 
     try {
       setSaving(true);
-      const response = await fetch(apiUrl(`/api/chat/sessions/${sessionId}/title`), {
+      const response = await fetchWithAuth(apiUrl(`/api/chat/sessions/${sessionId}/title`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: editTitle.trim() }),

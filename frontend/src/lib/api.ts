@@ -12,9 +12,19 @@ export function getSessionToken(): string | null {
 }
 
 /** Get auth headers for API requests */
-function getAuthHeaders(): Record<string, string> {
+export function getAuthHeaders(): Record<string, string> {
   const token = getSessionToken();
   return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+/** fetch() wrapper that automatically adds the Authorization header */
+export async function fetchWithAuth(input: string, init: RequestInit = {}): Promise<Response> {
+  const headers = { ...getAuthHeaders(), ...(init.headers as Record<string, string> ?? {}) };
+  const response = await fetch(input, { ...init, headers });
+  if (response.status === 401) {
+    handleUnauthorized();
+  }
+  return response;
 }
 
 /** Handle 401 responses by clearing session and redirecting */

@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { MessageList } from './MessageList';
 import type { ChatMessage } from '../../types/chat';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 import { Loader2 } from 'lucide-react';
 
 interface MessageHistoryProps {
@@ -52,8 +53,8 @@ export function MessageHistory({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `/api/chat/sessions/${sessionId}/messages?limit=100&offset=${offset}`
+      const response = await fetchWithAuth(
+        apiUrl(`/api/chat/sessions/${sessionId}/messages?limit=100&offset=${offset}`)
       );
 
       if (!response.ok) {
