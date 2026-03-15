@@ -59,6 +59,13 @@ spec:
               value: "6380"
             - name: REDIS_SSL
               value: "true"
+            # Crystallization pipeline feature flags
+            - name: ENABLE_CRYSTALLIZATION
+              value: "true"
+            - name: ENABLE_AUTO_PROMOTION
+              value: "true"
+            - name: ENABLE_PROMOTION_SCANNER
+              value: "true"
             # Document storage (Azure Blob)
             - name: DOCUMENT_STORAGE_BACKEND
               value: "blob"
