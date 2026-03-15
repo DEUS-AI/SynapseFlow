@@ -54,5 +54,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: frontend
-          output_location: dist
+          output_location: dist/client
           skip_app_build: true
