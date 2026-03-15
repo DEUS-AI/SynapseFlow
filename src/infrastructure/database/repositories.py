@@ -14,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import (
     Base,
+    Invite,
+    AppUser,
     Session,
     Message,
     Feedback,
@@ -478,6 +480,74 @@ class DocumentRepository(BaseRepository[Document]):
             "with_markdown": with_markdown,
         }
 
+    async def register_document(
+        self,
+        filename: str,
+        category: str,
+        size_bytes: int,
+        storage_key: str,
+        external_id: Optional[str] = None,
+    ) -> Document:
+        """Register a new document after upload."""
+        import hashlib
+        if not external_id:
+            external_id = hashlib.md5(f"{category}/{filename}".encode()).hexdigest()[:12]
+
+        doc = Document(
+            external_id=external_id,
+            filename=filename,
+            source_path=storage_key,
+            category=category,
+            size_bytes=size_bytes,
+            status="pending",
+        )
+        self.session.add(doc)
+        await self.session.flush()
+        await self.session.refresh(doc)
+        return doc
+
+    async def update_status(
+        self,
+        doc_id: UUID,
+        status: str,
+        error_message: Optional[str] = None,
+    ) -> Optional[Document]:
+        """Update document processing status."""
+        doc = await self.get_by_id(doc_id)
+        if not doc:
+            return None
+        doc.status = status
+        if error_message is not None:
+            doc.error_message = error_message
+        if status == "completed":
+            doc.ingested_at = func.now()
+        await self.session.flush()
+        await self.session.refresh(doc)
+        return doc
+
+    async def update_ingestion_results(
+        self,
+        doc_id: UUID,
+        entity_count: int,
+        relationship_count: int,
+        markdown_key: Optional[str] = None,
+    ) -> Optional[Document]:
+        """Update document with ingestion results."""
+        doc = await self.get_by_id(doc_id)
+        if not doc:
+            return None
+        doc.entity_count = entity_count
+        doc.relationship_count = relationship_count
+        if markdown_key:
+            doc.markdown_path = markdown_key
+        await self.session.flush()
+        await self.session.refresh(doc)
+        return doc
+
+    async def list_by_status(self, status: str) -> List[Document]:
+        """Alias for get_by_status."""
+        return await self.get_by_status(status)
+
 
 class FeatureFlagRepository(BaseRepository[FeatureFlag]):
     """Repository for feature flags."""
@@ -842,3 +912,67 @@ class OntologyQualityRepository(BaseRepository[OntologyQuality]):
             recommendations=recommendations,
         )
         return await self.create(assessment)
+
+
+# ============================================
+# Invite Repository
+# ============================================
+
+class InviteRepository(BaseRepository[Invite]):
+    """Repository for invite management."""
+
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, Invite)
+
+    async def get_by_token(self, token: str) -> Optional[Invite]:
+        result = await self.session.execute(
+            select(Invite).where(Invite.token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_all(self) -> List[Invite]:
+        result = await self.session.execute(
+            select(Invite).order_by(Invite.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def revoke(self, token: str) -> Optional[Invite]:
+        invite = await self.get_by_token(token)
+        if not invite:
+            return None
+        invite.status = "revoked"
+        await self.session.flush()
+        return invite
+
+
+# ============================================
+# User Repository
+# ============================================
+
+class UserRepository(BaseRepository[AppUser]):
+    """Repository for platform users."""
+
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, AppUser)
+
+    async def get_by_session_token(self, token: str) -> Optional[AppUser]:
+        result = await self.session.execute(
+            select(AppUser).where(AppUser.session_token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_last_active(self, user_id: UUID) -> None:
+        await self.session.execute(
+            update(AppUser)
+            .where(AppUser.id == user_id)
+            .values(last_active_at=func.now())
+        )
+        await self.session.flush()
+
+    async def clear_session_token(self, user_id: UUID) -> None:
+        await self.session.execute(
+            update(AppUser)
+            .where(AppUser.id == user_id)
+            .values(session_token=None)
+        )
+        await self.session.flush()

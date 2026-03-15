@@ -315,7 +315,9 @@ async def bootstrap_patient_memory():
             host=os.getenv("REDIS_HOST", "localhost"),
             port=int(os.getenv("REDIS_PORT", "6379")),  # Fixed: correct Redis default port
             db=int(os.getenv("REDIS_DB", "0")),
-            ttl_seconds=int(os.getenv("REDIS_SESSION_TTL", "86400"))
+            ttl_seconds=int(os.getenv("REDIS_SESSION_TTL", "86400")),
+            password=os.getenv("REDIS_PASSWORD"),
+            ssl=os.getenv("REDIS_SSL", "false").lower() == "true",
         )
         print("  ✅ Redis session cache initialized")
 

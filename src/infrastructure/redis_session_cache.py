@@ -21,7 +21,9 @@ class RedisSessionCache:
         host: str = "localhost",
         port: int = 6380,  # Using 6380 to avoid conflict with FalkorDB
         db: int = 0,
-        ttl_seconds: int = 86400  # 24 hours
+        ttl_seconds: int = 86400,  # 24 hours
+        password: str | None = None,
+        ssl: bool = False,
     ):
         """
         Initialize Redis session cache.
@@ -31,15 +33,19 @@ class RedisSessionCache:
             port: Redis server port (default: 6380 to avoid FalkorDB conflict)
             db: Redis database number
             ttl_seconds: Time-to-live for sessions in seconds (default: 24h)
+            password: Redis password (required for Azure Redis)
+            ssl: Enable SSL/TLS (required for Azure Redis)
         """
         self.redis = aioredis.Redis(
             host=host,
             port=port,
             db=db,
+            password=password,
+            ssl=ssl,
             decode_responses=True
         )
         self.ttl = timedelta(seconds=ttl_seconds)
-        logger.info(f"Redis session cache initialized: {host}:{port}, TTL={ttl_seconds}s")
+        logger.info(f"Redis session cache initialized: {host}:{port}, ssl={ssl}, TTL={ttl_seconds}s")
 
     async def set_session(
         self,

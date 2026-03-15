@@ -26,8 +26,10 @@ cd frontend && npm run dev   # Astro dev server on localhost:4321
 
 ### Starting Required Services (Docker)
 ```bash
-docker-compose -f docker-compose.services.yml up -d   # Neo4j, RabbitMQ, FalkorDB
+docker-compose -f docker-compose.services.yml up -d   # Postgres, Neo4j, RabbitMQ, FalkorDB
 docker-compose -f docker-compose.memory.yml up -d     # Redis, Qdrant (for patient memory)
+make services                                          # Shortcut: starts both
+make services-stop                                     # Stop all services
 ```
 
 ### Testing
@@ -44,6 +46,15 @@ uv run pytest tests/ --cov=src --cov-report=html    # With coverage
 make lint        # ruff check
 make format      # black + ruff --fix
 make precommit   # pre-commit hooks
+```
+
+### Maintenance
+```bash
+make reset-dry-run                                    # Preview what full reset would clear
+make reset-all                                        # Clear ALL derived data (Neo4j, Postgres, Redis, Qdrant, FalkorDB, storage, local files)
+make clear-memory PATIENT=patient:demo                # Clear memories for a specific patient
+uv run python scripts/maintenance/full_reset.py --env-file .env.azure --confirm  # Reset Azure environment
+uv run python scripts/maintenance/full_reset.py --confirm --only neo4j,postgres  # Reset specific stores
 ```
 
 ### CLI Commands
@@ -104,6 +115,18 @@ All backends implement `KnowledgeGraphBackend` abstract class:
 - **Strategy Pattern**: Resolution strategies, reasoning modes
 - **Factory Pattern**: Agent registry in composition_root.py
 
+## Document Storage
+
+Documents use a storage abstraction (`DocumentStorage` protocol in `src/infrastructure/document_storage.py`) with two backends:
+- **LocalDocumentStorage**: Filesystem-backed (`storage/` dir) — default for local dev
+- **BlobDocumentStorage**: Azure Blob Storage — used in production
+
+Controlled by `DOCUMENT_STORAGE_BACKEND` env var (`local` or `blob`). Blob backend reads connection string from `AZURE_STORAGE_CONNECTION_STRING` env var or mounted secret at `/mnt/secrets/storage-connection-string`.
+
+Storage key format: `{category}/{doc_id}/{filename}` (includes doc_id to prevent overwrites).
+
+Containers: `documents` (PDFs), `markdown` (converted markdown).
+
 ## Environment Variables (.env)
 ```bash
 NEO4J_URI=bolt://localhost:7687
@@ -115,11 +138,14 @@ REDIS_HOST=localhost
 REDIS_PORT=6380
 ENABLE_AUTO_PROMOTION=true
 ENABLE_PROMOTION_SCANNER=true
+DOCUMENT_STORAGE_BACKEND=local               # "local" or "blob"
 
 # Evaluation Framework (for agent testing)
 SYNAPSEFLOW_EVAL_MODE=true                    # Enable /api/eval/* endpoints
 SYNAPSEFLOW_EVAL_API_KEY=your-eval-key        # API key for eval endpoints
 ```
+
+Use `.env.azure` for Azure-specific overrides (gitignored). Create it from Key Vault + AKS secrets.
 
 ## DDA (Domain Data Architecture) Files
 DDAs are Markdown files in `examples/` that define business domains. Key sections:
@@ -130,10 +156,40 @@ Upload via API: `POST /api/dda/upload` with file form data.
 
 ## Frontend (Astro + React)
 - Located in `frontend/`
-- Astro for static pages, React for interactive components
-- Zustand for state management
+- Astro hybrid mode (`output: 'hybrid'`) with Node adapter for SSR pages
+- React for interactive components, Zustand for state management
 - D3 for knowledge graph visualization
 - Tests: Playwright (`npm run test`)
+- **Deployment**: Azure Static Web Apps (`proud-mushroom-0def81803.6.azurestaticapps.net`). Dynamic pages read params client-side from `window.location`.
+- **Auth**: Invite-based access control. Create invites via `POST /api/admin/invites`, users redeem via `/invite/{token}` which sets `session_token` in localStorage.
+- **API URL**: Backend at `https://20-50-212-98.nip.io` (nip.io auto-resolves to AKS ingress IP). Set via `PUBLIC_API_URL` env var at build time.
+
+### Frontend Deployment
+```bash
+make deploy-frontend-swa                      # Build + deploy to Azure Static Web App
+```
+
+## Azure Infrastructure
+
+Terraform modules in `infra/terraform/modules/` manage: ACR, AKS, Key Vault, Networking, Postgres, Redis, Storage (Blob), Static Web App, FinOps, Monitoring.
+
+```bash
+cd infra/terraform/environments/dev
+terraform init
+terraform plan                                # Review changes
+terraform apply                               # Apply all modules
+terraform apply -target=module.storage        # Apply specific module
+```
+
+K8s manifests in `infra/k8s/base/` (backend deployment, secret-provider, ingress with TLS via cert-manager + Let's Encrypt).
+
+Backend image: `az acr build --registry acrodindev --image synapseflow/backend:latest --file Dockerfile.agent --platform linux/amd64 .`
+
+**Key Vault secrets** (lowercase-with-hyphens convention): `pg-connection-string`, `redis-connection-string`, `neo4j-password`, `openai-api-key`, `storage-connection-string`.
+
+**Backend deployment uses `strategy: Recreate`** (not RollingUpdate) due to resource quota constraints — only one backend pod can run at a time.
+
+**Backend TLS**: cert-manager with Let's Encrypt issues TLS certs for `20-50-212-98.nip.io`. AKS subnet NSG blocks direct internet access to ports 80/443, allowing only Azure-originated traffic (SWA outbound, AzureCloud service tag).
 
 ## Testing Notes
 - Use `@pytest.mark.asyncio` for async tests

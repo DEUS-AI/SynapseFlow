@@ -1,5 +1,7 @@
 .PHONY: install test lint format clean dev-install precommit build \
-       clear-memory clear-demo-memory backend frontend services services-stop services-logs
+       clear-memory clear-demo-memory reset-all reset-dry-run \
+       backend frontend services services-stop services-logs \
+       deploy-frontend-swa
 
 install:
 	uv pip install --system -e .[develop]
@@ -50,6 +52,15 @@ clear-demo-memory:
 	@echo "Clearing all memories for patient:demo..."
 	uv run python scripts/clear_patient_memories.py patient:demo
 
+# Full reset — clear ALL derived data stores (requires --confirm)
+reset-all:
+	@echo "Resetting ALL SynapseFlow data stores..."
+	uv run python scripts/maintenance/full_reset.py --confirm
+
+# Preview what reset-all would clear (no deletions)
+reset-dry-run:
+	uv run python scripts/maintenance/full_reset.py
+
 # ============================================
 # Development Services
 # ============================================
@@ -76,3 +87,15 @@ services-stop:
 # View service logs
 services-logs:
 	docker compose -f docker-compose.services.yml logs -f
+
+# ============================================
+# Azure Deployment
+# ============================================
+
+# Deploy frontend to Azure Static Web App
+deploy-frontend-swa:
+	cd frontend && npm ci && PUBLIC_API_URL=https://20-50-212-98.nip.io npm run build
+	cp frontend/staticwebapp.config.json frontend/dist/client/
+	npx @azure/static-web-apps-cli deploy frontend/dist/client \
+		--env production \
+		--deployment-token $$(az keyvault secret show --vault-name kv-odin-dev-we --name swa-deployment-token --query value -o tsv)

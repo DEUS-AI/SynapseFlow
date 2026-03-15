@@ -508,7 +508,6 @@ Return only the JSON object."""
             patient_context.get("historical_conditions") or
             patient_context.get("recently_resolved") or
             patient_context.get("current_medications") or
-            patient_context.get("patient_name") or
             # KEY: Mem0 memories indicate we've talked before!
             mem0_memories or
             # If user mentions Matucha by name, they likely know her

@@ -1,6 +1,7 @@
 """SQLAlchemy Models for PostgreSQL.
 
 Defines ORM models for relational data:
+- Invites & Users (Access Control)
 - Sessions & Messages (Chat History)
 - Feedback & RLHF Data
 - Documents & Quality Metrics
@@ -33,6 +34,52 @@ from sqlalchemy.sql import func
 class Base(DeclarativeBase):
     """Base class for all models."""
     pass
+
+
+# ============================================
+# Invites & Users (Access Control)
+# ============================================
+
+class Invite(Base):
+    """Invite token for granting platform access."""
+
+    __tablename__ = "invites"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    patient_id = Column(String(255), nullable=False)
+    email = Column(String(255))
+    label = Column(String(255))
+    status = Column(String(50), default="pending", index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    redeemed_at = Column(DateTime(timezone=True))
+    redeemed_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+
+    redeemed_by = relationship("AppUser", foreign_keys=[redeemed_by_user_id])
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'redeemed', 'revoked')",
+            name="check_invite_status"
+        ),
+    )
+
+
+class AppUser(Base):
+    """Platform user created from an invite."""
+
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    patient_id = Column(String(255), nullable=False, index=True)
+    email = Column(String(255))
+    display_name = Column(String(255))
+    session_token = Column(String(64), unique=True, index=True)
+    invite_id = Column(UUID(as_uuid=True), ForeignKey("invites.id", ondelete="SET NULL"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_active_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    invite = relationship("Invite", foreign_keys=[invite_id])
 
 
 # ============================================
