@@ -124,6 +124,22 @@ export function PatientMemoriesPanel({
     }
   }, [refreshTrigger]);
 
+  // Processing indicator when extracting facts from conversation
+  const ProcessingIndicator = () => (
+    <div className="flex items-center gap-2 py-2 px-3 bg-purple-900/30 rounded-lg border border-purple-700/50 mb-2 animate-pulse">
+      <Sparkles className="w-4 h-4 text-purple-400 animate-spin" />
+      <span className="text-purple-300 text-sm">Extracting facts from conversation...</span>
+    </div>
+  );
+
+  // Refreshing indicator
+  const RefreshingIndicator = () => (
+    <div className="flex items-center justify-center gap-2 py-2 text-slate-400 text-sm">
+      <RefreshCw className="w-3 h-3 animate-spin" />
+      <span>Checking for new memories...</span>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-4">
@@ -148,22 +164,6 @@ export function PatientMemoriesPanel({
       </div>
     );
   }
-
-  // Processing indicator when extracting facts from conversation
-  const ProcessingIndicator = () => (
-    <div className="flex items-center gap-2 py-2 px-3 bg-purple-900/30 rounded-lg border border-purple-700/50 mb-2 animate-pulse">
-      <Sparkles className="w-4 h-4 text-purple-400 animate-spin" />
-      <span className="text-purple-300 text-sm">Extracting facts from conversation...</span>
-    </div>
-  );
-
-  // Refreshing indicator
-  const RefreshingIndicator = () => (
-    <div className="flex items-center justify-center gap-2 py-2 text-slate-400 text-sm">
-      <RefreshCw className="w-3 h-3 animate-spin" />
-      <span>Checking for new memories...</span>
-    </div>
-  );
 
   // New memories notification
   const NewMemoriesNotification = () => (

@@ -1,10 +1,10 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { DocumentManagement } from '../../components/admin/DocumentManagement';
+import { ProtectedDocuments } from '../../components/pages/ProtectedDocuments';
 ---
 
 <BaseLayout title="Document Management">
   <div class="min-h-screen bg-slate-900">
-    <DocumentManagement client:load />
+    <ProtectedDocuments client:load />
   </div>
 </BaseLayout>

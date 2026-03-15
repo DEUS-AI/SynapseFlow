@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api';
 import {
   BarChart3, FileCheck, GitBranch, AlertTriangle,
   CheckCircle, XCircle, AlertCircle, TrendingUp,
@@ -99,11 +100,11 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
     setError(null);
     try {
       const [docResponse, ontResponse, docTrendsResponse, ontTrendsResponse, scannerResponse] = await Promise.all([
-        fetch('/api/admin/documents/quality/summary'),
-        fetch('/api/ontology/quality'),
-        fetch('/api/quality/trends/documents?days=30'),
-        fetch('/api/quality/trends/ontology?days=30'),
-        fetch('/api/quality/scanner/status'),
+        fetch(apiUrl('/api/admin/documents/quality/summary')),
+        fetch(apiUrl('/api/ontology/quality')),
+        fetch(apiUrl('/api/quality/trends/documents?days=30')),
+        fetch(apiUrl('/api/quality/trends/ontology?days=30')),
+        fetch(apiUrl('/api/quality/scanner/status')),
       ]);
 
       if (docResponse.ok) {
@@ -145,7 +146,7 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
   const handleAssessOntology = async () => {
     setAssessing('ontology');
     try {
-      const response = await fetch('/api/ontology/quality/assess', {
+      const response = await fetch(apiUrl('/api/ontology/quality/assess'), {
         method: 'POST',
       });
       if (response.ok) {
@@ -165,7 +166,7 @@ export function QualityDashboard({ onNavigateToDocuments }: QualityDashboardProp
   const handleManualScan = async (scanType: 'documents' | 'ontology' | 'both') => {
     setScanning(true);
     try {
-      const response = await fetch(`/api/quality/scanner/scan?scan_type=${scanType}`, {
+      const response = await fetch(apiUrl(`/api/quality/scanner/scan?scan_type=${scanType}`), {
         method: 'POST',
       });
       if (response.ok) {
@@ -637,7 +638,7 @@ function TrendsView({ documentTrends, ontologyTrends, getTrendIcon, getTrendColo
   const transformDataPoints = (points: TrendDataPoint[]) =>
     points.map(p => ({
       date: p.date,
-      score: p.score,
+      value: p.score,
       assessments: p.count || 1,
     }));
 
@@ -667,7 +668,6 @@ function TrendsView({ documentTrends, ontologyTrends, getTrendIcon, getTrendColo
               <QualityTrendChart
                 data={transformDataPoints(documentTrends.data_points)}
                 height={200}
-                showPeriodSelector={false}
               />
 
               <div className="text-sm text-gray-400">
@@ -708,9 +708,6 @@ function TrendsView({ documentTrends, ontologyTrends, getTrendIcon, getTrendColo
               <QualityTrendChart
                 data={transformDataPoints(ontologyTrends.data_points)}
                 height={200}
-                showPeriodSelector={false}
-                lineColor="#a855f7"
-                areaColor="rgba(168, 85, 247, 0.2)"
               />
 
               <div className="text-sm text-gray-400">

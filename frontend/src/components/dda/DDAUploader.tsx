@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiUrl } from '../../lib/api';
 import { Upload, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -35,7 +36,7 @@ export function DDAUploader() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/dda/upload', {
+      const response = await fetch(apiUrl('/api/dda/upload'), {
         method: 'POST',
         body: formData,
       });

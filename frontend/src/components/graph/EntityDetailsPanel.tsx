@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiUrl } from '../../lib/api';
 import type { GraphNode } from '../../types/graph';
 
 interface EntityDetailsPanelProps {
@@ -21,7 +22,7 @@ export function EntityDetailsPanel({ node, onClose }: EntityDetailsPanelProps) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/graph/node/${encodeURIComponent(node.id)}`)
+    fetch(apiUrl(`/api/graph/node/${encodeURIComponent(node.id)}`))
       .then(res => res.json())
       .then(data => {
         setDetails(data);

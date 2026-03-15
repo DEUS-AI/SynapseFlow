@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { apiUrl, API_BASE_URL } from '../../lib/api';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
@@ -31,7 +32,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   useEffect(() => {
     async function autoLoadLatestSession() {
       try {
-        const response = await fetch(`/api/chat/sessions/latest?patient_id=${patientId}`);
+        const response = await fetch(apiUrl(`/api/chat/sessions/latest?patient_id=${patientId}`));
         if (response.ok) {
           const session = await response.json();
           console.log('Auto-resuming latest session:', session.session_id);
@@ -53,7 +54,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
   // Create new session
   const createNewSession = async () => {
     try {
-      const response = await fetch('/api/chat/sessions/start', {
+      const response = await fetch(apiUrl('/api/chat/sessions/start'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient_id: patientId })
@@ -93,13 +94,21 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
     messageCounter.current = loadedMessages.length;
   };
 
-  // WebSocket URL
+  // WebSocket URL — derive from API_BASE_URL; if empty, use current host (same-origin)
   const wsURL = currentSessionId && !loadingHistory && typeof window !== 'undefined'
-    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/chat/${patientId}/${currentSessionId}`
+    ? (() => {
+        if (API_BASE_URL) {
+          const base = new URL(API_BASE_URL);
+          const wsProto = base.protocol === 'https:' ? 'wss:' : 'ws:';
+          return `${wsProto}//${base.host}/ws/chat/${patientId}/${currentSessionId}`;
+        }
+        const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${wsProto}//${window.location.host}/ws/chat/${patientId}/${currentSessionId}`;
+      })()
     : '';
 
   const { isConnected, sendMessage, connectionError } = useWebSocket(wsURL, {
-    onMessage: (data: WebSocketChatMessage) => {
+    onMessage: (data) => {
       if (data.type === 'status') {
         const thinking = data.status === 'thinking';
         setIsThinking(thinking);
@@ -132,7 +141,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
 
         // Check for safety warnings from reasoning trail (legacy)
         const warnings = data.reasoning_trail?.filter(
-          (trail) =>
+          (trail: string) =>
             trail.toLowerCase().includes('contraindication') ||
             trail.toLowerCase().includes('warning') ||
             trail.toLowerCase().includes('allerg')
@@ -140,11 +149,11 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
 
         // Also check for critical/high medical alerts
         const criticalAlerts = data.medical_alerts?.filter(
-          (alert) => alert.severity === 'CRITICAL' || alert.severity === 'HIGH'
+          (alert: any) => alert.severity === 'CRITICAL' || alert.severity === 'HIGH'
         ) || [];
 
         if (warnings.length > 0 || criticalAlerts.length > 0) {
-          const alertMessages = criticalAlerts.map(a => `${a.severity}: ${a.message}`);
+          const alertMessages = criticalAlerts.map((a: any) => `${a.severity}: ${a.message}`);
           setSafetyWarnings([...warnings, ...alertMessages]);
         }
 
@@ -178,7 +187,7 @@ export function ChatInterface({ patientId }: ChatInterfaceProps) {
       },
     ]);
 
-    sendMessage({ message: content });
+    sendMessage({ type: 'message', message: content });
   };
 
   const handleFeedbackSubmit = (messageId: string, feedback: MessageFeedback) => {

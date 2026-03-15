@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiUrl } from '../../lib/api';
 import {
   Search, Upload, Trash2, Play, Eye, FileText,
   CheckCircle, XCircle, Clock, Loader2, RefreshCw,
@@ -75,7 +76,7 @@ export function DocumentManagement() {
       if (categoryFilter) params.append('category', categoryFilter);
       if (searchQuery) params.append('search', searchQuery);
 
-      const response = await fetch(`/api/admin/documents?${params}`);
+      const response = await fetch(apiUrl(`/api/admin/documents?${params}`));
       if (response.ok) {
         const data = await response.json();
         setDocuments(data);
@@ -89,7 +90,7 @@ export function DocumentManagement() {
 
   const fetchStatistics = async () => {
     try {
-      const response = await fetch('/api/admin/documents/statistics');
+      const response = await fetch(apiUrl('/api/admin/documents/statistics'));
       if (response.ok) {
         const data = await response.json();
         setStatistics(data);
@@ -101,7 +102,7 @@ export function DocumentManagement() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/admin/documents/categories');
+      const response = await fetch(apiUrl('/api/admin/documents/categories'));
       if (response.ok) {
         const data = await response.json();
         setCategories(data.categories || []);
@@ -113,7 +114,7 @@ export function DocumentManagement() {
 
   const fetchJobs = async () => {
     try {
-      const response = await fetch('/api/admin/documents/jobs');
+      const response = await fetch(apiUrl('/api/admin/documents/jobs'));
       if (response.ok) {
         const data = await response.json();
         setActiveJobs(data);
@@ -161,7 +162,7 @@ export function DocumentManagement() {
     formData.append('category', 'general');
 
     try {
-      const response = await fetch('/api/admin/documents/upload', {
+      const response = await fetch(apiUrl('/api/admin/documents/upload'), {
         method: 'POST',
         body: formData,
       });
@@ -187,7 +188,7 @@ export function DocumentManagement() {
   const handleIngest = async (doc: Document) => {
     setIngesting(doc.id);
     try {
-      const response = await fetch(`/api/admin/documents/${doc.id}/ingest`, {
+      const response = await fetch(apiUrl(`/api/admin/documents/${doc.id}/ingest`), {
         method: 'POST',
       });
 
@@ -208,7 +209,7 @@ export function DocumentManagement() {
 
   const handleBatchIngest = async () => {
     try {
-      const response = await fetch('/api/admin/documents/ingest/batch', {
+      const response = await fetch(apiUrl('/api/admin/documents/ingest/batch'), {
         method: 'POST',
       });
 
@@ -229,7 +230,7 @@ export function DocumentManagement() {
 
   const handleDelete = async (doc: Document) => {
     try {
-      const response = await fetch(`/api/admin/documents/${doc.id}?delete_pdf=true&delete_markdown=true&delete_graph_data=true`, {
+      const response = await fetch(apiUrl(`/api/admin/documents/${doc.id}?delete_pdf=true&delete_markdown=true&delete_graph_data=true`), {
         method: 'DELETE',
       });
 
@@ -801,7 +802,7 @@ function DocumentDetails({ documentId, onClose }: { documentId: string; onClose:
 
   const fetchDetails = async () => {
     try {
-      const response = await fetch(`/api/admin/documents/${documentId}`);
+      const response = await fetch(apiUrl(`/api/admin/documents/${documentId}`));
       if (response.ok) {
         const data = await response.json();
         setDetails(data);
@@ -813,7 +814,7 @@ function DocumentDetails({ documentId, onClose }: { documentId: string; onClose:
 
   const fetchQuality = async () => {
     try {
-      const response = await fetch(`/api/admin/documents/${documentId}/quality`);
+      const response = await fetch(apiUrl(`/api/admin/documents/${documentId}/quality`));
       if (response.ok) {
         const data = await response.json();
         if (data.overall_score !== undefined) {
@@ -832,7 +833,7 @@ function DocumentDetails({ documentId, onClose }: { documentId: string; onClose:
   const handleAssessQuality = async () => {
     setAssessing(true);
     try {
-      const response = await fetch(`/api/admin/documents/${documentId}/quality/assess`, {
+      const response = await fetch(apiUrl(`/api/admin/documents/${documentId}/quality/assess`), {
         method: 'POST',
       });
       if (response.ok) {

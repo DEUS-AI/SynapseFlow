@@ -95,7 +95,7 @@ export function QualityTrendChart({
             }}
             labelStyle={{ color: '#e2e8f0', fontWeight: 500, marginBottom: 4 }}
             itemStyle={{ color: '#94a3b8', fontSize: 12 }}
-            formatter={(value: number) => [formatValue(value), '']}
+            formatter={(value?: number) => [formatValue(value ?? 0), '']}
             labelFormatter={(label) => formatDate(label)}
           />
           {showLegend && (

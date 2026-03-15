@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api';
 import { Search, Trash2, Eye } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -20,7 +21,7 @@ export function PatientManagement() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin/patients')
+    fetch(apiUrl('/api/admin/patients'))
       .then(res => res.json())
       .then(data => {
         setPatients(data);

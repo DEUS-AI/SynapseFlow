@@ -85,7 +85,7 @@ export function MetricRadarChart({
               boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.3)',
             }}
             labelStyle={{ color: '#e2e8f0', fontWeight: 500 }}
-            formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, '']}
+            formatter={(value?: number) => [`${((value ?? 0) * 100).toFixed(1)}%`, '']}
           />
           {showLegend && (
             <Legend

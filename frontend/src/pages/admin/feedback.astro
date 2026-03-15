@@ -1,10 +1,10 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { FeedbackDashboard } from '../../components/feedback/FeedbackDashboard';
+import { ProtectedFeedback } from '../../components/pages/ProtectedFeedback';
 ---
 
 <BaseLayout title="RLHF Feedback">
   <div class="h-full overflow-auto bg-slate-900">
-    <FeedbackDashboard client:load />
+    <ProtectedFeedback client:load />
   </div>
 </BaseLayout>

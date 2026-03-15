@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api';
 
 interface FeedbackStats {
   total_feedbacks: number;
@@ -47,9 +48,9 @@ export function FeedbackDashboard() {
     setLoading(true);
     try {
       const [statsRes, pairsRes, correctionsRes] = await Promise.all([
-        fetch('/api/feedback/stats'),
-        fetch('/api/feedback/preference-pairs?limit=20'),
-        fetch('/api/feedback/corrections?limit=20'),
+        fetch(apiUrl('/api/feedback/stats')),
+        fetch(apiUrl('/api/feedback/preference-pairs?limit=20')),
+        fetch(apiUrl('/api/feedback/corrections?limit=20')),
       ]);
 
       if (statsRes.ok) {
@@ -72,7 +73,7 @@ export function FeedbackDashboard() {
 
   const handleExport = async () => {
     try {
-      const res = await fetch(`/api/feedback/export?format=${exportFormat}`);
+      const res = await fetch(apiUrl(`/api/feedback/export?format=${exportFormat}`));
       if (res.ok) {
         const data = await res.json();
         setExportData(data);

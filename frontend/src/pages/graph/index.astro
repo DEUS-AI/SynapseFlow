@@ -1,11 +1,11 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { KnowledgeGraphViewer } from '../../components/graph/KnowledgeGraphViewer';
+import { ProtectedGraph } from '../../components/pages/ProtectedGraph';
 ---
 
 <BaseLayout title="Knowledge Graph">
   <div class="h-full">
-    <KnowledgeGraphViewer client:load />
+    <ProtectedGraph client:load />
   </div>
 </BaseLayout>
 
