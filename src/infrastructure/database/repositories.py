@@ -378,9 +378,13 @@ class DocumentRepository(BaseRepository[Document]):
         limit: int = 100,
     ) -> List[Document]:
         """Get documents by status."""
+        # Treat "pending" as an alias for "not_started" (legacy rows)
+        statuses = [status]
+        if status == "not_started":
+            statuses = ["not_started", "pending"]
         result = await self.session.execute(
             select(Document)
-            .where(Document.status == status)
+            .where(Document.status.in_(statuses))
             .order_by(Document.created_at.desc())
             .limit(limit)
         )
@@ -422,7 +426,11 @@ class DocumentRepository(BaseRepository[Document]):
         query = select(Document)
 
         if status:
-            query = query.where(Document.status == status)
+            # Treat "pending" as an alias for "not_started" (legacy rows)
+            if status == "not_started":
+                query = query.where(Document.status.in_(["not_started", "pending"]))
+            else:
+                query = query.where(Document.status == status)
         if category:
             query = query.where(Document.category == category)
         if search:
@@ -471,7 +479,7 @@ class DocumentRepository(BaseRepository[Document]):
 
         return {
             "total": total,
-            "not_started": status_counts.get("not_started", 0),
+            "not_started": status_counts.get("not_started", 0) + status_counts.get("pending", 0),
             "processing": status_counts.get("processing", 0),
             "completed": status_counts.get("completed", 0),
             "failed": status_counts.get("failed", 0),
@@ -499,7 +507,7 @@ class DocumentRepository(BaseRepository[Document]):
             source_path=storage_key,
             category=category,
             size_bytes=size_bytes,
-            status="pending",
+            status="not_started",
         )
         self.session.add(doc)
         await self.session.flush()

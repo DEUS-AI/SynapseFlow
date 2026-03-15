@@ -121,7 +121,7 @@ def _pg_doc_to_tracker_dict(pg_doc) -> dict:
         "path": pg_doc.source_path or "",
         "category": pg_doc.category or "general",
         "size_bytes": pg_doc.size_bytes or 0,
-        "status": pg_doc.status or "not_started",
+        "status": "not_started" if (pg_doc.status or "not_started") in ("not_started", "pending") else (pg_doc.status or "not_started"),
         "ingested_at": pg_doc.ingested_at.isoformat() if pg_doc.ingested_at else None,
         "entity_count": pg_doc.entity_count or 0,
         "relationship_count": pg_doc.relationship_count or 0,

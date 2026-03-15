@@ -231,7 +231,7 @@ class Document(Base):
     category = Column(String(100), index=True)
 
     # Status
-    status = Column(String(50), default="pending", index=True)
+    status = Column(String(50), default="not_started", index=True)
     error_message = Column(Text)
 
     # Metrics
