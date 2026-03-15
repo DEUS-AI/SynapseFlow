@@ -3,6 +3,14 @@
     {
       "route": "/api/*",
       "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/invite/*",
+      "rewrite": "/invite/index.html"
+    },
+    {
+      "route": "/chat/*",
+      "rewrite": "/chat/index.html"
     }
   ],
   "navigationFallback": {
