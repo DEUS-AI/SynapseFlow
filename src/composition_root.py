@@ -353,7 +353,12 @@ async def bootstrap_episodic_memory(event_bus: Optional[EventBus] = None):
         print("ℹ️  Episodic memory not enabled (set ENABLE_EPISODIC_MEMORY=true to enable)")
         return None
 
+    # SPEC-5: Configure Graphiti's LLM concurrency BEFORE importing graphiti_core
+    semaphore_limit = os.getenv("GRAPHITI_SEMAPHORE_LIMIT", "5")
+    os.environ["SEMAPHORE_LIMIT"] = semaphore_limit
+
     print("🔄 Initializing Episodic Memory Service (Graphiti + FalkorDB)...")
+    print(f"  Graphiti SEMAPHORE_LIMIT set to {semaphore_limit}")
 
     try:
         from application.services.episodic_memory_service import create_episodic_memory_service
@@ -461,12 +466,29 @@ async def bootstrap_crystallization_pipeline(
             ).lower() in ("true", "1", "yes"),
         )
 
+        # SPEC-4: Create MemoryInvalidationService for stale entity sweeps
+        from application.services.memory_invalidation_service import (
+            MemoryInvalidationService,
+            InvalidationConfig,
+        )
+
+        invalidation_service = MemoryInvalidationService(
+            neo4j_backend=neo4j_backend,
+            config=InvalidationConfig(
+                stale_threshold_days=int(os.getenv("MEMORY_STALE_THRESHOLD_DAYS", "90")),
+                stale_check_enabled=os.getenv("ENABLE_STALE_SWEEP", "true").lower()
+                in ("true", "1"),
+            ),
+        )
+        print("  ✅ MemoryInvalidationService initialized")
+
         crystallization_service = CrystallizationService(
             neo4j_backend=neo4j_backend,
             entity_resolver=entity_resolver,
             event_bus=event_bus,
             graphiti_client=graphiti_client,
             config=crystallization_config,
+            invalidation_service=invalidation_service,
         )
 
         # Start the crystallization service

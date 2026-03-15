@@ -198,7 +198,8 @@ class EntityResolver:
     async def _get_existing_entities(
         self,
         entity_type: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve existing entities from the knowledge graph.
@@ -206,6 +207,7 @@ class EntityResolver:
         Args:
             entity_type: Type of entity to retrieve
             context: Context for filtering (e.g., domain)
+            limit: Maximum number of entities to return
 
         Returns:
             List of existing entity dictionaries
@@ -213,14 +215,14 @@ class EntityResolver:
         # Query the graph for entities of this type
         # This is backend-specific; we'll use a generic interface
         try:
-            # Assuming backend has a query method
+            # SPEC-3: Parameterized LIMIT instead of hardcoded value
             query = f"""
             MATCH (e:{entity_type})
             RETURN e.id AS id, e.name AS name, e AS properties
-            LIMIT 100
+            LIMIT $limit
             """
 
-            results = await self.backend.query(query)
+            results = await self.backend.query(query, {"limit": limit})
 
             entities = []
             for record in results:
@@ -861,6 +863,16 @@ class EntityResolver:
                     if value > existing_props.get("confidence", 0):
                         properties_updated.append(key)
                         updates[key] = value
+
+            # SPEC-2: Propagate temporal fields during merge
+            if "valid_at" in new_data and new_data["valid_at"]:
+                updates["valid_from"] = new_data["valid_at"]
+                properties_updated.append("valid_from")
+            if "invalid_at" in new_data and new_data["invalid_at"]:
+                updates["valid_until"] = new_data["invalid_at"]
+                updates["is_current"] = False
+                properties_updated.append("valid_until")
+                properties_updated.append("is_current")
 
             # Always update observation tracking
             current_count = existing_props.get("observation_count", 1)

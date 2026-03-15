@@ -13,6 +13,7 @@ from application.services.episodic_memory_service import (
     EpisodicMemoryService,
     EpisodeResult,
     ConversationEpisode,
+    CommunitySummary,
 )
 
 
@@ -50,6 +51,10 @@ def mock_graphiti():
 
     # Mock close
     mock.close = AsyncMock()
+
+    # Mock driver for community queries (SPEC-1)
+    mock.driver = AsyncMock()
+    mock.driver.execute_query = AsyncMock(return_value=[])
 
     return mock
 
@@ -373,3 +378,163 @@ def test_episode_to_dict():
     assert result["turn_number"] == 1
     assert result["mode"] == "casual_chat"
     assert result["topics"] == ["greeting"]
+
+
+# ============================================================
+# SPEC-1: Community Summary Tests
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_get_community_summaries(episodic_memory_service, mock_graphiti):
+    """Test getting community summaries from episodic memory."""
+    mock_graphiti.driver.execute_query.return_value = [
+        {
+            "community_id": "comm-1",
+            "summary": "Medications and dosages",
+            "entity_count": 4,
+            "key_entities": ["Metformin", "Insulin"],
+            "updated_at": datetime(2024, 6, 1),
+        },
+    ]
+
+    summaries = await episodic_memory_service.get_community_summaries(
+        patient_id="patient-123",
+        limit=5,
+    )
+
+    assert len(summaries) == 1
+    assert isinstance(summaries[0], CommunitySummary)
+    assert summaries[0].summary == "Medications and dosages"
+
+
+@pytest.mark.asyncio
+async def test_get_community_summaries_graceful_on_error(episodic_memory_service, mock_graphiti):
+    """Test that community summary errors don't propagate."""
+    mock_graphiti.driver.execute_query.side_effect = Exception("Not available")
+
+    summaries = await episodic_memory_service.get_community_summaries(
+        patient_id="patient-123",
+    )
+
+    assert summaries == []
+
+
+@pytest.mark.asyncio
+async def test_conversation_context_includes_communities(episodic_memory_service, mock_graphiti):
+    """Test that conversation context includes community_summaries."""
+    mock_graphiti.retrieve_episodes.return_value = []
+    mock_graphiti.driver.execute_query.return_value = []
+
+    with patch("application.services.episodic_memory_service.search") as mock_search:
+        mock_results = MagicMock()
+        mock_results.episodes = []
+        mock_results.nodes = []
+        mock_search.return_value = mock_results
+
+        context = await episodic_memory_service.get_conversation_context(
+            patient_id="patient-123",
+            current_query="test",
+        )
+
+    assert "community_summaries" in context
+
+
+# ============================================================
+# SPEC-3: Bound Search Results Tests
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_search_episodes_passes_num_results(episodic_memory_service):
+    """Test that search_episodes passes num_results to search."""
+    with patch("application.services.episodic_memory_service.search") as mock_search:
+        mock_results = MagicMock()
+        mock_results.episodes = []
+        mock_search.return_value = mock_results
+
+        await episodic_memory_service.search_episodes(
+            patient_id="patient-123",
+            query="test",
+            limit=7,
+        )
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["num_results"] == 7
+
+
+@pytest.mark.asyncio
+async def test_get_related_entities_passes_num_results(episodic_memory_service):
+    """Test that get_related_entities passes num_results to search."""
+    with patch("application.services.episodic_memory_service.search") as mock_search:
+        mock_results = MagicMock()
+        mock_results.nodes = []
+        mock_search.return_value = mock_results
+
+        await episodic_memory_service.get_related_entities(
+            patient_id="patient-123",
+            query="test",
+            limit=15,
+        )
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["num_results"] == 15
+
+
+# ============================================================
+# SPEC-5: LLM Rate Limit Tests
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_store_episode_uses_retry_wrapper(episodic_memory_service, mock_graphiti):
+    """Test that store_turn_episode routes through _add_episode_with_retry."""
+    # Verify by calling store and confirming the mock was called (via retry wrapper)
+    result = await episodic_memory_service.store_turn_episode(
+        patient_id="patient-123",
+        session_id="session-abc",
+        user_message="Hello",
+        assistant_message="Hi!",
+        turn_number=1,
+    )
+
+    assert result.episode_id == "ep-123"
+    mock_graphiti.add_episode.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_retry_increments_stats(episodic_memory_service, mock_graphiti):
+    """Test that rate limit retries are tracked in stats."""
+    call_count = 0
+
+    async def rate_limit_then_succeed(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("429 Rate limit exceeded")
+        mock_result = MagicMock()
+        mock_result.episode = MagicMock(uuid="ep-retry")
+        mock_result.nodes = []
+        mock_result.edges = []
+        return mock_result
+
+    mock_graphiti.add_episode.side_effect = rate_limit_then_succeed
+
+    with patch("application.services.episodic_memory_service.asyncio.sleep", new_callable=AsyncMock):
+        result = await episodic_memory_service.store_turn_episode(
+            patient_id="patient-123",
+            session_id="session-abc",
+            user_message="Hello",
+            assistant_message="Hi!",
+            turn_number=1,
+        )
+
+    assert result.episode_id == "ep-retry"
+    assert episodic_memory_service._rate_limit_stats["retries"] == 1
+
+
+def test_get_health_returns_expected_keys(episodic_memory_service):
+    """Test that get_health returns all expected fields."""
+    health = episodic_memory_service.get_health()
+
+    assert "initialized" in health
+    assert "rate_limit_retries" in health
+    assert "rate_limit_failures" in health
+    assert "semaphore_limit" in health

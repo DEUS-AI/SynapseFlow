@@ -122,6 +122,7 @@ class CrystallizationService:
         event_bus: Any,
         graphiti_client: Optional[Any] = None,
         config: Optional[CrystallizationConfig] = None,
+        invalidation_service: Optional[Any] = None,
     ):
         """
         Initialize crystallization service.
@@ -132,12 +133,14 @@ class CrystallizationService:
             event_bus: EventBus for event-driven processing
             graphiti_client: Graphiti client for querying FalkorDB
             config: Crystallization configuration
+            invalidation_service: Optional MemoryInvalidationService for stale sweeps
         """
         self.neo4j_backend = neo4j_backend
         self.entity_resolver = entity_resolver
         self.event_bus = event_bus
         self.graphiti = graphiti_client
         self.config = config or CrystallizationConfig()
+        self.invalidation_service = invalidation_service
 
         # State tracking
         self._last_crystallization: Optional[datetime] = None
@@ -240,6 +243,15 @@ class CrystallizationService:
                     # Even without pending entities, check for new Graphiti entities
                     await self.crystallize_from_graphiti()
 
+                # SPEC-4: Run stale entity sweep after crystallization
+                if self.invalidation_service:
+                    try:
+                        sweep_result = await self.invalidation_service.sweep_stale_entities()
+                        if sweep_result.entities_invalidated > 0:
+                            logger.info(f"Stale sweep: invalidated {sweep_result.entities_invalidated} entities")
+                    except Exception as sweep_err:
+                        logger.warning(f"Stale sweep failed: {sweep_err}")
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -316,14 +328,20 @@ class CrystallizationService:
                 )
 
                 if match.found:
-                    # Merge with existing entity
+                    # Merge with existing entity (SPEC-2: include temporal fields)
+                    merge_data = {
+                        "confidence": confidence,
+                        "graphiti_entity_id": graphiti_id,
+                        "last_seen_in_episodic": datetime.utcnow().isoformat(),
+                    }
+                    if entity_data.get("valid_at"):
+                        merge_data["valid_at"] = entity_data["valid_at"]
+                    if entity_data.get("invalid_at"):
+                        merge_data["invalid_at"] = entity_data["invalid_at"]
+
                     merge_result = await self.entity_resolver.merge_for_crystallization(
                         existing_id=match.entity_id,
-                        new_data={
-                            "confidence": confidence,
-                            "graphiti_entity_id": graphiti_id,
-                            "last_seen_in_episodic": datetime.utcnow().isoformat(),
-                        }
+                        new_data=merge_data,
                     )
 
                     if merge_result.success:
@@ -380,6 +398,14 @@ class CrystallizationService:
                         ))
                     else:
                         errors.append(f"Failed to create entity: {name}")
+
+                # SPEC-2: Resolve temporal conflicts for this entity
+                if entity_data.get("valid_at"):
+                    await self._resolve_temporal_conflicts(
+                        entity_name=name,
+                        entity_type=entity_type,
+                        new_valid_from=entity_data["valid_at"],
+                    )
 
             except Exception as e:
                 logger.error(f"Error crystallizing entity {entity_data}: {e}")
@@ -455,6 +481,11 @@ class CrystallizationService:
             "first_observed": datetime.utcnow().isoformat(),
             "last_observed": datetime.utcnow().isoformat(),
             "source": "graphiti_episodic",
+            # SPEC-2: Temporal conflict resolution fields
+            "valid_from": source_data.get("valid_at", datetime.utcnow().isoformat()),
+            "valid_until": source_data.get("invalid_at"),
+            "invalidated_at": source_data.get("expired_at"),
+            "is_current": source_data.get("invalid_at") is None,
         }
 
         if graphiti_id:
@@ -479,6 +510,75 @@ class CrystallizationService:
         except Exception as e:
             logger.error(f"Failed to create PERCEPTION entity {name}: {e}")
             return None
+
+    # ========================================
+    # Temporal Conflict Resolution (SPEC-2)
+    # ========================================
+
+    async def _resolve_temporal_conflicts(
+        self,
+        entity_name: str,
+        entity_type: str,
+        new_valid_from: Optional[str],
+    ) -> int:
+        """
+        Invalidate existing DIKW entities superseded by a newer fact.
+
+        When the same entity (by name+type) appears with a newer valid_from,
+        all previous is_current=true versions get marked as invalidated.
+        Old entities are never deleted -- only invalidated (preserving history).
+
+        Args:
+            entity_name: Name of the entity
+            entity_type: Type of the entity
+            new_valid_from: valid_from timestamp of the new fact
+
+        Returns:
+            Number of entities invalidated.
+        """
+        if not new_valid_from:
+            return 0
+
+        normalized_name = self.entity_resolver.normalize_entity_name(entity_name)
+        normalized_type = self.entity_resolver.normalize_entity_type(entity_type)
+
+        query = """
+        MATCH (n:Entity)
+        WHERE toLower(n.name) = $name
+          AND n.entity_type = $type
+          AND (n.is_current = true OR n.is_current IS NULL)
+          AND n.valid_from IS NOT NULL
+          AND n.valid_from < $new_valid_from
+        SET n.valid_until = $new_valid_from,
+            n.is_current = false,
+            n.invalidated_at = datetime()
+        RETURN count(n) as invalidated
+        """
+
+        try:
+            result = await self.neo4j_backend.query(
+                query,
+                {
+                    "name": normalized_name,
+                    "type": normalized_type,
+                    "new_valid_from": new_valid_from,
+                },
+            )
+
+            rows = result.get("rows", []) if isinstance(result, dict) else []
+            invalidated = rows[0].get("invalidated", 0) if rows else 0
+
+            if invalidated > 0:
+                logger.info(
+                    f"Temporal conflict: invalidated {invalidated} prior version(s) "
+                    f"of '{entity_name}' ({entity_type})"
+                )
+
+            return invalidated
+
+        except Exception as e:
+            logger.error(f"Error resolving temporal conflicts for '{entity_name}': {e}")
+            return 0
 
     async def crystallize_from_graphiti(
         self,
@@ -528,29 +628,65 @@ class CrystallizationService:
 
             # If we have search capability, use it
             if hasattr(self.graphiti, 'clients'):
+                from copy import deepcopy
                 from graphiti_core.search.search import search
                 from graphiti_core.search.search_config_recipes import COMBINED_HYBRID_SEARCH_CROSS_ENCODER
                 from graphiti_core.search.search_filters import SearchFilters
 
-                # Search for all entities (broad query)
+                # SPEC-3: Pass explicit result bound + use timestamp-based query
+                # instead of hardcoded "medical entity"
+                search_config = deepcopy(COMBINED_HYBRID_SEARCH_CROSS_ENCODER)
+                if hasattr(search_config, 'limit'):
+                    search_config.limit = limit
+                if hasattr(search_config, 'num_results'):
+                    search_config.num_results = limit
+
+                # Use entity-type-agnostic query based on recency
+                query = f"entities since {since.strftime('%Y-%m-%d')}"
+                if patient_id:
+                    query = f"patient {patient_id} {query}"
+
                 results = await search(
                     clients=self.graphiti.clients,
-                    query="medical entity",  # Broad query
+                    query=query,
                     group_ids=[patient_id] if patient_id else None,
                     search_filter=SearchFilters(),
-                    config=COMBINED_HYBRID_SEARCH_CROSS_ENCODER,
+                    config=search_config,
+                    num_results=limit,
                 )
 
                 for node in results.nodes[:limit]:
                     if node.created_at and node.created_at > since:
-                        entities.append({
+                        # SPEC-2: Extract temporal metadata from edges for this node
+                        node_edges = [
+                            e for e in (results.edges or [])
+                            if e.source_node_uuid == node.uuid
+                            or e.target_node_uuid == node.uuid
+                        ] if hasattr(results, 'edges') and results.edges else []
+                        latest_edge = (
+                            max(node_edges, key=lambda e: e.created_at)
+                            if node_edges else None
+                        )
+
+                        entity_entry = {
                             "name": node.name,
                             "entity_type": node.labels[0] if node.labels else "Entity",
                             "confidence": 0.8,  # Default confidence from Graphiti
                             "graphiti_id": node.uuid,
                             "summary": node.summary,
                             "patient_id": patient_id,
-                        })
+                        }
+
+                        # Propagate bi-temporal fields if available
+                        if latest_edge:
+                            if hasattr(latest_edge, 'valid_at') and latest_edge.valid_at:
+                                entity_entry["valid_at"] = latest_edge.valid_at.isoformat()
+                            if hasattr(latest_edge, 'invalid_at') and latest_edge.invalid_at:
+                                entity_entry["invalid_at"] = latest_edge.invalid_at.isoformat()
+                            if hasattr(latest_edge, 'expired_at') and latest_edge.expired_at:
+                                entity_entry["expired_at"] = latest_edge.expired_at.isoformat()
+
+                        entities.append(entity_entry)
 
             if entities:
                 return await self.crystallize_entities(entities, source="graphiti_query")

@@ -20,8 +20,10 @@ Event Integration:
 - Events include extracted entities for DIKW pipeline processing
 """
 
+import asyncio
 import logging
 import os
+from copy import deepcopy
 from datetime import datetime
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
@@ -117,6 +119,16 @@ class ConversationEpisode:
     entities: List[Dict[str, Any]] = field(default_factory=list)
 
 
+@dataclass
+class CommunitySummary:
+    """A community-level summary from Graphiti's community subgraph (SPEC-1)."""
+    community_id: str
+    summary: str
+    entity_count: int
+    key_entities: List[str]
+    updated_at: Optional[datetime] = None
+
+
 class EpisodicMemoryService:
     """
     Episodic memory service using Graphiti with FalkorDB.
@@ -153,6 +165,13 @@ class EpisodicMemoryService:
         self.event_bus = event_bus
         self._initialized = False
 
+        # SPEC-5: Rate limit tracking
+        self._rate_limit_stats: Dict[str, Any] = {
+            "retries": 0,
+            "failures": 0,
+            "last_rate_limit": None,
+        }
+
         logger.info("EpisodicMemoryService initialized")
 
     async def initialize(self) -> None:
@@ -171,6 +190,45 @@ class EpisodicMemoryService:
     async def close(self) -> None:
         """Close the Graphiti connection."""
         await self.graphiti.close()
+
+    # ========================================
+    # Rate Limit Management (SPEC-5)
+    # ========================================
+
+    async def _add_episode_with_retry(self, **kwargs) -> Any:
+        """Call graphiti.add_episode with retry on LLM rate limit errors."""
+        max_retries = int(os.getenv("GRAPHITI_LLM_MAX_RETRIES", "3"))
+        retry_enabled = os.getenv("GRAPHITI_LLM_RETRY_ENABLED", "true").lower() in ("true", "1")
+
+        for attempt in range(max_retries + 1):
+            try:
+                return await self.graphiti.add_episode(**kwargs)
+            except Exception as e:
+                is_rate_limit = "429" in str(e) or "rate" in str(e).lower()
+                if is_rate_limit and retry_enabled and attempt < max_retries:
+                    wait = 2 ** (attempt + 1)  # 2, 4, 8 seconds
+                    self._rate_limit_stats["retries"] += 1
+                    self._rate_limit_stats["last_rate_limit"] = datetime.now().isoformat()
+                    logger.warning(
+                        f"LLM rate limit hit (attempt {attempt + 1}/{max_retries}), "
+                        f"retrying in {wait}s"
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    if is_rate_limit:
+                        self._rate_limit_stats["failures"] += 1
+                        self._rate_limit_stats["last_rate_limit"] = datetime.now().isoformat()
+                    raise
+
+    def get_health(self) -> Dict[str, Any]:
+        """Return health/status information including rate limit stats."""
+        return {
+            "initialized": self._initialized,
+            "rate_limit_retries": self._rate_limit_stats["retries"],
+            "rate_limit_failures": self._rate_limit_stats["failures"],
+            "last_rate_limit": self._rate_limit_stats["last_rate_limit"],
+            "semaphore_limit": int(os.getenv("SEMAPHORE_LIMIT", "10")),
+        }
 
     # ========================================
     # Episode Storage
@@ -227,7 +285,7 @@ class EpisodicMemoryService:
         start_time = datetime.now()
 
         try:
-            result = await self.graphiti.add_episode(
+            result = await self._add_episode_with_retry(
                 name=episode_name,
                 episode_body=episode_body,
                 source_description=source_description,
@@ -320,7 +378,7 @@ class EpisodicMemoryService:
         start_time = datetime.now()
 
         try:
-            result = await self.graphiti.add_episode(
+            result = await self._add_episode_with_retry(
                 name=episode_name,
                 episode_body=episode_body,
                 source_description=source_description,
@@ -427,15 +485,23 @@ class EpisodicMemoryService:
             group_ids.append(f"{patient_id}:{session_id}")
 
         try:
+            # SPEC-3: Pass explicit result bound to search
+            search_config = deepcopy(COMBINED_HYBRID_SEARCH_CROSS_ENCODER)
+            if hasattr(search_config, 'limit'):
+                search_config.limit = limit
+            if hasattr(search_config, 'num_results'):
+                search_config.num_results = limit
+
             results: SearchResults = await search(
                 clients=self.graphiti.clients,
                 query=query,
                 group_ids=group_ids,
                 search_filter=SearchFilters(),
-                config=COMBINED_HYBRID_SEARCH_CROSS_ENCODER,
+                config=search_config,
+                num_results=limit,
             )
 
-            # Convert search results to episodes
+            # Convert search results to episodes (bounded by search config above)
             episodes = []
             for ep in results.episodes[:limit]:
                 episodes.append(self._convert_episode(ep, patient_id))
@@ -470,12 +536,20 @@ class EpisodicMemoryService:
         await self.initialize()
 
         try:
+            # SPEC-3: Pass explicit result bound to search
+            search_config = deepcopy(COMBINED_HYBRID_SEARCH_CROSS_ENCODER)
+            if hasattr(search_config, 'limit'):
+                search_config.limit = limit
+            if hasattr(search_config, 'num_results'):
+                search_config.num_results = limit
+
             results: SearchResults = await search(
                 clients=self.graphiti.clients,
                 query=query,
                 group_ids=[patient_id],
                 search_filter=SearchFilters(),
-                config=COMBINED_HYBRID_SEARCH_CROSS_ENCODER,
+                config=search_config,
+                num_results=limit,
             )
 
             entities = []
@@ -548,11 +622,104 @@ class EpisodicMemoryService:
         recent_ids = {ep.episode_id for ep in recent}
         related = [ep for ep in related if ep.episode_id not in recent_ids]
 
+        # SPEC-1: Get community summaries (gracefully degradable)
+        community_summaries: List[CommunitySummary] = []
+        try:
+            community_summaries = await self.get_community_summaries(
+                patient_id=patient_id,
+                limit=3,
+            )
+        except Exception as e:
+            logger.debug(f"Community summaries unavailable: {e}")
+
         return {
             "recent_episodes": [self._episode_to_dict(ep) for ep in recent],
             "related_episodes": [self._episode_to_dict(ep) for ep in related[:max_episodes - len(recent)]],
             "entities": entities,
-            "total_context_items": len(recent) + len(related) + len(entities),
+            "community_summaries": [self._summary_to_dict(s) for s in community_summaries],
+            "total_context_items": len(recent) + len(related) + len(entities) + len(community_summaries),
+        }
+
+    # ========================================
+    # Community Summaries (SPEC-1)
+    # ========================================
+
+    async def get_community_summaries(
+        self,
+        patient_id: str,
+        limit: int = 5,
+    ) -> List[CommunitySummary]:
+        """Get community-level summaries from Graphiti's community subgraph.
+
+        Graphiti clusters strongly-connected entities into communities and
+        generates high-level summaries via label propagation. This method
+        queries those community nodes filtered by patient group_id.
+
+        If the Graphiti version does not expose community nodes, returns [].
+
+        Args:
+            patient_id: Patient identifier for group_id filtering.
+            limit: Maximum number of community summaries to return.
+
+        Returns:
+            List of CommunitySummary objects.
+        """
+        await self.initialize()
+
+        try:
+            driver = self.graphiti.driver if hasattr(self.graphiti, 'driver') else None
+            if driver is None:
+                logger.debug("No graph driver available for community queries")
+                return []
+
+            # Query community nodes from the graph
+            # Graphiti stores communities with the Community_ label prefix
+            query = """
+            MATCH (c:Community)
+            WHERE c.group_id = $group_id OR c.group_id IS NULL
+            OPTIONAL MATCH (c)-[:HAS_MEMBER]->(e:Entity)
+            WITH c, collect(DISTINCT e.name) AS member_names, count(DISTINCT e) AS member_count
+            RETURN c.uuid AS community_id,
+                   c.summary AS summary,
+                   member_count AS entity_count,
+                   member_names AS key_entities,
+                   c.updated_at AS updated_at
+            ORDER BY member_count DESC
+            LIMIT $limit
+            """
+
+            result = await driver.execute_query(
+                query, {"group_id": patient_id, "limit": limit}
+            )
+
+            summaries = []
+            rows = result if isinstance(result, list) else []
+            for row in rows:
+                if not row.get("summary"):
+                    continue
+                summaries.append(CommunitySummary(
+                    community_id=row.get("community_id", ""),
+                    summary=row.get("summary", ""),
+                    entity_count=row.get("entity_count", 0),
+                    key_entities=row.get("key_entities", [])[:10],
+                    updated_at=row.get("updated_at"),
+                ))
+
+            logger.debug(f"Retrieved {len(summaries)} community summaries for patient {patient_id}")
+            return summaries
+
+        except Exception as e:
+            logger.debug(f"Community summaries unavailable: {e}")
+            return []
+
+    def _summary_to_dict(self, summary: CommunitySummary) -> Dict[str, Any]:
+        """Convert CommunitySummary to dictionary."""
+        return {
+            "community_id": summary.community_id,
+            "summary": summary.summary,
+            "entity_count": summary.entity_count,
+            "key_entities": summary.key_entities,
+            "updated_at": summary.updated_at.isoformat() if summary.updated_at else None,
         }
 
     # ========================================

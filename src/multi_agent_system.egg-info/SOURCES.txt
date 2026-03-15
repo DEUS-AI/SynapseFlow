@@ -88,6 +88,8 @@ docs/architecture/ARCHITECTURE_DIAGRAM.md
 docs/architecture/DECISION_TREE.md
 docs/architecture/DIKW_ARCHITECTURE_PLAN.md
 docs/architecture/ENABLE_RAG_AND_REASONING.md
+docs/architecture/GRAPHITI_ALIGNMENT_SPECS.md
+docs/architecture/GRAPHITI_MEMORY_BRIEF.md
 docs/architecture/HYPERGRAPH_BRIDGE_ARCHITECTURE.md
 docs/architecture/KNOWLEDGE_GRAPH_LAYERS_ARCHITECTURE.md
 docs/architecture/LANGGRAPH_ARCHITECTURE.md
@@ -17922,6 +17924,7 @@ tests/test_episodic_memory.py
 tests/test_evaluation_framework.py
 tests/test_event_bus.py
 tests/test_generate_data_map.py
+tests/test_graphiti_alignment_specs.py
 tests/test_improved_reasoning.py
 tests/test_in_memory_backend.py
 tests/test_intelligent_chat_integration.py
