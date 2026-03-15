@@ -46,25 +46,16 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Configure CORS
-allowed_origins = os.environ.get(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:4321"
-).split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Auth middleware: protects all /api/* and /ws/* routes except exempt paths.
 # Exempt: /api/auth/*, /api/admin/*, /health, /docs, /openapi.json, /redoc
 _AUTH_EXEMPT_PREFIXES = ("/api/auth/", "/api/admin/", "/health", "/docs", "/openapi.json", "/redoc")
 
 class _AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Pass OPTIONS (CORS preflight) through unconditionally
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         path = request.url.path
         protected = path.startswith("/api/") or path.startswith("/ws/")
         if not protected or any(path.startswith(p) for p in _AUTH_EXEMPT_PREFIXES):
@@ -104,6 +95,20 @@ class _AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 app.add_middleware(_AuthMiddleware)
+
+# CORS must be added AFTER AuthMiddleware so it runs first (outermost wrapper).
+# In Starlette, last-added middleware = outermost = first to process requests.
+allowed_origins = os.environ.get(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:4321"
+).split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include routers
 app.include_router(auth_router)
