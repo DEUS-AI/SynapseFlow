@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Network, Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import * as d3 from 'd3';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 
 interface GraphNode {
   id: string;
@@ -60,8 +61,8 @@ export function PatientDetailsModal({ patientId, isOpen, onClose }: PatientDetai
       setError(null);
 
       try {
-        const response = await fetch(
-          `/api/patients/${encodeURIComponent(patientId)}/graph?limit=100`
+        const response = await fetchWithAuth(
+          apiUrl(`/api/patients/${encodeURIComponent(patientId)}/graph?limit=100`)
         );
 
         if (!response.ok) {

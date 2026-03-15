@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import type { GraphData, GraphNode, GraphEdge } from '../../types/graph';
 import { GraphControls } from './GraphControls';
 import { EntityDetailsPanel } from './EntityDetailsPanel';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 
 type LayerType = 'all' | 'perception' | 'semantic' | 'reasoning' | 'application';
 
@@ -48,17 +49,17 @@ export function KnowledgeGraphViewer({ initialData, documentFilter, hideControls
     let url: string;
     if (documentFilter) {
       // Use document-specific endpoint
-      url = `/api/admin/documents/${encodeURIComponent(documentFilter)}/graph?limit=${limit}`;
+      url = apiUrl(`/api/admin/documents/${encodeURIComponent(documentFilter)}/graph?limit=${limit}`);
     } else {
       // Use general graph endpoint
       const params = new URLSearchParams({ limit: String(limit) });
       if (selectedLayer !== 'all') {
         params.set('layer', selectedLayer.toLowerCase());
       }
-      url = `/api/graph/data?${params}`;
+      url = apiUrl(`/api/graph/data?${params}`);
     }
 
-    fetch(url)
+    fetchWithAuth(url)
       .then(res => {
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);

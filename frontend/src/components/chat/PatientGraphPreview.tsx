@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Network, ExternalLink, Loader2 } from 'lucide-react';
 import * as d3 from 'd3';
+import { apiUrl, fetchWithAuth } from '../../lib/api';
 
 interface GraphNode {
   id: string;
@@ -53,8 +54,8 @@ export function PatientGraphPreview({ patientId, onExpandClick }: PatientGraphPr
       setError(null);
 
       try {
-        const response = await fetch(
-          `/api/patients/${encodeURIComponent(patientId)}/graph?limit=30`
+        const response = await fetchWithAuth(
+          apiUrl(`/api/patients/${encodeURIComponent(patientId)}/graph?limit=30`)
         );
 
         if (!response.ok) {
