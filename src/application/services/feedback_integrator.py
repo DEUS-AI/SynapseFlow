@@ -435,6 +435,52 @@ class FeedbackIntegrator:
 
         logger.info(f"Exported feedback data to {filepath}")
 
+    def get_recent_metrics(
+        self,
+        agent_id: Optional[str] = None,
+        window_minutes: int = 60,
+    ) -> Dict[str, Any]:
+        """Get summarised metrics from the recent feedback window.
+
+        Useful for the experiment runner which needs a quick baseline/post
+        measurement without scanning the entire history.
+
+        Args:
+            agent_id: Optional filter for feedback tagged with this agent.
+            window_minutes: How far back to look.
+
+        Returns:
+            Dictionary with success_rate, avg_confidence, total, and per-op breakdown.
+        """
+        cutoff = datetime.now() - timedelta(minutes=window_minutes)
+        recent = [
+            f for f in self.feedback_history
+            if f.timestamp >= cutoff
+            and (agent_id is None or f.context.get("agent_id") == agent_id)
+        ]
+
+        if not recent:
+            return {"total": 0, "success_rate": 0.0, "avg_confidence": 0.0, "by_operation": {}}
+
+        success_count = sum(1 for f in recent if f.actual_outcome)
+        avg_conf = sum(f.predicted_confidence for f in recent) / len(recent)
+
+        by_op: Dict[str, Dict[str, Any]] = {}
+        for f in recent:
+            op = f.operation_type
+            if op not in by_op:
+                by_op[op] = {"total": 0, "successes": 0}
+            by_op[op]["total"] += 1
+            if f.actual_outcome:
+                by_op[op]["successes"] += 1
+
+        return {
+            "total": len(recent),
+            "success_rate": success_count / len(recent),
+            "avg_confidence": avg_conf,
+            "by_operation": by_op,
+        }
+
     def clear_old_feedback(self, days_to_keep: int = 30) -> int:
         """
         Clear feedback older than specified days.

@@ -90,6 +90,19 @@ if EVAL_MODE_ENABLED:
 else:
     logger.debug("Evaluation endpoints disabled (set SYNAPSEFLOW_EVAL_MODE=true to enable)")
 
+# ========================================
+# Only register experiment endpoints when ENABLE_AGENT_EXPERIMENTS=true
+# These endpoints expose the autonomous agent tuning system
+
+EXPERIMENTS_ENABLED = os.getenv("ENABLE_AGENT_EXPERIMENTS", "false").lower() in ("true", "1", "yes")
+
+if EXPERIMENTS_ENABLED:
+    from .experiment_router import router as experiment_router
+    app.include_router(experiment_router)
+    logger.info("Experiment endpoints enabled (ENABLE_AGENT_EXPERIMENTS=true)")
+else:
+    logger.debug("Experiment endpoints disabled (set ENABLE_AGENT_EXPERIMENTS=true to enable)")
+
 
 # ========================================
 # Startup Events

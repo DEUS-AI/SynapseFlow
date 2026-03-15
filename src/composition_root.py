@@ -644,3 +644,65 @@ def get_infrastructure_builder(
             km_url = builder.get_agent_url("knowledge_manager")
     """
     return AgentInfrastructureBuilder(config)
+
+
+async def bootstrap_experiment_system(
+    kg_backend: Optional[KnowledgeGraphBackend] = None,
+    feedback_integrator=None,
+    discovery_service=None,
+    agents: Optional[Dict[str, Any]] = None,
+):
+    """Initialize the autonomous agent experiment system.
+
+    Guarded by ENABLE_AGENT_EXPERIMENTS=true. Returns None tuple if disabled.
+
+    Args:
+        kg_backend: KG backend for experiment store persistence.
+        feedback_integrator: FeedbackIntegrator for metrics collection.
+        discovery_service: AgentDiscoveryService for agent health.
+        agents: Dict of agent_id -> live agent instances for the tuner.
+
+    Returns:
+        Tuple of (ExperimentLoopJob, ExperimentRunner, AgentTuner, MetricsCollector, ExperimentStore)
+        or (None, None, None, None, None) if disabled.
+    """
+    import os
+    from config.experiment_config import ExperimentSystemConfig
+
+    config = ExperimentSystemConfig.from_env()
+    if not config.enabled:
+        return None, None, None, None, None
+
+    print("🔄 Initializing Agent Experiment System...")
+
+    from application.services.metrics_collector import MetricsCollector
+    from application.services.agent_tuner import AgentTuner
+    from application.services.experiment_runner import ExperimentRunner
+    from application.jobs.experiment_loop import ExperimentLoopJob
+    from infrastructure.experiment_store import ExperimentStore
+
+    collector = MetricsCollector(
+        feedback_integrator=feedback_integrator,
+        discovery_service=discovery_service,
+    )
+
+    tuner = AgentTuner(agents=agents or {})
+
+    store = ExperimentStore(kg_backend) if kg_backend else None
+
+    runner = ExperimentRunner(
+        metrics_collector=collector,
+        agent_tuner=tuner,
+        experiment_store=store,
+        system_config=config,
+    )
+
+    loop_job = ExperimentLoopJob(
+        experiment_runner=runner,
+        agent_tuner=tuner,
+        cycle_interval_seconds=config.cycle_interval_seconds,
+        max_experiments_per_cycle=config.max_experiments_per_cycle,
+    )
+
+    print("✅ Agent Experiment System initialized")
+    return loop_job, runner, tuner, collector, store

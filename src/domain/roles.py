@@ -17,3 +17,4 @@ class Role(str, Enum):
     KNOWLEDGE_MANAGER = "knowledge_manager"
     MEDICAL_ASSISTANT = "medical_assistant"
     SYSTEM_ADMIN = "system_admin"
+    EXPERIMENT_RUNNER = "experiment_runner"

@@ -96,6 +96,15 @@ class AgentConfig:
 
 
 @dataclass
+class ExperimentConfig:
+    """Experiment system configuration within agent infra."""
+    enabled: bool = False
+    cycle_interval_seconds: int = 3600
+    max_experiments_per_cycle: int = 10
+    default_experiment_duration_seconds: int = 300
+
+
+@dataclass
 class AgentInfraConfig:
     """Complete agent infrastructure configuration."""
     deployment_mode: DeploymentMode = DeploymentMode.LOCAL
@@ -103,6 +112,7 @@ class AgentInfraConfig:
     communication_channel: ChannelConfig = field(default_factory=ChannelConfig)
     discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
     agents: Dict[str, AgentConfig] = field(default_factory=dict)
+    experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AgentInfraConfig":
